@@ -1,0 +1,117 @@
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '@/config/api';
+
+const ACCESS_TOKEN_KEY = 'tolle:access_token';
+const REFRESH_TOKEN_KEY = 'tolle:refresh_token';
+
+export const tokenStorage = {
+  async setTokens(accessToken: string, refreshToken: string) {
+    await AsyncStorage.multiSet([
+      [ACCESS_TOKEN_KEY, accessToken],
+      [REFRESH_TOKEN_KEY, refreshToken],
+    ]);
+  },
+  async getAccessToken(): Promise<string | null> {
+    return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+  },
+  async getRefreshToken(): Promise<string | null> {
+    return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+  async clear() {
+    await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+  },
+};
+
+export const api: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Request interceptor: attach JWT
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  const token = await tokenStorage.getAccessToken();
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor: refresh on 401
+let isRefreshing = false;
+let refreshQueue: Array<(token: string | null) => void> = [];
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest: any = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/')
+    ) {
+      if (isRefreshing) {
+        // Queue this request until refresh completes
+        return new Promise((resolve, reject) => {
+          refreshQueue.push((token) => {
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            } else {
+              reject(error);
+            }
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await tokenStorage.getRefreshToken();
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const { data } = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          { refreshToken }
+        );
+
+        const { accessToken, refreshToken: newRefresh } = data.data;
+        await tokenStorage.setTokens(accessToken, newRefresh);
+
+        refreshQueue.forEach((cb) => cb(accessToken));
+        refreshQueue = [];
+
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        refreshQueue.forEach((cb) => cb(null));
+        refreshQueue = [];
+        await tokenStorage.clear();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Unwrap response envelope { data, error }
+export function unwrap<T>(response: { data: { data: T; error?: unknown } }): T {
+  return response.data.data;
+}
+
+export function getApiError(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const payload = error.response?.data as any;
+    if (payload?.error?.message) return payload.error.message;
+    return error.message;
+  }
+  if (error instanceof Error) return error.message;
+  return 'Erreur inconnue';
+}

@@ -1,0 +1,342 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Button, Input, Card } from '@/components/ui';
+import { LocationPicker } from '@/components/LocationPicker';
+import { PriceEstimate } from '@/components/delivery';
+import { colors, typography, spacing, borderRadius } from '@/theme';
+import { useDeliveryStore } from '@/stores/delivery.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { useDeliveryPrice } from '@/hooks/useDeliveryPrice';
+import { PackageType, PACKAGE_LABELS } from '@/types';
+import { OUAGADOUGOU_CENTER } from '@/utils/geo';
+
+const packageTypes: { type: PackageType; icon: string }[] = [
+  { type: 'envelope', icon: 'mail-outline' },
+  { type: 'small', icon: 'cube-outline' },
+  { type: 'large', icon: 'archive-outline' },
+];
+
+export default function NewDeliveryScreen() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const { draft, setDraftField, createDelivery, isLoading } = useDeliveryStore();
+  const [step, setStep] = useState(0);
+
+  // Mock locations for demo
+  const pickupLoc = draft.pickupLocation || { latitude: 12.3714, longitude: -1.5197 };
+  const deliveryLoc = draft.deliveryLocation || { latitude: 12.3500, longitude: -1.5500 };
+
+  const estimate = useDeliveryPrice(draft.packageType, pickupLoc, deliveryLoc);
+
+  const handleSubmit = async () => {
+    if (!user) return;
+
+    // Set mock locations if not set
+    if (!draft.pickupLocation) {
+      setDraftField('pickupLocation', pickupLoc);
+    }
+    if (!draft.deliveryLocation) {
+      setDraftField('deliveryLocation', deliveryLoc);
+    }
+
+    try {
+      await createDelivery(user.id);
+      router.push('/(client)/searching');
+    } catch (e) {
+      // Handle error
+    }
+  };
+
+  const steps = [
+    // Step 0: Package type
+    <View key="type" style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Type de colis</Text>
+      <View style={styles.packageTypes}>
+        {packageTypes.map((pkg) => (
+          <TouchableOpacity
+            key={pkg.type}
+            style={[
+              styles.packageCard,
+              draft.packageType === pkg.type && styles.packageCardSelected,
+            ]}
+            onPress={() => setDraftField('packageType', pkg.type)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={pkg.icon as any}
+              size={32}
+              color={draft.packageType === pkg.type ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.packageLabel,
+                draft.packageType === pkg.type && styles.packageLabelSelected,
+              ]}
+            >
+              {PACKAGE_LABELS[pkg.type]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Input
+        label="Description (optionnel)"
+        placeholder="Ex: Telephone portable"
+        value={draft.packageDescription || ''}
+        onChangeText={(v) => setDraftField('packageDescription', v)}
+        containerStyle={styles.inputMargin}
+      />
+    </View>,
+
+    // Step 1: Addresses
+    <View key="addresses" style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Point de recuperation</Text>
+      <Text style={styles.stepHint}>
+        Partagez une position WhatsApp, votre position GPS, ou choisissez sur la carte
+      </Text>
+
+      <View style={styles.locationGroup}>
+        <LocationPicker
+          label="Recuperation"
+          iconColor={colors.primary}
+          address={draft.pickupAddress || ''}
+          onAddressChange={(v) => setDraftField('pickupAddress', v)}
+          location={draft.pickupLocation || null}
+          onLocationChange={(loc) => setDraftField('pickupLocation', loc)}
+        />
+        <Input
+          placeholder="Details (optionnel)"
+          value={draft.pickupDetails || ''}
+          onChangeText={(v) => setDraftField('pickupDetails', v)}
+        />
+      </View>
+
+      <View style={styles.divider} />
+
+      <Text style={styles.stepTitle}>Point de livraison</Text>
+      <View style={styles.locationGroup}>
+        <LocationPicker
+          label="Livraison"
+          iconColor={colors.secondary}
+          address={draft.deliveryAddress || ''}
+          onAddressChange={(v) => setDraftField('deliveryAddress', v)}
+          location={draft.deliveryLocation || null}
+          onLocationChange={(loc) => setDraftField('deliveryLocation', loc)}
+        />
+        <Input
+          placeholder="Details (optionnel)"
+          value={draft.deliveryDetails || ''}
+          onChangeText={(v) => setDraftField('deliveryDetails', v)}
+        />
+      </View>
+    </View>,
+
+    // Step 2: Recipient
+    <View key="recipient" style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Destinataire</Text>
+      <Input
+        label="Nom du destinataire"
+        placeholder="Ex: Rasmane Kindo"
+        value={draft.recipientName || ''}
+        onChangeText={(v) => setDraftField('recipientName', v)}
+        autoCapitalize="words"
+        containerStyle={styles.inputMargin}
+      />
+      <Input
+        label="Telephone du destinataire"
+        placeholder="70 12 34 56"
+        value={draft.recipientPhone || ''}
+        onChangeText={(v) => setDraftField('recipientPhone', v)}
+        keyboardType="phone-pad"
+        containerStyle={styles.inputMargin}
+      />
+    </View>,
+
+    // Step 3: Summary
+    <View key="summary" style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Recapitulatif</Text>
+      {estimate && <PriceEstimate estimate={estimate} />}
+      <Card style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Colis</Text>
+          <Text style={styles.summaryValue}>
+            {draft.packageType ? PACKAGE_LABELS[draft.packageType] : '-'}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Recuperation</Text>
+          <Text style={styles.summaryValue} numberOfLines={1}>
+            {draft.pickupAddress || '-'}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Livraison</Text>
+          <Text style={styles.summaryValue} numberOfLines={1}>
+            {draft.deliveryAddress || '-'}
+          </Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Destinataire</Text>
+          <Text style={styles.summaryValue}>{draft.recipientName || '-'}</Text>
+        </View>
+      </Card>
+    </View>,
+  ];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => step > 0 ? setStep(step - 1) : router.back()}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Nouveau colis</Text>
+          <Text style={styles.stepIndicator}>{step + 1}/4</Text>
+        </View>
+
+        {/* Progress bar */}
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
+        </View>
+
+        <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+          {steps[step]}
+        </ScrollView>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          {step < 3 ? (
+            <Button title="Continuer" onPress={() => setStep(step + 1)} />
+          ) : (
+            <Button title="Confirmer" onPress={handleSubmit} loading={isLoading} />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  headerTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  stepIndicator: {
+    ...typography.captionMedium,
+    color: colors.textSecondary,
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: colors.surface,
+  },
+  progressFill: {
+    height: 3,
+    backgroundColor: colors.primary,
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  stepContent: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  stepTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  stepHint: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  locationGroup: {
+    gap: spacing.md,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.lg,
+  },
+  packageTypes: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  packageCard: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  packageCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  packageLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  packageLabelSelected: {
+    color: colors.primaryDark,
+    fontWeight: '600',
+  },
+  inputMargin: {
+    marginBottom: spacing.md,
+  },
+  summaryCard: {
+    marginTop: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+  },
+  summaryLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  summaryValue: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: spacing.md,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+});

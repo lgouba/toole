@@ -1,0 +1,25 @@
+export const colors = {
+  primary: '#1D9E75',
+  primaryDark: '#0F6E56',
+  primaryLight: '#E1F5EE',
+  secondary: '#D85A30',
+  secondaryLight: '#FFF0EB',
+  warning: '#EF9F27',
+  warningLight: '#FFF8E7',
+  error: '#DC3545',
+  errorLight: '#FFE8EA',
+  success: '#1D9E75',
+  successLight: '#E1F5EE',
+  background: '#FFFFFF',
+  surface: '#F5F5F0',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#6B6B6B',
+  textTertiary: '#9B9B9B',
+  border: '#E5E5E0',
+  borderFocus: '#1D9E75',
+  white: '#FFFFFF',
+  black: '#000000',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+} as const;
+
+export type ColorName = keyof typeof colors;

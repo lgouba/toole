@@ -1,0 +1,104 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { User, UserRole } from '@/types';
+import * as authService from '@/services/auth.service';
+import { disconnectSocket } from '@/services/socket.client';
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isOnboarded: boolean;
+  isLoading: boolean;
+  phoneNumber: string;
+  lastOtpCode: string;
+
+  setPhoneNumber: (phone: string) => void;
+  sendOtp: (phone: string) => Promise<boolean>;
+  verifyOtp: (code: string) => Promise<{ success: boolean; isNewUser: boolean }>;
+  register: (fullName: string, userType: UserRole) => Promise<boolean>;
+  completeOnboarding: () => void;
+  logout: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      isOnboarded: false,
+      isLoading: false,
+      phoneNumber: '',
+      lastOtpCode: '',
+
+      setPhoneNumber: (phone) => set({ phoneNumber: phone }),
+
+      sendOtp: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const result = await authService.sendOtp(phone);
+          set({ phoneNumber: phone, isLoading: false });
+          return result.success;
+        } catch {
+          set({ isLoading: false });
+          return false;
+        }
+      },
+
+      verifyOtp: async (code) => {
+        set({ isLoading: true, lastOtpCode: code });
+        try {
+          const result = await authService.verifyOtp(get().phoneNumber, code);
+          if (result.success && result.user) {
+            set({ user: result.user, isAuthenticated: true, isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
+          return { success: result.success, isNewUser: result.isNewUser };
+        } catch {
+          set({ isLoading: false });
+          return { success: false, isNewUser: false };
+        }
+      },
+
+      register: async (fullName, userType) => {
+        set({ isLoading: true });
+        try {
+          const user = await authService.registerUser(
+            get().phoneNumber,
+            fullName,
+            userType,
+            get().lastOtpCode
+          );
+          set({ user, isAuthenticated: true, isLoading: false, lastOtpCode: '' });
+          return true;
+        } catch {
+          set({ isLoading: false });
+          return false;
+        }
+      },
+
+      completeOnboarding: () => set({ isOnboarded: true }),
+
+      logout: async () => {
+        disconnectSocket();
+        await authService.logout();
+        set({
+          user: null,
+          isAuthenticated: false,
+          phoneNumber: '',
+          lastOtpCode: '',
+        });
+      },
+    }),
+    {
+      name: 'tolle-auth',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        isOnboarded: state.isOnboarded,
+      }),
+    }
+  )
+);

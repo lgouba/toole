@@ -1,0 +1,220 @@
+// Prisma schema for Tolle delivery backend
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  client
+  driver
+  merchant
+}
+
+enum VehicleType {
+  moto
+  velo
+  voiture
+  tricycle
+}
+
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+}
+
+enum PackageType {
+  envelope
+  small
+  large
+}
+
+enum DeliveryStatus {
+  pending
+  accepted
+  picking_up
+  picked_up
+  delivering
+  delivered
+  cancelled
+  expired
+}
+
+enum TransactionType {
+  payment
+  commission
+  tip
+  topup
+  withdrawal
+}
+
+enum PaymentMethod {
+  orange_money
+  moov_money
+  cash
+  wallet
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  phone       String   @unique
+  fullName    String
+  email       String?
+  userType    UserRole
+  avatarUrl   String?
+  isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  ratingAvg   Decimal  @default(5.0) @db.Decimal(2, 1)
+  ratingCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  driverProfile     DriverProfile?
+  sentDeliveries    Delivery[]      @relation("Sender")
+  drivenDeliveries  Delivery[]      @relation("Driver")
+  givenRatings      Rating[]        @relation("Rater")
+  receivedRatings   Rating[]        @relation("Rated")
+  refreshTokens     RefreshToken[]
+  transactions      Transaction[]
+
+  @@index([phone])
+  @@index([userType])
+}
+
+model DriverProfile {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @db.Uuid
+  cnibNumber         String?
+  cnibPhotoUrl       String?
+  vehicleType        VehicleType
+  licenseNumber      String?
+  licensePhotoUrl    String?
+  isOnline           Boolean            @default(false)
+  currentLat         Float?
+  currentLng         Float?
+  lastLocationUpdate DateTime?
+  walletBalance      Int                @default(0)
+  totalDeliveries    Int                @default(0)
+  verificationStatus VerificationStatus @default(pending)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+  @@index([currentLat, currentLng])
+}
+
+model Delivery {
+  id                       String         @id @default(uuid()) @db.Uuid
+  reference                String         @unique
+  senderId                 String         @db.Uuid
+  driverId                 String?        @db.Uuid
+  packageType              PackageType
+  packageDescription       String?
+  packagePhotoPickupUrl    String?
+  packagePhotoDeliveryUrl  String?
+  recipientName            String
+  recipientPhone           String
+  pickupAddress            String
+  pickupDetails            String?
+  pickupLat                Float
+  pickupLng                Float
+  deliveryAddress          String
+  deliveryDetails          String?
+  deliveryLat              Float
+  deliveryLng              Float
+  estimatedDistanceKm      Decimal?       @db.Decimal(5, 1)
+  price                    Int
+  driverCommission         Int?
+  platformFee              Int?
+  tip                      Int            @default(0)
+  validationCode           String         @db.VarChar(4)
+  status                   DeliveryStatus @default(pending)
+  acceptedAt               DateTime?
+  pickedUpAt               DateTime?
+  deliveredAt              DateTime?
+  cancelledAt              DateTime?
+  expiresAt                DateTime?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  sender       User          @relation("Sender", fields: [senderId], references: [id])
+  driver       User?         @relation("Driver", fields: [driverId], references: [id])
+  ratings      Rating[]
+  transactions Transaction[]
+
+  @@index([senderId])
+  @@index([driverId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Rating {
+  id         String   @id @default(uuid()) @db.Uuid
+  deliveryId String   @db.Uuid
+  raterId    String   @db.Uuid
+  ratedId    String   @db.Uuid
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  rater    User     @relation("Rater", fields: [raterId], references: [id])
+  rated    User     @relation("Rated", fields: [ratedId], references: [id])
+
+  @@unique([deliveryId, raterId])
+  @@index([ratedId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model OtpCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model Transaction {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @db.Uuid
+  deliveryId       String?           @db.Uuid
+  type             TransactionType
+  amount           Int
+  paymentMethod    PaymentMethod
+  paymentReference String?
+  status           TransactionStatus @default(pending)
+  createdAt        DateTime          @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  delivery Delivery? @relation(fields: [deliveryId], references: [id])
+
+  @@index([userId])
+  @@index([deliveryId])
+  @@index([status])
+}
