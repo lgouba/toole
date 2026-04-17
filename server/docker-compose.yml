@@ -40,11 +40,14 @@ services:
       # nginx-proxy + acme-companion (auto HTTPS)
       VIRTUAL_HOST: api.tolle.qalitylabs.fr
       VIRTUAL_PORT: "3000"
+      VIRTUAL_NETWORK: nginx-proxy
       LETSENCRYPT_HOST: api.tolle.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks:
-      - nginx-proxy
-      - tolle-internal
+      nginx-proxy:
+        aliases:
+          - tolle-api
+      tolle-internal:
 
 volumes:
   tolle-db-data:
