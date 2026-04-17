@@ -79,6 +79,17 @@ export async function registerUser(args: {
       fullName: args.fullName,
       userType: args.userType,
       isVerified: true,
+      // Create driver profile automatically if user is a driver
+      ...(args.userType === 'driver'
+        ? {
+            driverProfile: {
+              create: {
+                vehicleType: 'moto', // default, can be changed later
+                verificationStatus: 'pending',
+              },
+            },
+          }
+        : {}),
     },
     include: { driverProfile: true },
   });
