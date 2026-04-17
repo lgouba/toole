@@ -1,15 +1,35 @@
 services:
+  tolle-db:
+    image: postgres:16-alpine
+    container_name: tolle-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tolle
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: tolle
+    volumes:
+      - tolle-db-data:/var/lib/postgresql/data
+    networks:
+      - tolle-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tolle -d tolle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   tolle-api:
     build: .
     container_name: tolle-api
     restart: unless-stopped
+    depends_on:
+      tolle-db:
+        condition: service_healthy
     expose:
       - "3000"
     environment:
-      # App config
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://tolle:${DB_PASSWORD}@tolle-db:5432/tolle
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
@@ -24,8 +44,14 @@ services:
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks:
       - nginx-proxy
+      - tolle-internal
+
+volumes:
+  tolle-db-data:
 
 networks:
   nginx-proxy:
     external: true
     name: ${NGINX_PROXY_NETWORK:-nginx-proxy}
+  tolle-internal:
+    driver: bridge
