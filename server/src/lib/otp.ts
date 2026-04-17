@@ -1,7 +1,8 @@
 import { env } from '../config/env.js';
 
 export function generateOtp(): string {
-  if (env.NODE_ENV !== 'production') {
+  // If OTP_DEV_CODE is explicitly set, always use it (for test envs on VPS).
+  if (env.OTP_DEV_CODE) {
     return env.OTP_DEV_CODE;
   }
   // Cryptographically unnecessary here; a 4 digit code is fine.
