@@ -48,7 +48,10 @@ export async function findNearbyDrivers(
       isOnline: true,
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
-      verificationStatus: 'verified',
+      // NOTE: en production, n'accepter que les livreurs "verified".
+      // Pour le MVP de test, on accepte aussi "pending" pour que les livreurs tout juste inscrits
+      // puissent recevoir des demandes sans attendre une validation manuelle.
+      verificationStatus: { in: ['verified', 'pending'] },
     },
     include: {
       user: {
