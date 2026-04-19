@@ -176,6 +176,35 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           haptic.success();
           router.push('/(driver)/new-request');
         });
+
+        // La demande n'est plus disponible (annulee / expiree / prise par un autre livreur)
+        socket.on('delivery:invalidated', (payload: any) => {
+          console.log('[Socket] delivery:invalidated', payload);
+          const { currentRequest, clearActiveDelivery } = useDriverStore.getState();
+          if (currentRequest && currentRequest.id === payload?.deliveryId) {
+            // Vider la demande affichee
+            useDriverStore.setState({ currentRequest: null });
+            // Si l'ecran new-request est ouvert, le fermer
+            router.canGoBack() && router.back();
+          }
+        });
+
+        socket.on('delivery:expired', (payload: any) => {
+          console.log('[Socket] delivery:expired', payload);
+          // Cote client: la livraison est expiree (aucun livreur)
+          const raw = payload?.delivery ?? payload;
+          const delivery = normalizeDelivery(raw);
+          const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
+          if (activeDelivery && activeDelivery.id === delivery.id) {
+            setActiveDelivery(delivery);
+          }
+          // Cote livreur: s'il voyait cette demande, la retirer
+          const { currentRequest } = useDriverStore.getState();
+          if (currentRequest && currentRequest.id === delivery.id) {
+            useDriverStore.setState({ currentRequest: null });
+            router.canGoBack() && router.back();
+          }
+        });
       } catch (err) {
         console.warn('[Socket] connection failed', err);
       }
@@ -190,6 +219,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.off('delivery:driver_location');
         socket.off('delivery:cancelled');
         socket.off('delivery:new_request');
+        socket.off('delivery:invalidated');
+        socket.off('delivery:expired');
       }
     };
   }, [isAuthenticated, user?.id]);

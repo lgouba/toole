@@ -182,6 +182,23 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
 
   emitToUser(updated.senderId, 'delivery:accepted', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
+
+  // Avertir les autres livreurs proches que la course n'est plus disponible
+  void (async () => {
+    const drivers = await findNearbyDrivers(
+      updated.pickupLat,
+      updated.pickupLng,
+      NEARBY_RADIUS_KM,
+    );
+    const otherIds = drivers.map((d) => d.userId).filter((id) => id !== driverId);
+    if (otherIds.length) {
+      emitToUsers(otherIds, 'delivery:invalidated', {
+        deliveryId: updated.id,
+        reason: 'taken',
+      });
+    }
+  })().catch(() => {});
+
   return updated;
 }
 
@@ -281,10 +298,66 @@ export async function cancelDelivery(deliveryId: string, userId: string) {
     data: { status: 'cancelled', cancelledAt: new Date() },
   });
 
+  // Si la livraison etait encore pending, elle a ete broadcastee aux livreurs proches:
+  // il faut les avertir qu'elle n'est plus disponible.
+  if (delivery.status === 'pending') {
+    void broadcastDeliveryInvalidation(delivery, 'cancelled').catch((err) =>
+      logger.error({ err, deliveryId }, 'Failed to broadcast cancellation'),
+    );
+  }
+
   const otherParty =
     userId === updated.senderId ? updated.driverId : updated.senderId;
   if (otherParty) emitToUser(otherParty, 'delivery:cancelled', updated);
   return updated;
+}
+
+/**
+ * Avertit tous les livreurs proches du pickup qu'une demande en attente n'est plus disponible
+ * (annulee ou expiree). Ils doivent fermer l'ecran "Nouvelle demande" si affiche.
+ */
+async function broadcastDeliveryInvalidation(
+  delivery: Delivery,
+  reason: 'cancelled' | 'expired',
+) {
+  const drivers = await findNearbyDrivers(
+    delivery.pickupLat,
+    delivery.pickupLng,
+    NEARBY_RADIUS_KM,
+  );
+  const ids = drivers.map((d) => d.userId);
+  if (ids.length) {
+    emitToUsers(ids, 'delivery:invalidated', {
+      deliveryId: delivery.id,
+      reason,
+    });
+  }
+}
+
+/**
+ * Scan periodique des livraisons pending expirees et diffusion aux livreurs.
+ */
+export async function expirePendingDeliveries() {
+  const now = new Date();
+  const toExpire = await prisma.delivery.findMany({
+    where: {
+      status: 'pending',
+      expiresAt: { lt: now },
+    },
+  });
+
+  for (const d of toExpire) {
+    const updated = await prisma.delivery.update({
+      where: { id: d.id },
+      data: { status: 'expired' },
+    });
+    emitToUser(updated.senderId, 'delivery:expired', updated);
+    void broadcastDeliveryInvalidation(d, 'expired').catch(() => {});
+  }
+
+  if (toExpire.length) {
+    logger.info({ count: toExpire.length }, 'Expired pending deliveries');
+  }
 }
 
 export async function rateDelivery(args: {

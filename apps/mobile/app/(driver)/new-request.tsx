@@ -25,6 +25,14 @@ export default function NewRequestScreen() {
     start();
   }, []);
 
+  // Si la demande devient invalide (annulee, expiree, prise par un autre livreur),
+  // le store la met a null. On ferme automatiquement l'ecran.
+  useEffect(() => {
+    if (!currentRequest && router.canGoBack()) {
+      router.back();
+    }
+  }, [currentRequest]);
+
   const handleAccept = async () => {
     haptic.success();
     await acceptRequest();

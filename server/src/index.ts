@@ -15,6 +15,7 @@ import deliveriesRoutes from './routes/deliveries.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket/index.js';
+import { expirePendingDeliveries } from './services/delivery.service.js';
 
 const app = express();
 
@@ -63,6 +64,13 @@ async function start() {
     server.listen(env.PORT, () => {
       logger.info(`Tolle API listening on :${env.PORT} (${env.NODE_ENV})`);
     });
+
+    // Scan toutes les 30s pour expirer les demandes pending qui ont depasse expiresAt
+    setInterval(() => {
+      expirePendingDeliveries().catch((err) =>
+        logger.error({ err }, 'expirePendingDeliveries failed'),
+      );
+    }, 30_000);
   } catch (err) {
     logger.error({ err }, 'Failed to start server');
     process.exit(1);

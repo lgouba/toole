@@ -60,9 +60,12 @@ export default function SearchingScreen() {
   // Quand un livreur accepte (via Socket.IO, le store est mis a jour)
   useEffect(() => {
     if (hasNavigatedRef.current) return;
-    if (activeDelivery && activeDelivery.status === 'accepted') {
+    if (!activeDelivery) return;
+    if (activeDelivery.status === 'accepted') {
       hasNavigatedRef.current = true;
       router.replace('/(client)/active-delivery');
+    } else if (activeDelivery.status === 'expired' || activeDelivery.status === 'cancelled') {
+      setExpired(true);
     }
   }, [activeDelivery?.status]);
 
