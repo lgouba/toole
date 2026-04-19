@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserRole } from '@/types';
 import * as authService from '@/services/auth.service';
+import * as userService from '@/services/user.service';
 import { disconnectSocket } from '@/services/socket.client';
 
 interface AuthState {
@@ -18,6 +19,7 @@ interface AuthState {
   verifyOtp: (code: string) => Promise<{ success: boolean; isNewUser: boolean }>;
   register: (fullName: string, userType: UserRole) => Promise<boolean>;
   completeOnboarding: () => void;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -79,6 +81,25 @@ export const useAuthStore = create<AuthState>()(
       },
 
       completeOnboarding: () => set({ isOnboarded: true }),
+
+      refreshUser: async () => {
+        try {
+          const fresh = await userService.getMe();
+          set({ user: fresh });
+        } catch (err: any) {
+          // Si 401 apres refresh echoue, on deconnecte
+          if (err?.response?.status === 401) {
+            disconnectSocket();
+            await authService.logout();
+            set({
+              user: null,
+              isAuthenticated: false,
+              phoneNumber: '',
+              lastOtpCode: '',
+            });
+          }
+        }
+      },
 
       logout: async () => {
         disconnectSocket();

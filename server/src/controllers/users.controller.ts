@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { AuthedRequest } from '../middleware/auth.js';
 import { success } from '../utils/response.js';
+import {
+  registerPushToken,
+  unregisterPushToken,
+} from '../services/push.service.js';
 
 export async function getMe(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
@@ -35,6 +39,39 @@ export async function updateMe(
       include: { driverProfile: true },
     });
     return success(res, user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const pushTokenSchema = z.object({
+  token: z.string().min(10),
+  platform: z.string().optional(),
+});
+
+export async function registerPushTokenCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { token, platform } = pushTokenSchema.parse(req.body);
+    await registerPushToken(req.user!.id, token, platform);
+    return success(res, { registered: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unregisterPushTokenCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { token } = pushTokenSchema.pick({ token: true }).parse(req.body);
+    await unregisterPushToken(token);
+    return success(res, { unregistered: true });
   } catch (err) {
     next(err);
   }

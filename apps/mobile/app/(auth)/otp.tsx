@@ -27,8 +27,16 @@ export default function OtpScreen() {
 
     if (result.isNewUser) {
       router.replace('/(auth)/register');
+      return;
     }
-    // If existing user, the auth guard in _layout.tsx will redirect
+
+    // Existing user: navigate explicitly based on userType
+    const userType = useAuthStore.getState().user?.userType;
+    if (userType === 'driver') {
+      router.replace('/(driver)');
+    } else {
+      router.replace('/(client)');
+    }
   };
 
   const handleResend = async () => {

@@ -5,6 +5,7 @@ import { calculatePrice } from '../utils/pricing.js';
 import { HttpError } from '../utils/response.js';
 import { emitToUser, emitToUsers } from './notification.service.js';
 import { findNearbyDrivers } from './driver.service.js';
+import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 
 const DELIVERY_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes to accept
@@ -77,7 +78,18 @@ async function notifyNearbyDrivers(delivery: Delivery) {
   );
   const ids = drivers.map((d) => d.userId);
   if (ids.length) {
-    emitToUsers(ids, 'delivery:new_request', sanitizeForDriver(delivery));
+    const payload = sanitizeForDriver(delivery);
+    emitToUsers(ids, 'delivery:new_request', payload);
+
+    // Push notification (pour livreurs avec app fermee)
+    const title = 'Nouvelle course Tolle';
+    const body = `Recuperation: ${delivery.pickupAddress}`;
+    for (const userId of ids) {
+      void sendPushToUser(userId, title, body, {
+        type: 'new_request',
+        deliveryId: delivery.id,
+      }).catch(() => {});
+    }
   }
   logger.info(
     { deliveryId: delivery.id, driversNotified: ids.length },

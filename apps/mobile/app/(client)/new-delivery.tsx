@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Card } from '@/components/ui';
 import { LocationPicker } from '@/components/LocationPicker';
@@ -30,31 +31,66 @@ const packageTypes: { type: PackageType; icon: string }[] = [
 export default function NewDeliveryScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { draft, setDraftField, createDelivery, isLoading } = useDeliveryStore();
+  const { draft, setDraftField, createDelivery, resetDraft, isLoading } = useDeliveryStore();
   const [step, setStep] = useState(0);
 
-  // Mock locations for demo
-  const pickupLoc = draft.pickupLocation || { latitude: 12.3714, longitude: -1.5197 };
-  const deliveryLoc = draft.deliveryLocation || { latitude: 12.3500, longitude: -1.5500 };
+  // Chaque fois qu'on arrive sur cet ecran, on repart de l'etape 0 avec un draft vide
+  useFocusEffect(
+    useCallback(() => {
+      setStep(0);
+      resetDraft();
+    }, [resetDraft]),
+  );
 
-  const estimate = useDeliveryPrice(draft.packageType, pickupLoc, deliveryLoc);
+  // Prix calcule UNIQUEMENT quand les deux positions sont definies
+  const estimate = useDeliveryPrice(
+    draft.packageType,
+    draft.pickupLocation,
+    draft.deliveryLocation,
+  );
 
   const handleSubmit = async () => {
     if (!user) return;
 
-    // Set mock locations if not set
+    // Guard: il faut au moins une position GPS sur chaque point
     if (!draft.pickupLocation) {
-      setDraftField('pickupLocation', pickupLoc);
+      Alert.alert(
+        'Position de recuperation manquante',
+        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de recuperation.',
+      );
+      return;
     }
     if (!draft.deliveryLocation) {
-      setDraftField('deliveryLocation', deliveryLoc);
+      Alert.alert(
+        'Position de livraison manquante',
+        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de livraison.',
+      );
+      return;
+    }
+    if (!draft.recipientName?.trim() || !draft.recipientPhone?.trim()) {
+      Alert.alert('Destinataire manquant', 'Renseignez le nom et le telephone du destinataire.');
+      return;
     }
 
     try {
       await createDelivery(user.id);
       router.push('/(client)/searching');
-    } catch (e) {
-      // Handle error
+    } catch (e: any) {
+      const isTimeout =
+        e?.code === 'ECONNABORTED' ||
+        e?.message?.toLowerCase?.().includes('timeout');
+      if (isTimeout) {
+        Alert.alert(
+          'Connexion lente',
+          'La demande met du temps a etre envoyee. Verifiez votre reseau et reessayez.',
+        );
+      } else {
+        const msg =
+          e?.response?.data?.error?.message ||
+          e?.message ||
+          'Impossible de creer la livraison. Verifiez les informations saisies.';
+        Alert.alert('Erreur', msg);
+      }
     }
   };
 
@@ -100,43 +136,35 @@ export default function NewDeliveryScreen() {
 
     // Step 1: Addresses
     <View key="addresses" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Point de recuperation</Text>
+      <Text style={styles.stepTitle}>Adresses</Text>
       <Text style={styles.stepHint}>
-        Partagez une position WhatsApp, votre position GPS, ou choisissez sur la carte
+        Tapez un nom de lieu ou collez un lien WhatsApp
       </Text>
 
       <View style={styles.locationGroup}>
         <LocationPicker
-          label="Recuperation"
+          label="Ou recuperer le colis ?"
+          placeholder="Ex: Marche de Dassasgho"
           iconColor={colors.primary}
           address={draft.pickupAddress || ''}
           onAddressChange={(v) => setDraftField('pickupAddress', v)}
           location={draft.pickupLocation || null}
-          onLocationChange={(loc) => setDraftField('pickupLocation', loc)}
-        />
-        <Input
-          placeholder="Details (optionnel)"
-          value={draft.pickupDetails || ''}
-          onChangeText={(v) => setDraftField('pickupDetails', v)}
+          onLocationChange={(loc) => setDraftField('pickupLocation', loc ?? undefined)}
+          showUseMyPosition
         />
       </View>
 
       <View style={styles.divider} />
 
-      <Text style={styles.stepTitle}>Point de livraison</Text>
       <View style={styles.locationGroup}>
         <LocationPicker
-          label="Livraison"
+          label="Ou livrer le colis ?"
+          placeholder="Ex: Pharmacie Yalgado"
           iconColor={colors.secondary}
           address={draft.deliveryAddress || ''}
           onAddressChange={(v) => setDraftField('deliveryAddress', v)}
           location={draft.deliveryLocation || null}
-          onLocationChange={(loc) => setDraftField('deliveryLocation', loc)}
-        />
-        <Input
-          placeholder="Details (optionnel)"
-          value={draft.deliveryDetails || ''}
-          onChangeText={(v) => setDraftField('deliveryDetails', v)}
+          onLocationChange={(loc) => setDraftField('deliveryLocation', loc ?? undefined)}
         />
       </View>
     </View>,
@@ -220,7 +248,39 @@ export default function NewDeliveryScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           {step < 3 ? (
-            <Button title="Continuer" onPress={() => setStep(step + 1)} />
+            <Button
+              title="Continuer"
+              onPress={() => {
+                // Validation par etape
+                if (step === 0 && !draft.packageType) {
+                  Alert.alert('Type de colis manquant', 'Choisissez un type de colis.');
+                  return;
+                }
+                if (step === 1) {
+                  if (!draft.pickupLocation) {
+                    Alert.alert(
+                      'Position de recuperation manquante',
+                      'Selectionnez une adresse dans les suggestions, utilisez "Ma position", un lien WhatsApp, ou la carte.',
+                    );
+                    return;
+                  }
+                  if (!draft.deliveryLocation) {
+                    Alert.alert(
+                      'Position de livraison manquante',
+                      'Selectionnez une adresse dans les suggestions, utilisez un lien WhatsApp, ou la carte.',
+                    );
+                    return;
+                  }
+                }
+                if (step === 2) {
+                  if (!draft.recipientName?.trim() || !draft.recipientPhone?.trim()) {
+                    Alert.alert('Destinataire incomplet', 'Renseignez le nom et le telephone.');
+                    return;
+                  }
+                }
+                setStep(step + 1);
+              }}
+            />
           ) : (
             <Button title="Confirmer" onPress={handleSubmit} loading={isLoading} />
           )}

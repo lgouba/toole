@@ -1,7 +1,13 @@
 import { create } from 'zustand';
-import { Delivery } from '@/types';
+import * as Location from 'expo-location';
+import { Alert } from 'react-native';
+import { Delivery, LatLng } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
 import * as driverService from '@/services/driver.service';
+import { getSocket } from '@/services/socket.client';
+
+const LOCATION_INTERVAL_MS = 10_000; // 10s
+let locationInterval: ReturnType<typeof setInterval> | null = null;
 
 interface DriverState {
   isOnline: boolean;
@@ -9,6 +15,7 @@ interface DriverState {
   todayEarnings: number;
   currentRequest: Delivery | null;
   activeDelivery: Delivery | null;
+  currentLocation: LatLng | null;
 
   toggleOnline: () => Promise<void>;
   receiveRequest: (delivery: Delivery) => void;
@@ -22,20 +29,83 @@ interface DriverState {
   incrementTodayStats: (commission: number) => void;
 }
 
+async function pushLocation(): Promise<LatLng | null> {
+  try {
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.BestForNavigation,
+    });
+    const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    await driverService.updateLocation(loc);
+
+    // Emit via socket si on a une course active (pour que le client voit le livreur bouger)
+    const socket = getSocket();
+    if (socket?.connected) {
+      socket.emit('driver:update_location', loc);
+    }
+    return loc;
+  } catch {
+    return null;
+  }
+}
+
+function startLocationTracking(setLoc: (loc: LatLng) => void) {
+  if (locationInterval) clearInterval(locationInterval);
+  // Push immediatement puis toutes les 10s
+  pushLocation().then((loc) => {
+    if (loc) setLoc(loc);
+  });
+  locationInterval = setInterval(() => {
+    pushLocation().then((loc) => {
+      if (loc) setLoc(loc);
+    });
+  }, LOCATION_INTERVAL_MS);
+}
+
+function stopLocationTracking() {
+  if (locationInterval) {
+    clearInterval(locationInterval);
+    locationInterval = null;
+  }
+}
+
 export const useDriverStore = create<DriverState>((set, get) => ({
   isOnline: false,
   todayDeliveries: 0,
   todayEarnings: 0,
   currentRequest: null,
   activeDelivery: null,
+  currentLocation: null,
 
   toggleOnline: async () => {
     const next = !get().isOnline;
-    try {
-      await driverService.setOnlineStatus(next);
-      set({ isOnline: next });
-    } catch {
-      // Rollback - stay with current
+
+    if (next) {
+      // Passer EN LIGNE: demander permission GPS + pousser la position
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission requise',
+          'Activez la localisation pour recevoir des demandes de course.',
+        );
+        return;
+      }
+
+      try {
+        await driverService.setOnlineStatus(true);
+        set({ isOnline: true });
+        startLocationTracking((loc) => set({ currentLocation: loc }));
+      } catch {
+        Alert.alert('Erreur', 'Impossible de passer en ligne. Reessayez.');
+      }
+    } else {
+      // Passer HORS LIGNE: stopper le tracking
+      stopLocationTracking();
+      try {
+        await driverService.setOnlineStatus(false);
+      } catch {
+        // ok on passe quand meme offline cote UI
+      }
+      set({ isOnline: false, currentLocation: null });
     }
   },
 

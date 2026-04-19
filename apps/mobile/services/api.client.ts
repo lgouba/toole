@@ -25,7 +25,7 @@ export const tokenStorage = {
 
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 15000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 

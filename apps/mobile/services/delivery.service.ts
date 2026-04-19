@@ -20,17 +20,34 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
     throw new Error('Informations manquantes');
   }
 
+  // Normalise le numero de telephone: garde uniquement les chiffres et prefixe "+" optionnel
+  const cleanPhone = (raw: string): string => {
+    const cleaned = raw.replace(/\D/g, '');
+    // Si l'utilisateur n'a saisi que 8 chiffres (local), on prefixe 226 (Burkina)
+    if (cleaned.length === 8) return `226${cleaned}`;
+    return cleaned;
+  };
+
+  // Fallback adresse: si vide, on utilise les coordonnees GPS
+  const fallbackAddress = (
+    addr: string | undefined,
+    loc: { latitude: number; longitude: number },
+  ) =>
+    addr && addr.trim().length > 0
+      ? addr.trim()
+      : `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
+
   const payload = {
     packageType: draft.packageType,
-    packageDescription: draft.packageDescription,
-    recipientName: draft.recipientName,
-    recipientPhone: draft.recipientPhone,
-    pickupAddress: draft.pickupAddress || '',
-    pickupDetails: draft.pickupDetails,
+    ...(draft.packageDescription ? { packageDescription: draft.packageDescription } : {}),
+    recipientName: draft.recipientName.trim(),
+    recipientPhone: cleanPhone(draft.recipientPhone),
+    pickupAddress: fallbackAddress(draft.pickupAddress, draft.pickupLocation),
+    ...(draft.pickupDetails ? { pickupDetails: draft.pickupDetails } : {}),
     pickupLat: draft.pickupLocation.latitude,
     pickupLng: draft.pickupLocation.longitude,
-    deliveryAddress: draft.deliveryAddress || '',
-    deliveryDetails: draft.deliveryDetails,
+    deliveryAddress: fallbackAddress(draft.deliveryAddress, draft.deliveryLocation),
+    ...(draft.deliveryDetails ? { deliveryDetails: draft.deliveryDetails } : {}),
     deliveryLat: draft.deliveryLocation.latitude,
     deliveryLng: draft.deliveryLocation.longitude,
   };

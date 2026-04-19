@@ -12,6 +12,7 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ deliveriesToday, earningsToday, ratingAvg }: StatsCardProps) {
+  const safeRating = Number(ratingAvg);
   return (
     <Card>
       <Text style={styles.title}>Aujourd'hui</Text>
@@ -20,19 +21,19 @@ export function StatsCard({ deliveriesToday, earningsToday, ratingAvg }: StatsCa
           icon="bicycle"
           iconColor={colors.primary}
           label="Courses"
-          value={deliveriesToday.toString()}
+          value={String(deliveriesToday ?? 0)}
         />
         <StatItem
           icon="cash"
           iconColor={colors.success}
           label="Gains"
-          value={formatCFA(earningsToday)}
+          value={formatCFA(Number(earningsToday) || 0)}
         />
         <StatItem
           icon="star"
           iconColor={colors.warning}
           label="Note"
-          value={ratingAvg.toFixed(1)}
+          value={Number.isFinite(safeRating) ? safeRating.toFixed(1) : '—'}
         />
       </View>
     </Card>

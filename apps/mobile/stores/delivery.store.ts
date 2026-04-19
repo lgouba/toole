@@ -48,9 +48,14 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   createDelivery: async (senderId) => {
     set({ isLoading: true });
-    const delivery = await deliveryService.createDelivery(get().draft, senderId);
-    set({ activeDelivery: delivery, isLoading: false, draft: {} });
-    return delivery;
+    try {
+      const delivery = await deliveryService.createDelivery(get().draft, senderId);
+      set({ activeDelivery: delivery, isLoading: false, draft: {} });
+      return delivery;
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
   },
 
   autoSearchDriver: async () => {

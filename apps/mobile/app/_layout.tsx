@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -10,6 +11,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@/stores/auth.store';
 import { SocketProvider } from '@/providers/SocketProvider';
+import { colors } from '@/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,7 +27,7 @@ export default function RootLayout() {
 
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isOnboarded, user } = useAuthStore();
+  const { isAuthenticated, isOnboarded, user, refreshUser } = useAuthStore();
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -37,27 +39,55 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  // Auth guard
+  // Au demarrage et a chaque transition auth->logged, rafraichir le user depuis le backend
+  // pour eviter d'utiliser un userType obsolete du cache AsyncStorage.
+  useEffect(() => {
+    if (isAuthenticated && fontsLoaded) {
+      refreshUser();
+    }
+  }, [fontsLoaded, isAuthenticated, refreshUser]);
+
+  // Auth guard + role guard: remet l'utilisateur dans le bon groupe selon son role
   useEffect(() => {
     if (!fontsLoaded) return;
 
-    const inAuth = segments[0] === '(auth)';
+    const topSegment = segments[0] as string | undefined;
+    const inAuth = topSegment === '(auth)';
+    const inClient = topSegment === '(client)';
+    const inDriver = topSegment === '(driver)';
 
     if (!isOnboarded) {
-      router.replace('/(auth)/onboarding');
-    } else if (!isAuthenticated) {
-      router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuth) {
-      // Redirect to correct home based on user type
-      if (user?.userType === 'driver') {
-        router.replace('/(driver)');
-      } else {
-        router.replace('/(client)');
-      }
+      if (!inAuth) router.replace('/(auth)/onboarding');
+      return;
     }
-  }, [fontsLoaded, isAuthenticated, isOnboarded, user?.userType]);
+
+    if (!isAuthenticated) {
+      if (!inAuth) router.replace('/(auth)/login');
+      return;
+    }
+
+    // Authentifie : verifier que l'utilisateur est dans le bon groupe
+    const expected = user?.userType === 'driver' ? '(driver)' : '(client)';
+    const wrongGroup =
+      inAuth ||
+      (expected === '(driver)' && inClient) ||
+      (expected === '(client)' && inDriver);
+
+    if (wrongGroup) {
+      router.replace(expected === '(driver)' ? '/(driver)' : '/(client)');
+    }
+  }, [fontsLoaded, isAuthenticated, isOnboarded, user?.userType, segments.join('/')]);
 
   if (!fontsLoaded) return null;
+
+  // Si authentifie mais user pas encore charge, afficher un loader (evite flash sur mauvais ecran)
+  if (isAuthenticated && !user) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <SocketProvider>
@@ -70,3 +100,12 @@ export default function RootLayout() {
     </SocketProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+});

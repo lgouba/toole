@@ -24,7 +24,6 @@
     },
     "android": {
       "package": "bf.tolle.app",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1D9E75"
@@ -58,6 +57,13 @@
         {
           "cameraPermission": "Tolle utilise l'appareil photo pour photographier les colis (preuve de livraison).",
           "photosPermission": "Tolle acces vos photos pour les colis et votre avatar."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#1D9E75"
         }
       ]
     ],

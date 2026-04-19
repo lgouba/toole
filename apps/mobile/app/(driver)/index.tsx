@@ -1,8 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Map } from '@/components/map/Map';
 import { OnlineToggle, StatsCard } from '@/components/driver';
 import { colors, typography, spacing, borderRadius } from '@/theme';
@@ -11,18 +9,10 @@ import { useDriverStore } from '@/stores/driver.store';
 import { DEFAULT_MAP_REGION } from '@/utils/geo';
 
 export default function DriverHomeScreen() {
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { isOnline, toggleOnline, todayDeliveries, todayEarnings, currentRequest } = useDriverStore();
+  const { isOnline, toggleOnline, todayDeliveries, todayEarnings } = useDriverStore();
 
   const firstName = user?.fullName.split(' ')[0] || 'Livreur';
-
-  // When a new request comes in via Socket.IO, navigate to the request screen
-  useEffect(() => {
-    if (currentRequest) {
-      router.push('/(driver)/new-request');
-    }
-  }, [currentRequest?.id]);
 
   return (
     <SafeAreaView style={styles.container}>
