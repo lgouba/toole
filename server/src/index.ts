@@ -16,6 +16,7 @@ import deliveriesRoutes from './routes/deliveries.routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket/index.js';
 import { expirePendingDeliveries } from './services/delivery.service.js';
+import { markStaleDriversOffline } from './services/driver.service.js';
 
 const app = express();
 
@@ -69,6 +70,13 @@ async function start() {
     setInterval(() => {
       expirePendingDeliveries().catch((err) =>
         logger.error({ err }, 'expirePendingDeliveries failed'),
+      );
+    }, 30_000);
+
+    // Scan toutes les 30s pour passer en offline les livreurs sans heartbeat recent
+    setInterval(() => {
+      markStaleDriversOffline().catch((err) =>
+        logger.error({ err }, 'markStaleDriversOffline failed'),
       );
     }, 30_000);
   } catch (err) {

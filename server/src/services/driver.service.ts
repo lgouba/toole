@@ -6,6 +6,9 @@ import { logger } from '../lib/logger.js';
 
 const NEARBY_RADIUS_KM = 5;
 const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
+// Un livreur est considere "actif" seulement si sa position a ete mise a jour
+// dans les 90 dernieres secondes (le mobile push toutes les 10s).
+const ACTIVE_DRIVER_MAX_AGE_MS = 90 * 1000;
 
 export async function setOnline(userId: string, isOnline: boolean) {
   const profile = await prisma.driverProfile.update({
@@ -115,9 +118,13 @@ export async function findNearbyDrivers(
   const latDelta = radiusKm / 111;
   const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1);
 
+  const activeCutoff = new Date(Date.now() - ACTIVE_DRIVER_MAX_AGE_MS);
   const candidates = await prisma.driverProfile.findMany({
     where: {
       isOnline: true,
+      // Livreur actif: sa position doit etre fraiche.
+      // Un livreur qui a ferme l'app sans toggle offline sera exclu.
+      lastLocationUpdate: { gte: activeCutoff },
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
       verificationStatus: { in: ['verified', 'pending'] },
@@ -161,4 +168,25 @@ export async function getPublicDriverProfile(userId: string) {
     where: { id: userId },
     include: { driverProfile: true },
   });
+}
+
+/**
+ * Passe automatiquement en offline les livreurs marques "online" mais sans heartbeat recent.
+ * Evite les livreurs zombies (app fermee sans clic sur "Hors ligne").
+ */
+export async function markStaleDriversOffline() {
+  const cutoff = new Date(Date.now() - ACTIVE_DRIVER_MAX_AGE_MS);
+  const result = await prisma.driverProfile.updateMany({
+    where: {
+      isOnline: true,
+      OR: [
+        { lastLocationUpdate: { lt: cutoff } },
+        { lastLocationUpdate: null },
+      ],
+    },
+    data: { isOnline: false },
+  });
+  if (result.count > 0) {
+    logger.info({ count: result.count }, 'Auto-offlined stale drivers');
+  }
 }
