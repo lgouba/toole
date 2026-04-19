@@ -126,6 +126,15 @@ export async function updateDeliveryStatus(
   }
 }
 
+export async function relaunchDelivery(deliveryId: string): Promise<Delivery | null> {
+  try {
+    const res = await api.put(`/deliveries/${deliveryId}/relaunch`);
+    return normalizeDelivery(unwrap<any>(res));
+  } catch {
+    return null;
+  }
+}
+
 export async function confirmPickup(
   deliveryId: string,
   photoUrl: string

@@ -8,7 +8,7 @@ import { findNearbyDrivers } from './driver.service.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 
-const DELIVERY_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes to accept
+const DELIVERY_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes to find a driver
 const NEARBY_RADIUS_KM = 5;
 
 export interface CreateDeliveryInput {
@@ -206,6 +206,40 @@ export async function rejectDelivery(deliveryId: string, driverId: string) {
   // No state change — just log. Next-driver fallback is out of scope.
   logger.info({ deliveryId, driverId }, 'Driver rejected delivery');
   return { ok: true };
+}
+
+/**
+ * Relance une demande expiree ou pending: remet le statut a pending, reinitialise expiresAt
+ * et rebroadcast aux livreurs proches.
+ */
+export async function relaunchDelivery(deliveryId: string, userId: string) {
+  const delivery = await prisma.delivery.findUnique({ where: { id: deliveryId } });
+  if (!delivery) throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
+  if (delivery.senderId !== userId) {
+    throw new HttpError(403, 'FORBIDDEN', 'Access denied');
+  }
+  if (!['pending', 'expired'].includes(delivery.status)) {
+    throw new HttpError(
+      400,
+      'INVALID_STATE',
+      'Seules les demandes en attente ou expirees peuvent etre relancees',
+    );
+  }
+
+  const updated = await prisma.delivery.update({
+    where: { id: deliveryId },
+    data: {
+      status: 'pending',
+      expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+    },
+  });
+
+  // Re-notify nearby drivers
+  void notifyNearbyDrivers(updated).catch((err) =>
+    logger.error({ err, deliveryId }, 'Failed to re-notify on relaunch'),
+  );
+
+  return updated;
 }
 
 export async function confirmPickup(

@@ -14,14 +14,15 @@ import { Button } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 
-const SEARCH_TIMEOUT_SECONDS = 180; // 3 minutes
+const SEARCH_TIMEOUT_SECONDS = 300; // 5 minutes (align backend)
 
 export default function SearchingScreen() {
   const router = useRouter();
-  const { activeDelivery, clear } = useDeliveryStore();
+  const { activeDelivery, clear, relaunch } = useDeliveryStore();
 
   const [remaining, setRemaining] = useState(SEARCH_TIMEOUT_SECONDS);
   const [expired, setExpired] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
   const hasNavigatedRef = useRef(false);
 
   // Animation du pulse
@@ -83,6 +84,16 @@ export default function SearchingScreen() {
   const seconds = remaining % 60;
   const timerStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
+  const handleRelaunch = async () => {
+    setRelaunching(true);
+    const ok = await relaunch();
+    setRelaunching(false);
+    if (ok) {
+      setExpired(false);
+      setRemaining(SEARCH_TIMEOUT_SECONDS);
+    }
+  };
+
   if (expired) {
     return (
       <SafeAreaView style={styles.container}>
@@ -92,11 +103,20 @@ export default function SearchingScreen() {
           </View>
           <Text style={styles.title}>Aucun livreur disponible</Text>
           <Text style={styles.subtitle}>
-            Aucun livreur n'a accepte votre course. Reessayez plus tard ou ajustez votre demande.
+            Aucun livreur n'a accepte votre course pour le moment. Vous pouvez relancer la recherche.
           </Text>
+          {activeDelivery && (
+            <Text style={styles.infoValueMuted}>Reference : {activeDelivery.reference}</Text>
+          )}
         </View>
         <View style={styles.footer}>
-          <Button title="Retour a l'accueil" onPress={handleCancel} />
+          <Button
+            title="Relancer la recherche"
+            onPress={handleRelaunch}
+            loading={relaunching}
+          />
+          <View style={{ height: 8 }} />
+          <Button title="Retour a l'accueil" variant="outline" onPress={handleCancel} />
         </View>
       </SafeAreaView>
     );
@@ -213,6 +233,11 @@ const styles = StyleSheet.create({
     ...typography.captionMedium,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  infoValueMuted: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
   },
   footer: {
     paddingHorizontal: spacing.lg,

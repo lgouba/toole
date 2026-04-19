@@ -28,6 +28,7 @@ interface DeliveryState {
   setActiveDelivery: (delivery: Delivery | null) => void;
   setDriverLocation: (location: LatLng) => void;
   updateStatus: (deliveryId: string, status: DeliveryStatus) => Promise<void>;
+  relaunch: () => Promise<boolean>;
   clear: () => void;
 }
 
@@ -99,6 +100,17 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     if (updated) {
       set({ activeDelivery: updated });
     }
+  },
+
+  relaunch: async () => {
+    const current = get().activeDelivery;
+    if (!current) return false;
+    const updated = await deliveryService.relaunchDelivery(current.id);
+    if (updated) {
+      set({ activeDelivery: updated });
+      return true;
+    }
+    return false;
   },
 
   clear: () =>

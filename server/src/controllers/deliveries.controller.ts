@@ -11,6 +11,7 @@ import {
   confirmPickup,
   validateCode,
   cancelDelivery,
+  relaunchDelivery,
   rateDelivery,
   estimatePrice,
 } from '../services/delivery.service.js';
@@ -156,6 +157,19 @@ export async function cancelCtrl(
 ) {
   try {
     const delivery = await cancelDelivery(req.params.id, req.user!.id);
+    return success(res, delivery);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function relaunchCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const delivery = await relaunchDelivery(req.params.id, req.user!.id);
     return success(res, delivery);
   } catch (err) {
     next(err);
