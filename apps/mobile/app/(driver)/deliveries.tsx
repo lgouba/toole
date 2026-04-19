@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EmptyState } from '@/components/ui';
 import { DeliveryCard } from '@/components/delivery';
@@ -9,6 +10,7 @@ import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function DriverDeliveriesScreen() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { deliveries, fetchDeliveries } = useDeliveryStore();
 
@@ -25,7 +27,12 @@ export default function DriverDeliveriesScreen() {
         data={deliveries}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <DeliveryCard delivery={item} />}
+        renderItem={({ item }) => (
+          <DeliveryCard
+            delivery={item}
+            onPress={() => router.push(`/delivery/${item.id}` as any)}
+          />
+        )}
         ListEmptyComponent={
           <EmptyState
             icon="cube-outline"

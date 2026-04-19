@@ -65,6 +65,16 @@ enum TransactionStatus {
   failed
 }
 
+enum CancelReason {
+  client_cancelled
+  driver_unavailable
+  driver_too_far
+  package_issue
+  recipient_unreachable
+  no_driver_found
+  other
+}
+
 model User {
   id          String   @id @default(uuid()) @db.Uuid
   phone       String   @unique
@@ -159,6 +169,9 @@ model Delivery {
   pickedUpAt               DateTime?
   deliveredAt              DateTime?
   cancelledAt              DateTime?
+  cancelReason             CancelReason?
+  cancelComment            String?
+  cancelledBy              String?        @db.Uuid
   expiresAt                DateTime?
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt

@@ -1,19 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui';
 import { Map } from '@/components/map/Map';
+import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { openPhone, shareLocationWhatsApp } from '@/utils/linking';
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
-  const { activeDelivery } = useDriverStore();
+  const { activeDelivery, cancelActiveDelivery } = useDriverStore();
+  const [showCancel, setShowCancel] = useState(false);
 
   if (!activeDelivery) return null;
+
+  const handleCancelConfirm = async (reason: string, comment: string) => {
+    const ok = await cancelActiveDelivery(reason, comment || undefined);
+    setShowCancel(false);
+    if (ok) router.replace('/(driver)');
+  };
 
   return (
     <View style={styles.container}>
@@ -65,7 +73,21 @@ export default function PickupNavigationScreen() {
           title="Je suis arrive"
           onPress={() => router.replace('/(driver)/pickup-confirm')}
         />
+        <View style={{ height: 8 }} />
+        <Button
+          title="Annuler la course"
+          variant="outline"
+          onPress={() => setShowCancel(true)}
+        />
       </View>
+
+      <CancelReasonDialog
+        visible={showCancel}
+        title="Annuler la course"
+        subtitle="La course sera remise en file pour d'autres livreurs."
+        onClose={() => setShowCancel(false)}
+        onConfirm={handleCancelConfirm}
+      />
     </View>
   );
 }

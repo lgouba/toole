@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useDriverStore } from '@/stores/driver.store';
@@ -8,6 +8,10 @@ import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.cl
 import { syncPushTokenToBackend } from '@/services/push.service';
 import { Delivery, DriverWithProfile } from '@/types';
 import { haptic } from '@/utils/haptics';
+
+// Dans Expo Go, expo-notifications leve une erreur au simple import en SDK 53+.
+// On charge le module dynamiquement uniquement si on n'est pas dans Expo Go.
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
 /** Normalise un objet delivery venant du backend (Prisma serialise Decimal en string) */
 function normalizeDelivery(raw: any): Delivery {
@@ -83,24 +87,45 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
 
-  // Enregistre le push token a chaque login et gere les notifications tappees
+  // Ref stable vers router.replace pour les closures des socket handlers
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  // Dedup: on garde l'ID de la derniere demande pour laquelle on a navigue
+  const lastHandledRequestIdRef = useRef<string | null>(null);
+
+  // Enregistre le push token + handler notification tapee
+  // (skip dans Expo Go: push remote non supporte en SDK 53+)
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    if (isExpoGo) return; // Expo Go: on ne touche pas a expo-notifications
 
     syncPushTokenToBackend();
 
-    // Quand l'utilisateur tape sur une notification, naviguer vers l'ecran approprie
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as any;
-      if (data?.type === 'new_request' || data?.type === 'pending_batch') {
-        if (user.userType === 'driver') {
-          router.push('/(driver)/new-request');
-        }
-      } else if (data?.type === 'status_update' && user.userType === 'client') {
-        router.push('/(client)/active-delivery');
-      }
-    });
-    return () => sub.remove();
+    let cleanup: (() => void) | undefined;
+    // Import dynamique pour que le module ne soit PAS evalue dans Expo Go
+    import('expo-notifications')
+      .then((Notifications) => {
+        const sub = Notifications.addNotificationResponseReceivedListener(
+          (response) => {
+            const data = response.notification.request.content.data as any;
+            if (data?.type === 'new_request' || data?.type === 'pending_batch') {
+              if (user.userType === 'driver') {
+                routerRef.current.push('/(driver)/new-request');
+              }
+            } else if (data?.type === 'status_update' && user.userType === 'client') {
+              routerRef.current.push('/(client)/active-delivery');
+            }
+          },
+        );
+        cleanup = () => sub.remove();
+      })
+      .catch(() => {
+        // Module indisponible: tant pis, tout le reste marche.
+      });
+    return () => {
+      cleanup?.();
+    };
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
@@ -118,9 +143,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         console.log('[Socket] Connected, user:', user.fullName, '(', user.userType, ')');
 
+        // Detacher d'abord tous les handlers (evite double inscription si reconnection)
+        socket.off('delivery:accepted');
+        socket.off('delivery:status_update');
+        socket.off('delivery:driver_location');
+        socket.off('delivery:cancelled');
+        socket.off('delivery:new_request');
+        socket.off('delivery:invalidated');
+        socket.off('delivery:expired');
+
         // ------ Events for Client (sender) ------
         socket.on('delivery:accepted', (payload: any) => {
-          console.log('[Socket] delivery:accepted', payload);
+          console.log('[Socket] delivery:accepted');
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
           const { activeDelivery, setActiveDelivery, selectDriver } =
@@ -135,7 +169,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         });
 
         socket.on('delivery:status_update', (payload: any) => {
-          console.log('[Socket] delivery:status_update', payload);
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
           const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
@@ -166,43 +199,76 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // ------ Events for Driver ------
-        socket.on('delivery:new_request', (payload: any) => {
-          console.log('[Socket] delivery:new_request received', payload);
+        // Le livreur a annule: la livraison est remise en pending, on revient a l'ecran recherche
+        socket.on('delivery:driver_cancelled', (payload: any) => {
+          console.log('[Socket] delivery:driver_cancelled', payload);
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
-          useDriverStore.getState().receiveRequest(delivery);
-          // Navigation automatique vers l'ecran de la demande (marche peu importe l'onglet actuel)
-          haptic.success();
-          router.push('/(driver)/new-request');
+          const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
+          if (activeDelivery && activeDelivery.id === delivery.id) {
+            setActiveDelivery(delivery);
+            haptic.warning();
+            // Retour a l'ecran de recherche (le livreur a ete retire, on recherche un autre)
+            routerRef.current.replace('/(client)/searching');
+          }
         });
 
-        // La demande n'est plus disponible (annulee / expiree / prise par un autre livreur)
+        // ------ Events for Driver ------
+        socket.on('delivery:new_request', (payload: any) => {
+          const raw = payload?.delivery ?? payload;
+          const delivery = normalizeDelivery(raw);
+
+          // Dedup: si on a deja gere cette demande recemment, ignorer
+          if (lastHandledRequestIdRef.current === delivery.id) {
+            console.log('[Socket] duplicate new_request ignored', delivery.id);
+            return;
+          }
+
+          // Si le livreur a deja une course active ou une demande en cours, ignorer
+          const { activeDelivery, currentRequest } = useDriverStore.getState();
+          if (activeDelivery) {
+            console.log('[Socket] driver already has active delivery, ignoring request');
+            return;
+          }
+          if (currentRequest && currentRequest.id === delivery.id) {
+            console.log('[Socket] same request already displayed');
+            return;
+          }
+
+          lastHandledRequestIdRef.current = delivery.id;
+          useDriverStore.getState().receiveRequest(delivery);
+          haptic.success();
+          routerRef.current.push('/(driver)/new-request');
+        });
+
         socket.on('delivery:invalidated', (payload: any) => {
-          console.log('[Socket] delivery:invalidated', payload);
-          const { currentRequest, clearActiveDelivery } = useDriverStore.getState();
+          console.log('[Socket] delivery:invalidated', payload?.deliveryId);
+          const { currentRequest } = useDriverStore.getState();
           if (currentRequest && currentRequest.id === payload?.deliveryId) {
-            // Vider la demande affichee
             useDriverStore.setState({ currentRequest: null });
-            // Si l'ecran new-request est ouvert, le fermer
-            router.canGoBack() && router.back();
+            // Retour au dashboard driver (safe, marche toujours)
+            routerRef.current.replace('/(driver)');
+          }
+          // Reset dedup pour que cette demande puisse etre re-proposee si relance
+          if (lastHandledRequestIdRef.current === payload?.deliveryId) {
+            lastHandledRequestIdRef.current = null;
           }
         });
 
         socket.on('delivery:expired', (payload: any) => {
-          console.log('[Socket] delivery:expired', payload);
-          // Cote client: la livraison est expiree (aucun livreur)
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
           const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
           if (activeDelivery && activeDelivery.id === delivery.id) {
             setActiveDelivery(delivery);
           }
-          // Cote livreur: s'il voyait cette demande, la retirer
           const { currentRequest } = useDriverStore.getState();
           if (currentRequest && currentRequest.id === delivery.id) {
             useDriverStore.setState({ currentRequest: null });
-            router.canGoBack() && router.back();
+            routerRef.current.replace('/(driver)');
+          }
+          if (lastHandledRequestIdRef.current === delivery.id) {
+            lastHandledRequestIdRef.current = null;
           }
         });
       } catch (err) {
@@ -218,6 +284,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.off('delivery:status_update');
         socket.off('delivery:driver_location');
         socket.off('delivery:cancelled');
+        socket.off('delivery:driver_cancelled');
         socket.off('delivery:new_request');
         socket.off('delivery:invalidated');
         socket.off('delivery:expired');

@@ -135,6 +135,22 @@ export async function relaunchDelivery(deliveryId: string): Promise<Delivery | n
   }
 }
 
+export async function cancelDelivery(
+  deliveryId: string,
+  reason?: string,
+  comment?: string,
+): Promise<Delivery | null> {
+  try {
+    const res = await api.put(`/deliveries/${deliveryId}/cancel`, {
+      reason,
+      comment,
+    });
+    return normalizeDelivery(unwrap<any>(res));
+  } catch {
+    return null;
+  }
+}
+
 export async function confirmPickup(
   deliveryId: string,
   photoUrl: string

@@ -18,20 +18,24 @@ export default function NewRequestScreen() {
   const { remaining, start } = useCountdown(120, () => {
     // Auto-reject on timeout
     rejectRequest();
-    router.back();
+    router.replace('/(driver)');
   });
 
+  // Redemarre le countdown a chaque nouvelle demande (sinon le timer reste fige
+  // quand l'ecran est deja monte et qu'une nouvelle demande arrive).
   useEffect(() => {
-    start();
-  }, []);
+    if (currentRequest) {
+      start();
+    }
+  }, [currentRequest?.id]);
 
   // Si la demande devient invalide (annulee, expiree, prise par un autre livreur),
-  // le store la met a null. On ferme automatiquement l'ecran.
+  // le store la met a null. On revient au dashboard driver.
   useEffect(() => {
-    if (!currentRequest && router.canGoBack()) {
-      router.back();
+    if (!currentRequest) {
+      router.replace('/(driver)');
     }
-  }, [currentRequest]);
+  }, [currentRequest, router]);
 
   const handleAccept = async () => {
     haptic.success();
@@ -42,7 +46,7 @@ export default function NewRequestScreen() {
   const handleReject = () => {
     haptic.light();
     rejectRequest();
-    router.back();
+    router.replace('/(driver)');
   };
 
   if (!currentRequest) {

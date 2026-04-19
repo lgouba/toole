@@ -25,6 +25,7 @@ interface DriverState {
   confirmPickup: (photoUri: string) => Promise<void>;
   validateCode: (code: string) => Promise<boolean>;
   confirmDelivery: (photoUri: string) => Promise<void>;
+  cancelActiveDelivery: (reason: string, comment?: string) => Promise<boolean>;
   clearActiveDelivery: () => void;
   incrementTodayStats: (commission: number) => void;
 }
@@ -150,6 +151,22 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   confirmDelivery: async (_photoUri) => {
     set({ activeDelivery: null });
+  },
+
+  cancelActiveDelivery: async (reason, comment) => {
+    const { activeDelivery } = get();
+    if (!activeDelivery) return false;
+    const updated = await deliveryService.cancelDelivery(
+      activeDelivery.id,
+      reason,
+      comment,
+    );
+    // updated peut revenir avec status 'pending' (remise en file) ou 'cancelled'
+    if (updated) {
+      set({ activeDelivery: null, currentRequest: null });
+      return true;
+    }
+    return false;
   },
 
   clearActiveDelivery: () => set({ activeDelivery: null, currentRequest: null }),

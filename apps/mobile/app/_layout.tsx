@@ -95,6 +95,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(driver)" />
+        <Stack.Screen name="delivery/[id]" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>

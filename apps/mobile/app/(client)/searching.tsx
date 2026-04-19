@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +18,12 @@ const SEARCH_TIMEOUT_SECONDS = 300; // 5 minutes (align backend)
 
 export default function SearchingScreen() {
   const router = useRouter();
-  const { activeDelivery, clear, relaunch } = useDeliveryStore();
+  const { activeDelivery, clear, relaunch, updateStatus } = useDeliveryStore();
 
   const [remaining, setRemaining] = useState(SEARCH_TIMEOUT_SECONDS);
   const [expired, setExpired] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const hasNavigatedRef = useRef(false);
 
   // Animation du pulse
@@ -70,9 +71,34 @@ export default function SearchingScreen() {
     }
   }, [activeDelivery?.status]);
 
+  const performCancel = async () => {
+    setCancelling(true);
+    try {
+      if (activeDelivery && activeDelivery.status === 'pending') {
+        // Dit au backend d'annuler + broadcast aux livreurs notifies
+        await updateStatus(activeDelivery.id, 'cancelled');
+      }
+    } finally {
+      setCancelling(false);
+      clear();
+      router.replace('/(client)');
+    }
+  };
+
   const handleCancel = () => {
-    clear();
-    router.replace('/(client)');
+    if (expired) {
+      // Pas de confirmation necessaire depuis l'ecran "expire"
+      performCancel();
+      return;
+    }
+    Alert.alert(
+      'Annuler la recherche ?',
+      'La demande sera annulee. Vous pourrez en creer une nouvelle.',
+      [
+        { text: 'Non, continuer', style: 'cancel' },
+        { text: 'Oui, annuler', style: 'destructive', onPress: performCancel },
+      ],
+    );
   };
 
   const pulseStyle = useAnimatedStyle(() => ({
@@ -151,7 +177,12 @@ export default function SearchingScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button title="Annuler la recherche" variant="outline" onPress={handleCancel} />
+        <Button
+          title="Annuler la recherche"
+          variant="outline"
+          onPress={handleCancel}
+          loading={cancelling}
+        />
       </View>
     </SafeAreaView>
   );

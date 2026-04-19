@@ -150,13 +150,31 @@ export async function validateCtrl(
   }
 }
 
+const cancelSchema = z.object({
+  reason: z
+    .enum([
+      'client_cancelled',
+      'driver_unavailable',
+      'driver_too_far',
+      'package_issue',
+      'recipient_unreachable',
+      'no_driver_found',
+      'other',
+    ])
+    .optional(),
+  comment: z.string().max(500).optional(),
+});
+
 export async function cancelCtrl(
   req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const delivery = await cancelDelivery(req.params.id, req.user!.id);
+    const parsed = cancelSchema.safeParse(req.body ?? {});
+    const reason = parsed.success ? parsed.data.reason : undefined;
+    const comment = parsed.success ? parsed.data.comment : undefined;
+    const delivery = await cancelDelivery(req.params.id, req.user!.id, reason, comment);
     return success(res, delivery);
   } catch (err) {
     next(err);

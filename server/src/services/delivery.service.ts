@@ -318,7 +318,21 @@ export async function validateCode(
   return updated;
 }
 
-export async function cancelDelivery(deliveryId: string, userId: string) {
+export type CancelReason =
+  | 'client_cancelled'
+  | 'driver_unavailable'
+  | 'driver_too_far'
+  | 'package_issue'
+  | 'recipient_unreachable'
+  | 'no_driver_found'
+  | 'other';
+
+export async function cancelDelivery(
+  deliveryId: string,
+  userId: string,
+  reason?: CancelReason,
+  comment?: string,
+) {
   const delivery = await prisma.delivery.findUnique({ where: { id: deliveryId } });
   if (!delivery) throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
   if (delivery.senderId !== userId && delivery.driverId !== userId) {
@@ -327,9 +341,52 @@ export async function cancelDelivery(deliveryId: string, userId: string) {
   if (['delivered', 'cancelled', 'expired'].includes(delivery.status)) {
     throw new HttpError(400, 'INVALID_STATE', 'Delivery cannot be cancelled');
   }
+
+  const isDriverCancel = userId === delivery.driverId;
+  const canReassignToOthers =
+    isDriverCancel &&
+    delivery.status !== 'picked_up' &&
+    delivery.status !== 'delivering';
+
+  // Cas special : le livreur annule une course deja acceptee (mais pas encore recuperee)
+  // → on remet en pending pour que d'autres livreurs puissent la prendre.
+  if (canReassignToOthers) {
+    const updated = await prisma.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: 'pending',
+        driverId: null,
+        acceptedAt: null,
+        expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+      },
+    });
+
+    // Avertir le client que le livreur a abandonne et qu'on cherche un autre
+    emitToUser(updated.senderId, 'delivery:driver_cancelled', {
+      delivery: updated,
+      reason: reason ?? 'driver_unavailable',
+      comment,
+    });
+
+    // Re-notifier les autres livreurs proches
+    void notifyNearbyDrivers(updated).catch((err) =>
+      logger.error({ err, deliveryId }, 'Failed to re-notify after driver cancel'),
+    );
+
+    logger.info({ deliveryId, driverId: userId, reason }, 'Driver cancelled, re-posted');
+    return updated;
+  }
+
+  // Sinon: annulation definitive
   const updated = await prisma.delivery.update({
     where: { id: deliveryId },
-    data: { status: 'cancelled', cancelledAt: new Date() },
+    data: {
+      status: 'cancelled',
+      cancelledAt: new Date(),
+      cancelReason: reason,
+      cancelComment: comment,
+      cancelledBy: userId,
+    },
   });
 
   // Si la livraison etait encore pending, elle a ete broadcastee aux livreurs proches:

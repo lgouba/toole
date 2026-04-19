@@ -65,8 +65,20 @@ export default function ShipmentsScreen() {
           <DeliveryCard
             delivery={item}
             onPress={() => {
-              setActiveDelivery(item);
-              router.push('/(client)/active-delivery');
+              // Si la livraison est en cours, on va sur le suivi live; sinon sur le detail.
+              const inProgress = [
+                'pending',
+                'accepted',
+                'picking_up',
+                'picked_up',
+                'delivering',
+              ].includes(item.status);
+              if (inProgress) {
+                setActiveDelivery(item);
+                router.push('/(client)/active-delivery');
+              } else {
+                router.push(`/delivery/${item.id}` as any);
+              }
             }}
           />
         )}
