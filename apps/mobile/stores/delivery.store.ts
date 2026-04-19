@@ -64,53 +64,74 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     if (!activeDelivery) return null;
 
     set({ isSearching: true });
-    const driver = await deliveryService.autoSearchDriver(activeDelivery.id);
-    if (driver) {
-      const updated = await deliveryService.getDeliveryById(activeDelivery.id);
-      set({
-        activeDriver: driver,
-        activeDelivery: updated,
-        driverLocation: driver.driverProfile.currentLocation || null,
-        isSearching: false,
-      });
-    } else {
+    try {
+      const driver = await deliveryService.autoSearchDriver(activeDelivery.id);
+      if (driver) {
+        const updated = await deliveryService.getDeliveryById(activeDelivery.id);
+        set({
+          activeDriver: driver,
+          activeDelivery: updated,
+          driverLocation: driver.driverProfile.currentLocation || null,
+          isSearching: false,
+        });
+      } else {
+        set({ isSearching: false });
+      }
+      return driver;
+    } catch {
       set({ isSearching: false });
+      return null;
     }
-    return driver;
   },
 
   selectDriver: (driver) => set({ activeDriver: driver }),
 
   fetchNearbyDrivers: async (location) => {
-    const drivers = await deliveryService.searchNearbyDrivers(location);
-    set({ nearbyDrivers: drivers });
+    try {
+      const drivers = await deliveryService.searchNearbyDrivers(location);
+      set({ nearbyDrivers: drivers });
+    } catch {
+      // silencieux: la liste reste vide
+    }
   },
 
   fetchDeliveries: async (userId, role, status) => {
     set({ isLoading: true });
-    const deliveries = await deliveryService.getDeliveries(userId, role, status);
-    set({ deliveries, isLoading: false });
+    try {
+      const deliveries = await deliveryService.getDeliveries(userId, role, status);
+      set({ deliveries, isLoading: false });
+    } catch {
+      set({ isLoading: false });
+    }
   },
 
   setActiveDelivery: (delivery) => set({ activeDelivery: delivery }),
   setDriverLocation: (location) => set({ driverLocation: location }),
 
   updateStatus: async (deliveryId, status) => {
-    const updated = await deliveryService.updateDeliveryStatus(deliveryId, status);
-    if (updated) {
-      set({ activeDelivery: updated });
+    try {
+      const updated = await deliveryService.updateDeliveryStatus(deliveryId, status);
+      if (updated) {
+        set({ activeDelivery: updated });
+      }
+    } catch {
+      // silencieux
     }
   },
 
   relaunch: async () => {
     const current = get().activeDelivery;
     if (!current) return false;
-    const updated = await deliveryService.relaunchDelivery(current.id);
-    if (updated) {
-      set({ activeDelivery: updated });
-      return true;
+    try {
+      const updated = await deliveryService.relaunchDelivery(current.id);
+      if (updated) {
+        set({ activeDelivery: updated });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
-    return false;
   },
 
   clear: () =>

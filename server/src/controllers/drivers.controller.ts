@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { AuthedRequest } from '../middleware/auth.js';
+import { prisma } from '../lib/prisma.js';
 import {
   setOnline,
   updateLocation,
@@ -9,6 +10,7 @@ import {
 } from '../services/driver.service.js';
 import { emitToUser } from '../services/notification.service.js';
 import { success } from '../utils/response.js';
+import { HttpError } from '../utils/response.js';
 
 const statusSchema = z.object({ isOnline: z.boolean() });
 
@@ -85,6 +87,64 @@ export async function getDriver(
         .json({ data: null, error: { code: 'NOT_FOUND', message: 'Driver not found' } });
     }
     return success(res, driver);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const kycSchema = z.object({
+  vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
+  vehiclePlate: z.string().max(50).optional(),
+  vehiclePhotoUrl: z.string().max(500).optional(),
+  cnibNumber: z.string().max(50).optional(),
+  cnibPhotoUrl: z.string().max(500).optional(),
+  licenseNumber: z.string().max(50).optional(),
+  licensePhotoUrl: z.string().max(500).optional(),
+});
+
+export async function updateKyc(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const data = kycSchema.parse(req.body);
+    const profile = await prisma.driverProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
+
+    // Si le livreur soumet de nouveaux documents, repasser en "pending" pour re-validation
+    const needsReview = Boolean(
+      data.cnibPhotoUrl || data.licensePhotoUrl || data.vehiclePhotoUrl,
+    );
+
+    const updated = await prisma.driverProfile.update({
+      where: { userId: req.user!.id },
+      data: {
+        ...data,
+        ...(needsReview && profile.verificationStatus !== 'pending'
+          ? { verificationStatus: 'pending', verifiedAt: null }
+          : {}),
+      },
+    });
+    return success(res, updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getKyc(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const profile = await prisma.driverProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
+    return success(res, profile);
   } catch (err) {
     next(err);
   }

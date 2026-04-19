@@ -9,6 +9,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
+import '@/utils/globalErrorHandler';
 import { useAuthStore } from '@/stores/auth.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { colors } from '@/theme';
@@ -43,7 +44,8 @@ export default function RootLayout() {
   // pour eviter d'utiliser un userType obsolete du cache AsyncStorage.
   useEffect(() => {
     if (isAuthenticated && fontsLoaded) {
-      refreshUser();
+      // Catch explicite pour eviter "unhandled promise rejection"
+      refreshUser().catch(() => {});
     }
   }, [fontsLoaded, isAuthenticated, refreshUser]);
 
@@ -96,6 +98,8 @@ export default function RootLayout() {
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(driver)" />
         <Stack.Screen name="delivery/[id]" />
+        <Stack.Screen name="profile-edit" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>

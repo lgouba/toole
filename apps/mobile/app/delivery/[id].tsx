@@ -18,6 +18,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { Delivery, PACKAGE_LABELS } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
+import { resolveUploadUrl } from '@/services/upload.service';
 import { formatCFA, formatDateTime, formatDistance } from '@/utils/format';
 import { openPhone } from '@/utils/linking';
 
@@ -200,7 +201,7 @@ export default function DeliveryDetailScreen() {
                 <View style={styles.photoWrap}>
                   <Text style={styles.photoLabel}>Recuperation</Text>
                   <Image
-                    source={{ uri: delivery.packagePhotoPickupUrl }}
+                    source={{ uri: resolveUploadUrl(delivery.packagePhotoPickupUrl) ?? '' }}
                     style={styles.photo}
                   />
                 </View>
@@ -209,7 +210,7 @@ export default function DeliveryDetailScreen() {
                 <View style={styles.photoWrap}>
                   <Text style={styles.photoLabel}>Livraison</Text>
                   <Image
-                    source={{ uri: delivery.packagePhotoDeliveryUrl }}
+                    source={{ uri: resolveUploadUrl(delivery.packagePhotoDeliveryUrl) ?? '' }}
                     style={styles.photo}
                   />
                 </View>

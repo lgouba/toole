@@ -43,12 +43,16 @@ services:
       VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-nginx-proxy}
       LETSENCRYPT_HOST: api.tolle.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - tolle-uploads:/app/uploads
     networks:
       nginx-proxy:
       tolle-internal:
 
 volumes:
   tolle-db-data:
+  tolle-uploads:
 
 networks:
   nginx-proxy:

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,11 +7,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
+import { uploadImage } from '@/services/upload.service';
 
 export default function PickupConfirmScreen() {
   const router = useRouter();
   const { confirmPickup } = useDriverStore();
   const [photo, setPhoto] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
@@ -25,8 +27,18 @@ export default function PickupConfirmScreen() {
 
   const handleConfirm = async () => {
     if (!photo) return;
-    await confirmPickup(photo);
-    router.replace('/(driver)/delivery-navigation');
+    setUploading(true);
+    try {
+      const uploaded = await uploadImage(photo, 'packages');
+      if (!uploaded) {
+        Alert.alert('Erreur', 'Impossible d\'envoyer la photo. Reessayez.');
+        return;
+      }
+      await confirmPickup(uploaded.url);
+      router.replace('/(driver)/delivery-navigation');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -65,6 +77,7 @@ export default function PickupConfirmScreen() {
           title="Confirmer la recuperation"
           onPress={handleConfirm}
           disabled={!photo}
+          loading={uploading}
         />
       </View>
     </SafeAreaView>

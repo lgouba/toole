@@ -1,21 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Card } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { formatPhone } from '@/utils/format';
+import { resolveUploadUrl } from '@/services/upload.service';
 
 const menuItems = [
-  { icon: 'person-outline', label: 'Modifier le profil', action: 'edit' },
-  { icon: 'document-outline', label: 'Mes documents', action: 'documents' },
-  { icon: 'time-outline', label: 'Historique', action: 'history' },
-  { icon: 'settings-outline', label: 'Parametres', action: 'settings' },
-  { icon: 'information-circle-outline', label: 'A propos', action: 'about' },
-];
+  { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
+  { icon: 'document-outline', label: 'Mes documents', route: '/(driver)/kyc' },
+  { icon: 'settings-outline', label: 'Parametres', route: '/settings' },
+  { icon: 'information-circle-outline', label: 'A propos', route: null },
+] as const;
 
 export default function DriverProfileScreen() {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
 
   if (!user) return null;
@@ -24,7 +26,11 @@ export default function DriverProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Avatar name={user.fullName} size="xl" />
+          <Avatar
+            name={user.fullName}
+            uri={resolveUploadUrl(user.avatarUrl) ?? undefined}
+            size="xl"
+          />
           <Text style={styles.name}>{user.fullName}</Text>
           <Text style={styles.phone}>{formatPhone(user.phone)}</Text>
           <View style={styles.ratingRow}>
@@ -37,9 +43,12 @@ export default function DriverProfileScreen() {
         <Card style={styles.menu}>
           {menuItems.map((item, i) => (
             <TouchableOpacity
-              key={item.action}
+              key={item.label}
               style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder]}
               activeOpacity={0.6}
+              onPress={() => {
+                if (item.route) router.push(item.route as any);
+              }}
             >
               <Ionicons name={item.icon as any} size={22} color={colors.textSecondary} />
               <Text style={styles.menuLabel}>{item.label}</Text>

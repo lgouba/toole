@@ -25,20 +25,42 @@ export const tokenStorage = {
 
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 30000,
+  timeout: 15000, // 15s - reseau lent au BF, mais 30s etait excessif
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Request interceptor: attach JWT
+// ---------- Logging + mesure ----------
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await tokenStorage.getAccessToken();
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  (config as any).__startTime = Date.now();
   return config;
 });
 
-// Response interceptor: refresh on 401
+api.interceptors.response.use(
+  (response) => {
+    const start = (response.config as any).__startTime as number | undefined;
+    const elapsed = start ? Date.now() - start : 0;
+    if (elapsed > 3000) {
+      console.log(`[API slow ${elapsed}ms] ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    const cfg = error.config as any;
+    const start = cfg?.__startTime as number | undefined;
+    const elapsed = start ? Date.now() - start : 0;
+    const status = error.response?.status ?? 'no-response';
+    console.log(
+      `[API fail ${elapsed}ms ${status}] ${cfg?.method?.toUpperCase() ?? '?'} ${cfg?.url ?? ''} - ${error.message}`,
+    );
+    return Promise.reject(error);
+  },
+);
+
+// ---------- Auth refresh on 401 ----------
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
@@ -54,7 +76,6 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/')
     ) {
       if (isRefreshing) {
-        // Queue this request until refresh completes
         return new Promise((resolve, reject) => {
           refreshQueue.push((token) => {
             if (token) {
@@ -76,7 +97,8 @@ api.interceptors.response.use(
 
         const { data } = await axios.post(
           `${API_BASE_URL}/api/auth/refresh`,
-          { refreshToken }
+          { refreshToken },
+          { timeout: 10000 },
         );
 
         const { accessToken, refreshToken: newRefresh } = data.data;
@@ -98,10 +120,10 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
-// Unwrap response envelope { data, error }
+// ---------- Unwrap ----------
 export function unwrap<T>(response: { data: { data: T; error?: unknown } }): T {
   return response.data.data;
 }
@@ -114,4 +136,17 @@ export function getApiError(error: unknown): string {
   }
   if (error instanceof Error) return error.message;
   return 'Erreur inconnue';
+}
+
+/**
+ * Wrapper pour les appels non-critiques (fire-and-forget).
+ * - Swallow toutes les erreurs (plus d'unhandled promise rejection)
+ * - Log discret dans la console
+ */
+export function safeCall<T>(promise: Promise<T>, label: string): Promise<T | null> {
+  return promise.catch((err) => {
+    const msg = err?.message ?? String(err);
+    console.log(`[safeCall:${label}] swallowed: ${msg}`);
+    return null;
+  });
 }

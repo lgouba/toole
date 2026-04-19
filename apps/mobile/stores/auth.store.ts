@@ -87,10 +87,15 @@ export const useAuthStore = create<AuthState>()(
           const fresh = await userService.getMe();
           set({ user: fresh });
         } catch (err: any) {
-          // Si 401 apres refresh echoue, on deconnecte
+          // Si 401 (token invalide) -> logout propre.
+          // Sinon (timeout, reseau, 5xx...) on ne fait rien, le user en cache reste utilisable.
           if (err?.response?.status === 401) {
-            disconnectSocket();
-            await authService.logout();
+            try {
+              disconnectSocket();
+              await authService.logout();
+            } catch {
+              /* ignore */
+            }
             set({
               user: null,
               isAuthenticated: false,

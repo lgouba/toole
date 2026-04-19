@@ -121,6 +121,8 @@ model DriverProfile {
   cnibNumber         String?
   cnibPhotoUrl       String?
   vehicleType        VehicleType
+  vehiclePlate       String?
+  vehiclePhotoUrl    String?
   licenseNumber      String?
   licensePhotoUrl    String?
   isOnline           Boolean            @default(false)
@@ -130,6 +132,8 @@ model DriverProfile {
   walletBalance      Int                @default(0)
   totalDeliveries    Int                @default(0)
   verificationStatus VerificationStatus @default(pending)
+  verificationNote   String?
+  verifiedAt         DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 

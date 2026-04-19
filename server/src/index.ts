@@ -3,6 +3,8 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
+import path from 'node:path';
+import fs from 'node:fs';
 
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
@@ -12,6 +14,7 @@ import authRoutes from './routes/auth.routes.js';
 import usersRoutes from './routes/users.routes.js';
 import driversRoutes from './routes/drivers.routes.js';
 import deliveriesRoutes from './routes/deliveries.routes.js';
+import uploadsRoutes from './routes/uploads.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket/index.js';
@@ -20,7 +23,14 @@ import { markStaleDriversOffline } from './services/driver.service.js';
 
 const app = express();
 
-app.use(helmet());
+// Helmet est desactive pour les uploads pour que le CORS cross-origin
+// et la servie statique marchent proprement avec un CDN / nginx-proxy.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false,
+  }),
+);
 app.use(
   cors({
     origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
@@ -29,6 +39,17 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Service statique des uploads
+const UPLOAD_ROOT = process.env.UPLOAD_DIR ?? '/app/uploads';
+fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
+app.use(
+  '/uploads',
+  express.static(UPLOAD_ROOT, {
+    maxAge: '30d',
+    immutable: true,
+  }),
+);
 app.use(
   pinoHttp({
     logger,
@@ -50,6 +71,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/drivers', driversRoutes);
 app.use('/api/deliveries', deliveriesRoutes);
+app.use('/api/uploads', uploadsRoutes);
 
 // 404 + error handling
 app.use(notFoundHandler);

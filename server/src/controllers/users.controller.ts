@@ -44,6 +44,37 @@ export async function updateMe(
   }
 }
 
+export async function deleteMe(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const active = await prisma.delivery.count({
+      where: {
+        OR: [{ senderId: req.user!.id }, { driverId: req.user!.id }],
+        status: {
+          in: ['pending', 'accepted', 'picking_up', 'picked_up', 'delivering'],
+        },
+      },
+    });
+    if (active > 0) {
+      return res.status(400).json({
+        data: null,
+        error: {
+          code: 'ACTIVE_DELIVERIES',
+          message:
+            'Vous avez des livraisons en cours. Terminez-les ou annulez-les avant de supprimer votre compte.',
+        },
+      });
+    }
+    await prisma.user.delete({ where: { id: req.user!.id } });
+    return success(res, { deleted: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 const pushTokenSchema = z.object({
   token: z.string().min(10),
   platform: z.string().optional(),
