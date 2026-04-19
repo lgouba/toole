@@ -7,8 +7,9 @@ import { logger } from '../lib/logger.js';
 const NEARBY_RADIUS_KM = 5;
 const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
 // Un livreur est considere "actif" seulement si sa position a ete mise a jour
-// dans les 90 dernieres secondes (le mobile push toutes les 10s).
-const ACTIVE_DRIVER_MAX_AGE_MS = 90 * 1000;
+// dans les 2 dernieres minutes (le mobile push toutes les 10s, on tolere des
+// coupures reseau courtes).
+const ACTIVE_DRIVER_MAX_AGE_MS = 120 * 1000;
 
 export async function setOnline(userId: string, isOnline: boolean) {
   const profile = await prisma.driverProfile.update({

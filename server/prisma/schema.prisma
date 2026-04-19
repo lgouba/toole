@@ -12,6 +12,7 @@ enum UserRole {
   client
   driver
   merchant
+  admin
 }
 
 enum VehicleType {
@@ -76,18 +77,21 @@ enum CancelReason {
 }
 
 model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  phone       String   @unique
-  fullName    String
-  email       String?
-  userType    UserRole
-  avatarUrl   String?
-  isVerified  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  ratingAvg   Decimal  @default(5.0) @db.Decimal(2, 1)
-  ratingCount Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.Uuid
+  phone        String   @unique
+  fullName     String
+  email        String?
+  passwordHash String?  // utilise uniquement pour les admins
+  userType     UserRole
+  avatarUrl    String?
+  isVerified   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  suspendedAt  DateTime?
+  suspendReason String?
+  ratingAvg    Decimal  @default(5.0) @db.Decimal(2, 1)
+  ratingCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   driverProfile     DriverProfile?
   sentDeliveries    Delivery[]      @relation("Sender")

@@ -92,7 +92,12 @@ async function notifyNearbyDrivers(delivery: Delivery) {
     }
   }
   logger.info(
-    { deliveryId: delivery.id, driversNotified: ids.length },
+    {
+      deliveryId: delivery.id,
+      driversNotified: ids.length,
+      driverIds: ids,
+      driversNames: drivers.map((d) => d.fullName),
+    },
     'Notified nearby drivers',
   );
 }
