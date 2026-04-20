@@ -58,6 +58,8 @@ const registerSchema = z.object({
   fullName: z.string().min(2).max(100),
   userType: z.enum(['client', 'driver', 'merchant']),
   otpCode: z.string().length(4),
+  email: z.string().trim().email().optional().or(z.literal('')),
+  vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
 });
 
 export async function registerCtrl(req: Request, res: Response, next: NextFunction) {

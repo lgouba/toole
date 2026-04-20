@@ -61,9 +61,13 @@ export async function registerUser(
   phone: string,
   fullName: string,
   userType: UserRole,
-  otpCode: string
+  otpCode: string,
+  extras?: { email?: string; vehicleType?: string }
 ): Promise<User> {
-  const res = await api.post('/auth/register', { phone, fullName, userType, otpCode });
+  const payload: Record<string, any> = { phone, fullName, userType, otpCode };
+  if (extras?.email) payload.email = extras.email;
+  if (extras?.vehicleType) payload.vehicleType = extras.vehicleType;
+  const res = await api.post('/auth/register', payload);
   const data = unwrap<{ user: any; accessToken: string; refreshToken: string }>(res);
 
   await tokenStorage.setTokens(data.accessToken, data.refreshToken);

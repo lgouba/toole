@@ -59,17 +59,38 @@ export default function SearchingScreen() {
     return () => clearInterval(interval);
   }, [expired]);
 
-  // Quand un livreur accepte (via Socket.IO, le store est mis a jour)
+  // ID de la livraison qu'on "regarde" pour ce cycle de recherche.
+  // Ca evite de traiter un etat stale (ex: une livraison expired d'un test precedent).
+  const watchedDeliveryIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (hasNavigatedRef.current) return;
     if (!activeDelivery) return;
+    // A l'arrivee sur l'ecran, la livraison doit etre 'pending'.
+    // Sinon, on est en presence d'un state residuel: on ne declenche pas "expired" tout de suite.
+    if (watchedDeliveryIdRef.current === null) {
+      if (activeDelivery.status !== 'pending') {
+        // State stale (ex: derniere livraison expired en memoire) -> on clear et on revient a l'accueil
+        clear();
+        router.replace('/(client)');
+        return;
+      }
+      watchedDeliveryIdRef.current = activeDelivery.id;
+    }
+
+    // Ne traiter que les changements pour LA livraison qu'on suit
+    if (watchedDeliveryIdRef.current !== activeDelivery.id) return;
+    if (hasNavigatedRef.current) return;
+
     if (activeDelivery.status === 'accepted') {
       hasNavigatedRef.current = true;
       router.replace('/(client)/active-delivery');
-    } else if (activeDelivery.status === 'expired' || activeDelivery.status === 'cancelled') {
+    } else if (
+      activeDelivery.status === 'expired' ||
+      activeDelivery.status === 'cancelled'
+    ) {
       setExpired(true);
     }
-  }, [activeDelivery?.status]);
+  }, [activeDelivery?.id, activeDelivery?.status]);
 
   const performCancel = async () => {
     setCancelling(true);

@@ -17,7 +17,11 @@ interface AuthState {
   setPhoneNumber: (phone: string) => void;
   sendOtp: (phone: string) => Promise<boolean>;
   verifyOtp: (code: string) => Promise<{ success: boolean; isNewUser: boolean }>;
-  register: (fullName: string, userType: UserRole) => Promise<boolean>;
+  register: (
+    fullName: string,
+    userType: UserRole,
+    extras?: { email?: string; vehicleType?: string }
+  ) => Promise<boolean>;
   completeOnboarding: () => void;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -63,14 +67,15 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      register: async (fullName, userType) => {
+      register: async (fullName, userType, extras) => {
         set({ isLoading: true });
         try {
           const user = await authService.registerUser(
             get().phoneNumber,
             fullName,
             userType,
-            get().lastOtpCode
+            get().lastOtpCode,
+            extras
           );
           set({ user, isAuthenticated: true, isLoading: false, lastOtpCode: '' });
           return true;

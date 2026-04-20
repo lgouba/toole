@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole, VehicleType } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import {
   signAccessToken,
@@ -67,24 +67,28 @@ export async function registerUser(args: {
   fullName: string;
   userType: UserRole;
   otpCode: string;
+  email?: string;
+  vehicleType?: VehicleType;
 }) {
   await verifyOtpCode(args.phone, args.otpCode);
   const existing = await prisma.user.findUnique({ where: { phone: args.phone } });
   if (existing) {
     throw new HttpError(409, 'USER_EXISTS', 'A user with this phone already exists');
   }
+  const email = args.email?.trim() || null;
   const user = await prisma.user.create({
     data: {
       phone: args.phone,
       fullName: args.fullName,
       userType: args.userType,
+      email,
       isVerified: true,
       // Create driver profile automatically if user is a driver
       ...(args.userType === 'driver'
         ? {
             driverProfile: {
               create: {
-                vehicleType: 'moto', // default, can be changed later
+                vehicleType: args.vehicleType ?? 'moto',
                 verificationStatus: 'pending',
               },
             },

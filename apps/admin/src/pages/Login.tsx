@@ -20,8 +20,17 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <h1>Tolle Admin</h1>
+        <div className="login-brand">
+          <div className="logo-mark">T</div>
+          <div className="login-brand-text">
+            <span className="brand">Tolle</span>
+            <span className="sub">Administration</span>
+          </div>
+        </div>
+
+        <h1>Bon retour</h1>
         <p>Connectez-vous pour acceder au panneau d'administration.</p>
+
         <form className="form" onSubmit={handleSubmit}>
           <label>
             Email
@@ -42,10 +51,18 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
+              placeholder="••••••••"
             />
           </label>
-          <button className="btn" type="submit" disabled={loading}>
-            {loading ? 'Connexion...' : 'Se connecter'}
+          <button className="btn" type="submit" disabled={loading} style={{ marginTop: 4 }}>
+            {loading ? (
+              <>
+                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }}></div>
+                Connexion...
+              </>
+            ) : (
+              'Se connecter'
+            )}
           </button>
           {error ? <div className="error-text">{error}</div> : null}
         </form>

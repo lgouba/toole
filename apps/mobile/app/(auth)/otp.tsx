@@ -50,9 +50,10 @@ export default function OtpScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Verification</Text>
           <Text style={styles.subtitle}>
-            Entrez le code envoye au{'\n'}
+            Entrez le code a 4 chiffres envoye au{'\n'}
             <Text style={styles.phone}>{formatPhone(phoneNumber)}</Text>
           </Text>
+          <Text style={styles.devHint}>Code test: 1234</Text>
         </View>
 
         <OtpInput
@@ -108,6 +109,12 @@ const styles = StyleSheet.create({
   },
   phone: {
     color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  devHint: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: spacing.sm,
     fontWeight: '600',
   },
   error: {

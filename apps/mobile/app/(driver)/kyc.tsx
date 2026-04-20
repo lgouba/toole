@@ -99,10 +99,24 @@ export default function DriverKycScreen() {
     setSaving(false);
     if (updated) {
       setKyc(updated);
-      Alert.alert('Enregistre', 'Vos informations ont ete envoyees pour verification.');
+      Alert.alert(
+        'Dossier envoye',
+        'Vos informations ont ete envoyees pour verification. Vous pouvez commencer a recevoir des courses des que votre dossier sera approuve.',
+        [
+          {
+            text: 'Continuer',
+            onPress: () => router.replace('/(driver)'),
+          },
+        ],
+      );
     } else {
       Alert.alert('Erreur', 'Echec de l\'enregistrement.');
     }
+  };
+
+  const handleBack = () => {
+    // Safely return to driver home (handles new-driver case coming from register)
+    router.replace('/(driver)');
   };
 
   if (loading) {
@@ -118,7 +132,7 @@ export default function DriverKycScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+        <TouchableOpacity onPress={handleBack} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mes documents</Text>
