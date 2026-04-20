@@ -55,17 +55,30 @@ export async function verifyOtpCtrl(req: Request, res: Response, next: NextFunct
 
 const registerSchema = z.object({
   phone: phoneSchema,
-  fullName: z.string().min(2).max(100),
+  firstName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().min(1).max(50),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   userType: z.enum(['client', 'driver', 'merchant']),
   otpCode: z.string().length(4),
   email: z.string().trim().email().optional().or(z.literal('')),
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
+  vehiclePlate: z.string().trim().max(20).optional().or(z.literal('')),
 });
 
 export async function registerCtrl(req: Request, res: Response, next: NextFunction) {
   try {
     const body = registerSchema.parse(req.body);
-    const { user, tokens } = await registerUser(body);
+    const { user, tokens } = await registerUser({
+      phone: body.phone,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      dateOfBirth: body.dateOfBirth,
+      userType: body.userType,
+      otpCode: body.otpCode,
+      email: body.email || undefined,
+      vehicleType: body.vehicleType,
+      vehiclePlate: body.vehiclePlate || undefined,
+    });
     return success(
       res,
       {

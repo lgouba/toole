@@ -3,6 +3,7 @@ import { haversineKm } from '../utils/geo.js';
 import { emitToUser } from './notification.service.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
+import { HttpError } from '../utils/response.js';
 
 const NEARBY_RADIUS_KM = 5;
 const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
@@ -12,6 +13,21 @@ const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
 const ACTIVE_DRIVER_MAX_AGE_MS = 120 * 1000;
 
 export async function setOnline(userId: string, isOnline: boolean) {
+  // Empeche un livreur non active par l'admin de passer en ligne.
+  if (isOnline) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isActive: true },
+    });
+    if (!user?.isActive) {
+      throw new HttpError(
+        403,
+        'DRIVER_NOT_ACTIVATED',
+        "Votre compte n'est pas encore active par l'administrateur.",
+      );
+    }
+  }
+
   const profile = await prisma.driverProfile.update({
     where: { userId },
     data: { isOnline },

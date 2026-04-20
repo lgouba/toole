@@ -7,7 +7,10 @@ export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 export interface User {
   id: string;
   phone: string;
+  firstName?: string;
+  lastName?: string;
   fullName: string;
+  dateOfBirth?: string;
   email?: string;
   userType: UserRole;
   avatarUrl?: string;

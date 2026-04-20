@@ -79,7 +79,10 @@ enum CancelReason {
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   phone        String   @unique
+  firstName    String?
+  lastName     String?
   fullName     String
+  dateOfBirth  DateTime?
   email        String?
   passwordHash String?  // utilise uniquement pour les admins
   userType     UserRole

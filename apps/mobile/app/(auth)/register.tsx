@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -42,58 +43,93 @@ const vehicles: {
   type: VehicleType;
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  hint: string;
 }[] = [
-  { type: 'moto', icon: 'bicycle-outline', label: 'Moto', hint: 'Le plus rapide en ville' },
-  { type: 'velo', icon: 'walk-outline', label: 'Velo', hint: 'Courtes distances' },
-  { type: 'tricycle', icon: 'bus-outline', label: 'Tricycle', hint: 'Colis volumineux' },
-  { type: 'voiture', icon: 'car-outline', label: 'Voiture', hint: 'Longues distances' },
+  { type: 'moto', icon: 'bicycle-outline', label: 'Moto' },
+  { type: 'velo', icon: 'walk-outline', label: 'Velo' },
+  { type: 'tricycle', icon: 'bus-outline', label: 'Tricycle' },
+  { type: 'voiture', icon: 'car-outline', label: 'Voiture' },
 ];
 
-type Step = 'role' | 'name' | 'vehicle';
+type Step = 'role' | 'identity' | 'vehicle';
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+function validateDate(d: string, m: string, y: string): string | null {
+  const day = parseInt(d, 10);
+  const month = parseInt(m, 10);
+  const year = parseInt(y, 10);
+  if (!day || !month || !year) return 'Date incomplete';
+  if (day < 1 || day > 31) return 'Jour invalide';
+  if (month < 1 || month > 12) return 'Mois invalide';
+  if (year < 1920 || year > CURRENT_YEAR - 16) {
+    return `Vous devez avoir au moins 16 ans`;
+  }
+  const dt = new Date(year, month - 1, day);
+  if (
+    dt.getFullYear() !== year ||
+    dt.getMonth() !== month - 1 ||
+    dt.getDate() !== day
+  ) {
+    return 'Date invalide';
+  }
+  return null;
+}
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading, logout } = useAuthStore();
   const [step, setStep] = useState<Step>('role');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+
+  // Identity
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
+
+  // Driver only
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
+  const [vehiclePlate, setVehiclePlate] = useState('');
+
   const [error, setError] = useState('');
 
-  // Nombre total d'etapes selon le role
   const totalSteps = selectedRole === 'driver' ? 3 : 2;
   const currentStepIndex = useMemo(() => {
     if (step === 'role') return 1;
-    if (step === 'name') return 2;
+    if (step === 'identity') return 2;
     return 3;
   }, [step]);
 
   const handleBack = () => {
     setError('');
-    if (step === 'name') return setStep('role');
-    if (step === 'vehicle') return setStep('name');
-    // Step 'role': back to login
+    if (step === 'identity') return setStep('role');
+    if (step === 'vehicle') return setStep('identity');
+    // Step 'role' : back to login
     logout();
     router.replace('/(auth)/login');
   };
 
   const handleRoleNext = () => {
     if (!selectedRole) return;
-    setStep('name');
+    setStep('identity');
   };
 
-  const handleNameNext = async () => {
+  const handleIdentityNext = async () => {
     setError('');
-    const name = fullName.trim();
-    if (name.length < 2) {
-      setError('Entrez au moins 2 caracteres');
+    if (firstName.trim().length < 2) {
+      setError('Entrez votre prenom (2 caracteres min)');
       return;
     }
-    const trimmedEmail = email.trim();
-    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError("Format d'email invalide");
+    if (lastName.trim().length < 2) {
+      setError('Entrez votre nom (2 caracteres min)');
+      return;
+    }
+    const dateErr = validateDate(day, month, year);
+    if (dateErr) {
+      setError(dateErr);
       return;
     }
 
@@ -102,28 +138,33 @@ export default function RegisterScreen() {
       return;
     }
 
-    await doRegister({ vehicleType: undefined });
+    await doRegister();
   };
 
   const handleVehicleConfirm = async () => {
     if (!vehicleType) return;
-    await doRegister({ vehicleType });
+    await doRegister();
   };
 
-  const doRegister = async (extras: { vehicleType?: VehicleType }) => {
+  const doRegister = async () => {
     if (!selectedRole) return;
     setError('');
-    const ok = await register(fullName.trim(), selectedRole, {
-      email: email.trim() || undefined,
-      vehicleType: extras.vehicleType,
+    const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const ok = await register({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      dateOfBirth: dob,
+      userType: selectedRole,
+      vehicleType: vehicleType ?? undefined,
+      vehiclePlate: vehiclePlate.trim() || undefined,
     });
     if (!ok) {
       setError('Impossible de creer le compte. Verifiez votre connexion.');
       return;
     }
-    // Redirection : driver -> KYC obligatoire avant d'entrer dans l'app
+    // Redirection selon le role
     if (selectedRole === 'driver') {
-      router.replace('/(driver)/kyc');
+      router.replace('/(driver)');
     } else {
       router.replace('/(client)');
     }
@@ -131,7 +172,6 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header avec bouton retour + progression */}
       <View style={styles.headerBar}>
         <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -142,7 +182,6 @@ export default function RegisterScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Barre de progression */}
       <View style={styles.progressTrack}>
         <View
           style={[
@@ -215,35 +254,78 @@ export default function RegisterScreen() {
             </>
           )}
 
-          {step === 'name' && (
+          {step === 'identity' && (
             <>
               <View style={styles.header}>
-                <Text style={styles.title}>Parlez-nous de vous</Text>
+                <Text style={styles.title}>Vos informations</Text>
                 <Text style={styles.subtitle}>
-                  {selectedRole === 'driver'
-                    ? 'Ces informations seront visibles par vos clients'
-                    : 'Ces informations seront visibles par les livreurs'}
+                  Ces informations seront visibles par les autres utilisateurs
                 </Text>
               </View>
 
               <View style={styles.form}>
                 <Input
-                  label="Nom complet *"
-                  placeholder="Ex: Aminata Ouedraogo"
-                  value={fullName}
-                  onChangeText={setFullName}
+                  label="Prenom *"
+                  placeholder="Aminata"
+                  value={firstName}
+                  onChangeText={setFirstName}
                   autoCapitalize="words"
                   autoFocus
                 />
 
                 <Input
-                  label="Email (optionnel)"
-                  placeholder="exemple@email.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
+                  label="Nom *"
+                  placeholder="Ouedraogo"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
                 />
+
+                <View>
+                  <Text style={styles.dobLabel}>Date de naissance *</Text>
+                  <View style={styles.dobRow}>
+                    <TextInput
+                      style={styles.dobInput}
+                      placeholder="JJ"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      value={day}
+                      onChangeText={(t) => {
+                        const v = t.replace(/\D/g, '');
+                        setDay(v);
+                        if (v.length === 2) monthRef.current?.focus();
+                      }}
+                    />
+                    <Text style={styles.dobSeparator}>/</Text>
+                    <TextInput
+                      ref={monthRef}
+                      style={styles.dobInput}
+                      placeholder="MM"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      value={month}
+                      onChangeText={(t) => {
+                        const v = t.replace(/\D/g, '');
+                        setMonth(v);
+                        if (v.length === 2) yearRef.current?.focus();
+                      }}
+                    />
+                    <Text style={styles.dobSeparator}>/</Text>
+                    <TextInput
+                      ref={yearRef}
+                      style={[styles.dobInput, styles.dobInputYear]}
+                      placeholder="AAAA"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      value={year}
+                      onChangeText={(t) => setYear(t.replace(/\D/g, ''))}
+                    />
+                  </View>
+                  <Text style={styles.dobHint}>Format : JJ / MM / AAAA</Text>
+                </View>
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
               </View>
@@ -259,13 +341,13 @@ export default function RegisterScreen() {
                 </Text>
               </View>
 
-              <View style={styles.vehicleList}>
+              <View style={styles.vehicleGrid}>
                 {vehicles.map((v) => (
                   <TouchableOpacity
                     key={v.type}
                     style={[
-                      styles.vehicleRow,
-                      vehicleType === v.type && styles.vehicleRowSelected,
+                      styles.vehicleCard,
+                      vehicleType === v.type && styles.vehicleCardSelected,
                     ]}
                     onPress={() => setVehicleType(v.type)}
                     activeOpacity={0.8}
@@ -278,35 +360,51 @@ export default function RegisterScreen() {
                     >
                       <Ionicons
                         name={v.icon}
-                        size={24}
+                        size={26}
                         color={
                           vehicleType === v.type ? colors.white : colors.primary
                         }
                       />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.vehicleLabel}>{v.label}</Text>
-                      <Text style={styles.vehicleHint}>{v.hint}</Text>
-                    </View>
-                    {vehicleType === v.type ? (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color={colors.primary}
-                      />
-                    ) : (
-                      <View style={styles.radioEmpty} />
-                    )}
+                    <Text
+                      style={[
+                        styles.vehicleCardLabel,
+                        vehicleType === v.type && styles.vehicleCardLabelSelected,
+                      ]}
+                    >
+                      {v.label}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
+              <View style={{ marginTop: spacing.md }}>
+                <Input
+                  label="Plaque d'immatriculation (optionnel)"
+                  placeholder="Ex : 11 BF 1234"
+                  value={vehiclePlate}
+                  onChangeText={setVehiclePlate}
+                  autoCapitalize="characters"
+                />
+                <Text style={styles.plateHint}>
+                  Laissez vide si vous avez plusieurs vehicules ou n'avez pas encore
+                  la plaque.
+                </Text>
+              </View>
+
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Text style={styles.vehicleDisclaimer}>
-                Apres inscription, vous completerez votre dossier (photo de vehicule,
-                CNIB, permis) avant d'etre active.
-              </Text>
+              <View style={styles.infoBox}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.infoText}>
+                  Votre compte sera validé par notre équipe avant que vous ne puissiez
+                  recevoir des courses.
+                </Text>
+              </View>
             </>
           )}
         </ScrollView>
@@ -319,12 +417,11 @@ export default function RegisterScreen() {
               disabled={!selectedRole}
             />
           )}
-          {step === 'name' && (
+          {step === 'identity' && (
             <Button
               title={selectedRole === 'driver' ? 'Continuer' : 'Creer mon compte'}
-              onPress={handleNameNext}
+              onPress={handleIdentityNext}
               loading={isLoading}
-              disabled={fullName.trim().length < 2}
             />
           )}
           {step === 'vehicle' && (
@@ -353,9 +450,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  backBtn: {
-    padding: 4,
-  },
+  backBtn: { padding: 4 },
   stepIndicator: {
     ...typography.captionMedium,
     color: colors.textSecondary,
@@ -372,18 +467,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 2,
   },
-  content: {
-    flex: 1,
-  },
+  content: { flex: 1 },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
   },
-  header: {
-    marginBottom: spacing.xl,
-  },
+  header: { marginBottom: spacing.xl },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
@@ -394,9 +485,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
   },
-  cardsGrid: {
-    gap: spacing.md,
-  },
+  cardsGrid: { gap: spacing.md },
   roleCard: {
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -420,16 +509,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.xs,
   },
-  roleIconCircleSelected: {
-    backgroundColor: colors.primary,
-  },
+  roleIconCircleSelected: { backgroundColor: colors.primary },
   roleTitle: {
     ...typography.h3,
     color: colors.textPrimary,
   },
-  roleTitleSelected: {
-    color: colors.primaryDark,
-  },
+  roleTitleSelected: { color: colors.primaryDark },
   roleSubtitle: {
     ...typography.bodySmall,
     color: colors.textSecondary,
@@ -445,63 +530,98 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  form: {
-    gap: spacing.md,
+  form: { gap: spacing.md },
+  dobLabel: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  dobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dobInput: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  dobInputYear: { flex: 1.5 },
+  dobSeparator: {
+    fontSize: 20,
+    color: colors.textTertiary,
+    fontWeight: '600',
+  },
+  dobHint: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 4,
   },
   error: {
     ...typography.bodySmall,
     color: colors.error,
     marginTop: spacing.sm,
   },
-  vehicleList: {
+  vehicleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  vehicleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+  vehicleCard: {
+    flexBasis: '48%',
+    flexGrow: 1,
     padding: spacing.md,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  vehicleRowSelected: {
+  vehicleCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
   vehicleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  vehicleIconSelected: {
-    backgroundColor: colors.primary,
-  },
-  vehicleLabel: {
+  vehicleIconSelected: { backgroundColor: colors.primary },
+  vehicleCardLabel: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  vehicleHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  radioEmpty: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  vehicleDisclaimer: {
+  vehicleCardLabelSelected: { color: colors.primaryDark },
+  plateHint: {
     ...typography.caption,
     color: colors.textTertiary,
+    marginTop: 4,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
     marginTop: spacing.lg,
-    lineHeight: 18,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: colors.primaryDark,
+    flex: 1,
+    lineHeight: 19,
   },
   footer: {
     paddingHorizontal: spacing.lg,

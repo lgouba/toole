@@ -15,7 +15,7 @@ interface Stats {
     pending: number;
     cancelledLast30d: number;
   };
-  drivers: { online: number; pendingKyc: number };
+  drivers: { online: number; pendingKyc: number; pendingActivation: number };
   revenue: { grossLast30d: number; commissionLast30d: number };
   topDrivers: Array<{
     id: string;
@@ -31,6 +31,18 @@ interface Stats {
     createdAt: string;
     sender?: { fullName: string } | null;
     driver?: { fullName: string } | null;
+  }>;
+  pendingActivationDrivers: Array<{
+    id: string;
+    fullName: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    phone: string;
+    createdAt: string;
+    driverProfile?: {
+      vehicleType: string;
+      vehiclePlate?: string | null;
+    } | null;
   }>;
 }
 
@@ -166,13 +178,28 @@ function initials(name: string | null | undefined): string {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activating, setActivating] = useState<string | null>(null);
+
+  const fetchStats = () => {
+    return api.get('/admin/stats').then((res) => setStats(unwrap<Stats>(res)));
+  };
 
   useEffect(() => {
-    api
-      .get('/admin/stats')
-      .then((res) => setStats(unwrap<Stats>(res)))
-      .finally(() => setLoading(false));
+    fetchStats().finally(() => setLoading(false));
   }, []);
+
+  const handleActivate = async (userId: string) => {
+    if (!confirm('Activer ce livreur ? Il pourra recevoir des courses immediatement.')) return;
+    setActivating(userId);
+    try {
+      await api.post(`/admin/users/${userId}/reactivate`);
+      await fetchStats();
+    } catch (err) {
+      alert('Echec de l\'activation.');
+    } finally {
+      setActivating(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -223,21 +250,85 @@ export default function Dashboard() {
         />
         <Stat
           icon="driver"
-          label="Livreurs actifs"
+          label="Livreurs"
           value={stats.users.drivers}
           accent="purple"
-          hint={`${stats.drivers.online} en ligne maintenant`}
+          hint={`${stats.drivers.online} en ligne`}
           hintType={stats.drivers.online > 0 ? 'positive' : 'neutral'}
         />
         <Stat
           icon="shield"
-          label="KYC a verifier"
-          value={stats.drivers.pendingKyc}
+          label="Livreurs a activer"
+          value={stats.drivers.pendingActivation}
           accent="orange"
-          hint={stats.drivers.pendingKyc > 0 ? 'Action requise' : 'A jour'}
-          hintType={stats.drivers.pendingKyc > 0 ? 'negative' : 'positive'}
+          hint={
+            stats.drivers.pendingActivation > 0
+              ? 'Action requise'
+              : 'A jour'
+          }
+          hintType={stats.drivers.pendingActivation > 0 ? 'negative' : 'positive'}
         />
       </div>
+
+      {/* Livreurs en attente d'activation */}
+      {stats.pendingActivationDrivers.length > 0 ? (
+        <div className="card">
+          <div className="card-header">
+            <h2>
+              <span className="card-icon">
+                <Icon name="shield" />
+              </span>
+              Livreurs en attente d'activation
+            </h2>
+            <span className="badge badge-pending">
+              {stats.pendingActivationDrivers.length} en attente
+            </span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Telephone</th>
+                <th>Vehicule</th>
+                <th>Inscrit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.pendingActivationDrivers.map((d) => (
+                <tr key={d.id}>
+                  <td>
+                    <div className="table-avatar">
+                      <div className="circle">{initials(d.fullName)}</div>
+                      <span>{d.fullName}</span>
+                    </div>
+                  </td>
+                  <td>{d.phone}</td>
+                  <td>
+                    {d.driverProfile?.vehicleType ?? '-'}
+                    {d.driverProfile?.vehiclePlate ? (
+                      <span className="muted"> ({d.driverProfile.vehiclePlate})</span>
+                    ) : null}
+                  </td>
+                  <td className="muted">{formatDate(d.createdAt)}</td>
+                  <td style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleActivate(d.id)}
+                      disabled={activating === d.id}
+                    >
+                      {activating === d.id ? 'Activation...' : 'Activer'}
+                    </button>
+                    <Link to={`/users/${d.id}`} className="btn btn-ghost btn-sm">
+                      Voir
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       {/* Deliveries breakdown */}
       <div className="stat-grid">

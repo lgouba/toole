@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Map } from '@/components/map/Map';
 import { OnlineToggle, StatsCard } from '@/components/driver';
@@ -9,78 +8,44 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { DEFAULT_MAP_REGION } from '@/utils/geo';
-import { getMyKyc, DriverKyc } from '@/services/driver.service';
 
 export default function DriverHomeScreen() {
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { isOnline, toggleOnline, todayDeliveries, todayEarnings } = useDriverStore();
-  const [kyc, setKyc] = useState<DriverKyc | null>(null);
 
-  useEffect(() => {
-    getMyKyc().then(setKyc).catch(() => {});
-  }, []);
-
-  const firstName = user?.fullName.split(' ')[0] || 'Livreur';
-  const kycIncomplete =
-    kyc &&
-    kyc.verificationStatus !== 'verified' &&
-    (!kyc.cnibPhotoUrl || !kyc.vehiclePhotoUrl || !kyc.licensePhotoUrl);
-  const kycRejected = kyc?.verificationStatus === 'rejected';
+  const firstName = user?.firstName || user?.fullName.split(' ')[0] || 'Livreur';
+  const isActivated = !!user?.isActive;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.greeting}>Bonjour, {firstName}</Text>
 
-        {/* KYC banner */}
-        {kycRejected ? (
-          <TouchableOpacity
-            style={[styles.kycBanner, styles.kycBannerError]}
-            onPress={() => router.push('/(driver)/kyc')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="alert-circle" size={22} color={colors.error} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.kycBannerTitle, { color: colors.error }]}>
-                Dossier refuse
-              </Text>
-              <Text style={styles.kycBannerHint}>
-                {kyc?.verificationNote || 'Corrigez les informations et renvoyez.'}
-              </Text>
+        {/* Banniere d'activation */}
+        {!isActivated ? (
+          <View style={styles.pendingCard}>
+            <View style={styles.pendingIconWrap}>
+              <Ionicons name="time-outline" size={28} color={colors.warning} />
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.error} />
-          </TouchableOpacity>
-        ) : kycIncomplete ? (
-          <TouchableOpacity
-            style={[styles.kycBanner, styles.kycBannerWarning]}
-            onPress={() => router.push('/(driver)/kyc')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="document-text-outline" size={22} color={colors.warning} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.kycBannerTitle, { color: '#a66908' }]}>
-                Completez votre dossier
-              </Text>
-              <Text style={styles.kycBannerHint}>
-                Envoyez vos documents pour etre active.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.warning} />
-          </TouchableOpacity>
-        ) : null}
-
-        <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+            <Text style={styles.pendingTitle}>Compte en cours de validation</Text>
+            <Text style={styles.pendingText}>
+              Notre équipe examine votre inscription. Vous recevrez une notification
+              dès que votre compte sera activé et vous pourrez commencer à recevoir
+              des courses.
+            </Text>
+          </View>
+        ) : (
+          <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+        )}
 
         <View style={styles.statsSection}>
           <StatsCard
             deliveriesToday={todayDeliveries}
             earningsToday={todayEarnings}
-            ratingAvg={user?.ratingAvg || 4.9}
+            ratingAvg={user?.ratingAvg || 5}
           />
         </View>
 
-        {/* Mini map */}
         <View style={styles.mapContainer}>
           <Map
             center={DEFAULT_MAP_REGION}
@@ -107,29 +72,33 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.textPrimary,
   },
-  kycBanner: {
-    flexDirection: 'row',
+  pendingCard: {
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.warningLight,
+    borderWidth: 1,
+    borderColor: colors.warning,
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
   },
-  kycBannerWarning: {
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
+  pendingIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  kycBannerError: {
-    backgroundColor: colors.errorLight,
-    borderColor: colors.error,
+  pendingTitle: {
+    ...typography.h3,
+    color: '#a66908',
+    textAlign: 'center',
   },
-  kycBannerTitle: {
-    ...typography.bodyMedium,
-  },
-  kycBannerHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
+  pendingText: {
+    ...typography.bodySmall,
+    color: '#a66908',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   statsSection: {
     marginTop: spacing.xs,
@@ -139,18 +108,5 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     marginTop: spacing.xs,
-  },
-  map: {
-    flex: 1,
-  },
-  myMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
   },
 });

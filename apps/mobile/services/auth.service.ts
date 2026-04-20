@@ -5,7 +5,10 @@ function normalizeUser(raw: any): User {
   return {
     id: raw.id,
     phone: raw.phone,
+    firstName: raw.firstName ?? undefined,
+    lastName: raw.lastName ?? undefined,
     fullName: raw.fullName,
+    dateOfBirth: raw.dateOfBirth ?? undefined,
     email: raw.email ?? undefined,
     userType: raw.userType,
     avatarUrl: raw.avatarUrl ?? undefined,
@@ -57,17 +60,32 @@ export async function verifyOtp(
   }
 }
 
-export async function registerUser(
-  phone: string,
-  fullName: string,
-  userType: UserRole,
-  otpCode: string,
-  extras?: { email?: string; vehicleType?: string }
-): Promise<User> {
-  const payload: Record<string, any> = { phone, fullName, userType, otpCode };
-  if (extras?.email) payload.email = extras.email;
-  if (extras?.vehicleType) payload.vehicleType = extras.vehicleType;
-  const res = await api.post('/auth/register', payload);
+export interface RegisterPayload {
+  phone: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string; // YYYY-MM-DD
+  userType: UserRole;
+  otpCode: string;
+  email?: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+}
+
+export async function registerUser(payload: RegisterPayload): Promise<User> {
+  const body: Record<string, any> = {
+    phone: payload.phone,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    dateOfBirth: payload.dateOfBirth,
+    userType: payload.userType,
+    otpCode: payload.otpCode,
+  };
+  if (payload.email) body.email = payload.email;
+  if (payload.vehicleType) body.vehicleType = payload.vehicleType;
+  if (payload.vehiclePlate) body.vehiclePlate = payload.vehiclePlate;
+
+  const res = await api.post('/auth/register', body);
   const data = unwrap<{ user: any; accessToken: string; refreshToken: string }>(res);
 
   await tokenStorage.setTokens(data.accessToken, data.refreshToken);

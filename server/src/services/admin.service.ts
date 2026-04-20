@@ -94,6 +94,8 @@ export async function getDashboardStats() {
     pendingKyc,
     topDrivers,
     recentDeliveries,
+    pendingActivationCount,
+    pendingActivationDrivers,
   ] = await Promise.all([
     prisma.user.count({ where: { userType: 'client' } }),
     prisma.user.count({ where: { userType: 'driver' } }),
@@ -145,6 +147,15 @@ export async function getDashboardStats() {
         driver: { select: { id: true, fullName: true, phone: true } },
       },
     }),
+    prisma.user.count({
+      where: { userType: 'driver', isActive: false, suspendedAt: null },
+    }),
+    prisma.user.findMany({
+      where: { userType: 'driver', isActive: false, suspendedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: { driverProfile: true },
+    }),
   ]);
 
   return {
@@ -166,6 +177,7 @@ export async function getDashboardStats() {
     drivers: {
       online: onlineDrivers,
       pendingKyc,
+      pendingActivation: pendingActivationCount,
     },
     revenue: {
       grossLast30d: revenueLast30dAgg._sum.price ?? 0,
@@ -173,6 +185,7 @@ export async function getDashboardStats() {
     },
     topDrivers,
     recentDeliveries,
+    pendingActivationDrivers,
   };
 }
 

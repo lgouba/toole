@@ -77,11 +77,14 @@ export async function verifyOtpFlow(phone: string, code: string) {
 
 export async function registerUser(args: {
   phone: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string; // ISO date (YYYY-MM-DD)
   userType: UserRole;
   otpCode: string;
   email?: string;
   vehicleType?: VehicleType;
+  vehiclePlate?: string;
 }) {
   await verifyOtpCode(args.phone, args.otpCode);
   const existing = await prisma.user.findUnique({ where: { phone: args.phone } });
@@ -89,19 +92,32 @@ export async function registerUser(args: {
     throw new HttpError(409, 'USER_EXISTS', 'A user with this phone already exists');
   }
   const email = args.email?.trim() || null;
+  const firstName = args.firstName.trim();
+  const lastName = args.lastName.trim();
+  const fullName = `${firstName} ${lastName}`;
+  const dob = new Date(args.dateOfBirth);
+  const plate = args.vehiclePlate?.trim() || null;
+
+  // Les livreurs ne sont pas actifs par defaut : l'admin doit valider.
+  const isActive = args.userType !== 'driver';
+
   const user = await prisma.user.create({
     data: {
       phone: args.phone,
-      fullName: args.fullName,
+      firstName,
+      lastName,
+      fullName,
+      dateOfBirth: dob,
       userType: args.userType,
       email,
       isVerified: true,
-      // Create driver profile automatically if user is a driver
+      isActive,
       ...(args.userType === 'driver'
         ? {
             driverProfile: {
               create: {
                 vehicleType: args.vehicleType ?? 'moto',
+                vehiclePlate: plate,
                 verificationStatus: 'pending',
               },
             },
