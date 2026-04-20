@@ -188,6 +188,25 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
   emitToUser(updated.senderId, 'delivery:accepted', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
 
+  // Pousse tout de suite la position connue du livreur pour que le client voie
+  // son marqueur apparaitre immediatement (sans attendre le prochain heartbeat).
+  const driverProfile = await prisma.driverProfile.findUnique({
+    where: { userId: driverId },
+    select: { currentLat: true, currentLng: true, lastLocationUpdate: true },
+  });
+  if (
+    driverProfile?.currentLat != null &&
+    driverProfile.currentLng != null
+  ) {
+    emitToUser(updated.senderId, 'delivery:driver_location', {
+      driverId,
+      deliveryId: updated.id,
+      latitude: driverProfile.currentLat,
+      longitude: driverProfile.currentLng,
+      updatedAt: driverProfile.lastLocationUpdate,
+    });
+  }
+
   // Avertir les autres livreurs proches que la course n'est plus disponible
   void (async () => {
     const drivers = await findNearbyDrivers(

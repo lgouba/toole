@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,9 +8,10 @@ import { Map } from '@/components/map/Map';
 import { DeliveryStatusStepper } from '@/components/delivery';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
-import { useSimulatedDriverMovement } from '@/hooks/useSimulatedDriverMovement';
+import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { shareLocationWhatsApp } from '@/utils/linking';
+import { LatLng } from '@/types';
 
 export default function ActiveDeliveryScreen() {
   const router = useRouter();
@@ -19,13 +20,57 @@ export default function ActiveDeliveryScreen() {
   const delivery = activeDelivery;
   const driver = activeDriver;
 
-  // Simulate driver movement
-  const { currentPosition } = useSimulatedDriverMovement({
-    from: driverLocation || delivery?.pickupLocation || { latitude: 12.3714, longitude: -1.5197 },
-    to: delivery?.deliveryLocation || { latitude: 12.3500, longitude: -1.5500 },
-    durationMs: 60000,
-    enabled: !!delivery && delivery.status !== 'delivered',
-  });
+  // Position reelle du livreur, interpolee pour une animation fluide
+  // entre chaque heartbeat (~10s). Tant qu'on n'a pas encore recu la
+  // premiere position, on se base sur pickup comme fallback visuel.
+  const fallback: LatLng | null = delivery?.pickupLocation ?? null;
+  const { position: driverPos } = useAnimatedPosition(
+    driverLocation,
+    fallback,
+  );
+
+  // Adapte la route affichee selon la phase de la course :
+  //  - livreur vers pickup (avant ramassage) : driver -> pickup
+  //  - livreur vers delivery (apres ramassage) : driver -> delivery
+  //  - sans position livreur : pickup -> delivery (fallback)
+  const routeCoords = useMemo<[LatLng, LatLng] | undefined>(() => {
+    if (!delivery) return undefined;
+    const pickedUp =
+      delivery.status === 'picked_up' || delivery.status === 'delivering';
+    if (driverPos) {
+      return pickedUp
+        ? [driverPos, delivery.deliveryLocation]
+        : [driverPos, delivery.pickupLocation];
+    }
+    return [delivery.pickupLocation, delivery.deliveryLocation];
+  }, [driverPos, delivery?.status, delivery?.pickupLocation, delivery?.deliveryLocation]);
+
+  // Marqueurs : toujours afficher pickup + delivery + (livreur si connu)
+  const mapMarkers = useMemo(() => {
+    if (!delivery) return [];
+    const list: Array<{
+      id: string;
+      coordinate: LatLng;
+      icon: 'pickup' | 'delivery' | 'driver';
+    }> = [
+      { id: 'pickup', coordinate: delivery.pickupLocation, icon: 'pickup' },
+      {
+        id: 'delivery',
+        coordinate: delivery.deliveryLocation,
+        icon: 'delivery',
+      },
+    ];
+    if (driverPos) {
+      list.push({ id: 'driver', coordinate: driverPos, icon: 'driver' });
+    }
+    return list;
+  }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation]);
+
+  // Centre la carte sur le livreur tant qu'il bouge, sinon sur pickup
+  const mapCenter = driverPos ?? delivery?.pickupLocation ?? {
+    latitude: 12.3714,
+    longitude: -1.5197,
+  };
 
   if (!delivery) {
     return (
@@ -38,14 +83,10 @@ export default function ActiveDeliveryScreen() {
   return (
     <View style={styles.container}>
       <Map
-        center={delivery.pickupLocation}
-        zoom={13}
-        markers={[
-          { id: 'pickup', coordinate: delivery.pickupLocation, icon: 'pickup' },
-          { id: 'delivery', coordinate: delivery.deliveryLocation, icon: 'delivery' },
-          { id: 'driver', coordinate: currentPosition, icon: 'driver' },
-        ]}
-        routeCoordinates={[delivery.pickupLocation, delivery.deliveryLocation]}
+        center={mapCenter}
+        zoom={14}
+        markers={mapMarkers}
+        routeCoordinates={routeCoords}
       />
 
       {/* Back button */}
@@ -85,14 +126,15 @@ export default function ActiveDeliveryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() =>
+              onPress={() => {
+                const loc = driverPos ?? delivery.deliveryLocation;
                 shareLocationWhatsApp(
                   delivery.recipientPhone,
                   delivery.reference,
-                  currentPosition.latitude,
-                  currentPosition.longitude
-                )
-              }
+                  loc.latitude,
+                  loc.longitude,
+                );
+              }}
             >
               <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
             </TouchableOpacity>

@@ -40,14 +40,37 @@ export async function updateDriverLocation(
 ) {
   try {
     const { latitude, longitude } = locationSchema.parse(req.body);
-    const profile = await updateLocation(req.user!.id, latitude, longitude);
-    // Emit to self (for any subscribers like clients watching active delivery)
-    emitToUser(req.user!.id, 'delivery:driver_location', {
-      driverId: req.user!.id,
+    const driverId = req.user!.id;
+    const profile = await updateLocation(driverId, latitude, longitude);
+
+    const payload = {
+      driverId,
       latitude,
       longitude,
       updatedAt: profile.lastLocationUpdate,
+    };
+
+    // 1) Livreur lui-meme (pour les propres widgets en ecoute)
+    emitToUser(driverId, 'delivery:driver_location', payload);
+
+    // 2) Client de la course active s'il y en a une : il voit le livreur bouger live
+    const activeDelivery = await prisma.delivery.findFirst({
+      where: {
+        driverId,
+        status: {
+          in: ['accepted', 'picking_up', 'picked_up', 'delivering'],
+        },
+      },
+      select: { id: true, senderId: true },
     });
+
+    if (activeDelivery) {
+      emitToUser(activeDelivery.senderId, 'delivery:driver_location', {
+        ...payload,
+        deliveryId: activeDelivery.id,
+      });
+    }
+
     return success(res, profile);
   } catch (err) {
     next(err);
