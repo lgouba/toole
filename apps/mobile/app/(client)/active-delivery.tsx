@@ -39,6 +39,27 @@ export default function ActiveDeliveryScreen() {
     }
   }, [delivery?.status, delivery?.id]);
 
+  // Quand la livraison devient 'delivered', on bascule sur l'ecran de notation.
+  // L'ecran delivery-complete demande une note + un commentaire, puis clear().
+  const hasNavigatedToCompleteRef = useRef(false);
+  useEffect(() => {
+    if (delivery?.status === 'delivered' && !hasNavigatedToCompleteRef.current) {
+      hasNavigatedToCompleteRef.current = true;
+      router.replace('/(client)/delivery-complete');
+    }
+  }, [delivery?.status, router]);
+
+  // Si la livraison est annulee / expiree, on revient a l'accueil proprement.
+  useEffect(() => {
+    if (
+      delivery?.status === 'cancelled' ||
+      delivery?.status === 'expired'
+    ) {
+      useDeliveryStore.getState().clear();
+      router.replace('/(client)');
+    }
+  }, [delivery?.status, router]);
+
   // Refetch la delivery au focus et toutes les 5s (polling backup si un event
   // socket est perdu). Descendu a 5s car la rapidite de mise a jour de l'ecran
   // client a plus de valeur que l'economie de bande passante.
