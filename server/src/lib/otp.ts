@@ -1,11 +1,11 @@
 import { env } from '../config/env.js';
 
 export function generateOtp(): string {
-  // If OTP_DEV_CODE is explicitly set, always use it (for test envs on VPS).
-  if (env.OTP_DEV_CODE) {
+  // En mode dev, on renvoie toujours le code configure (par defaut "1234").
+  if (env.SMS_PROVIDER === 'dev') {
     return env.OTP_DEV_CODE;
   }
-  // Cryptographically unnecessary here; a 4 digit code is fine.
+  // En production (AT), on genere un code aleatoire a 4 chiffres.
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 

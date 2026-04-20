@@ -8,6 +8,8 @@ import {
 import { generateOtp, otpExpiryDate } from '../lib/otp.js';
 import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
+import { sendSms } from '../lib/sms.js';
+import { env } from '../config/env.js';
 
 export async function sendOtp(phone: string): Promise<{ success: true }> {
   const code = generateOtp();
@@ -18,8 +20,19 @@ export async function sendOtp(phone: string): Promise<{ success: true }> {
       expiresAt: otpExpiryDate(),
     },
   });
-  logger.info({ phone, code }, 'OTP generated');
-  // TODO: In production, send SMS via Orange/Moov SMS API.
+  logger.info({ phone, code: env.SMS_PROVIDER === 'dev' ? code : '****' }, 'OTP generated');
+
+  try {
+    await sendSms(
+      phone,
+      `Tolle: votre code de verification est ${code}. Valide 5 minutes.`,
+    );
+  } catch (err) {
+    // Si l'envoi SMS echoue, on invalide le code pour ne pas laisser un OTP fantome.
+    await prisma.otpCode.deleteMany({ where: { phone, code } });
+    throw new HttpError(502, 'SMS_FAILED', 'Impossible d\'envoyer le SMS. Reessayez.');
+  }
+
   return { success: true };
 }
 

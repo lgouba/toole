@@ -15,7 +15,17 @@ const envSchema = z.object({
     .transform((v) => parseInt(v, 10)),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CORS_ORIGIN: z.string().default('*'),
+
+  // --- OTP / SMS ---
+  // 'dev'           -> fixed OTP code (OTP_DEV_CODE), no SMS sent
+  // 'africastalking' -> random OTP code, SMS sent via Africa's Talking
+  SMS_PROVIDER: z.enum(['dev', 'africastalking']).default('dev'),
   OTP_DEV_CODE: z.string().default('1234'),
+
+  // Africa's Talking
+  AT_USERNAME: z.string().optional(),
+  AT_API_KEY: z.string().optional(),
+  AT_SENDER_ID: z.string().optional(), // e.g. "TOLLE" (optional, uses shortcode if empty)
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -27,4 +37,16 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+// Validation croisee : si SMS_PROVIDER=africastalking, username + apiKey obligatoires
+if (env.SMS_PROVIDER === 'africastalking') {
+  if (!env.AT_USERNAME || !env.AT_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.error(
+      'SMS_PROVIDER=africastalking but AT_USERNAME or AT_API_KEY is missing',
+    );
+    process.exit(1);
+  }
+}
+
 export type Env = typeof env;
