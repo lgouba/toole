@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Button } from '@/components/ui';
 import { Map } from '@/components/map/Map';
@@ -11,6 +11,8 @@ import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { shareLocationWhatsApp } from '@/utils/linking';
+import { getDeliveryById } from '@/services/delivery.service';
+import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 
 export default function ActiveDeliveryScreen() {
@@ -19,6 +21,49 @@ export default function ActiveDeliveryScreen() {
 
   const delivery = activeDelivery;
   const driver = activeDriver;
+
+  // Refetch la delivery au focus et toutes les 15s (fallback si un event socket
+  // est perdu). Met a jour le store -> le stepper se rafraichit automatiquement.
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useFocusEffect(
+    React.useCallback(() => {
+      const deliveryId = activeDelivery?.id;
+      if (!deliveryId) return;
+
+      const refresh = async () => {
+        const fresh = await getDeliveryById(deliveryId);
+        if (fresh) {
+          useDeliveryStore.getState().setActiveDelivery(fresh);
+          // Si la position du livreur est deja connue cote backend mais qu'on
+          // ne l'avait pas encore recue en socket, on la recupere aussi.
+          if (fresh.driverId && !useDeliveryStore.getState().driverLocation) {
+            const d = await getDriverById(fresh.driverId);
+            if (d?.driverProfile?.currentLocation) {
+              useDeliveryStore
+                .getState()
+                .setDriverLocation(d.driverProfile.currentLocation);
+            }
+          }
+        }
+      };
+
+      refresh();
+      intervalRef.current = setInterval(refresh, 15_000);
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeDelivery?.id]),
+  );
+
+  useEffect(() => {
+    if (driverLocation) {
+      console.log('[ActiveDelivery] driverLocation updated', driverLocation);
+    }
+  }, [driverLocation]);
 
   // Position reelle du livreur, interpolee pour une animation fluide
   // entre chaque heartbeat (~10s). Tant qu'on n'a pas encore recu la
@@ -144,16 +189,25 @@ export default function ActiveDeliveryScreen() {
         {/* Status stepper */}
         <DeliveryStatusStepper status={delivery.status} />
 
-        {/* Validation code */}
-        {delivery.status !== 'delivered' && (
+        {/* Carte d'info contextuelle selon le statut */}
+        {delivery.status === 'accepted' || delivery.status === 'picking_up' ? (
+          <View style={styles.infoCard}>
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <Text style={styles.infoText}>
+              Le livreur arrive pour recuperer votre colis. Le code sera
+              utilisable des qu'il aura le colis en main.
+            </Text>
+          </View>
+        ) : delivery.status === 'picked_up' ||
+          delivery.status === 'delivering' ? (
           <View style={styles.codeCard}>
             <Text style={styles.codeLabel}>Code de validation</Text>
             <Text style={styles.codeValue}>{delivery.validationCode}</Text>
             <Text style={styles.codeHint}>
-              Communiquez ce code au destinataire
+              Communiquez ce code au destinataire pour qu'il le remette au livreur
             </Text>
           </View>
-        )}
+        ) : null}
         </ScrollView>
       </View>
     </View>
@@ -260,6 +314,23 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.sm,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    flex: 1,
+    lineHeight: 19,
   },
   codeLabel: {
     ...typography.captionMedium,

@@ -1,8 +1,57 @@
-import { LatLng } from '@/types';
+import { DriverWithProfile, LatLng } from '@/types';
 import { api, unwrap } from './api.client';
 
 export async function setOnlineStatus(isOnline: boolean): Promise<void> {
   await api.put('/drivers/status', { isOnline });
+}
+
+/**
+ * Recupere un livreur public (pour refresh client quand on a perdu un event).
+ * Le backend renvoie { ...user, driverProfile: { currentLat, currentLng, ... } }.
+ */
+export async function getDriverById(
+  driverId: string,
+): Promise<DriverWithProfile | null> {
+  try {
+    const res = await api.get(`/drivers/${driverId}`);
+    const raw = unwrap<any>(res);
+    if (!raw) return null;
+    const currentLocation =
+      raw.driverProfile?.currentLat != null &&
+      raw.driverProfile?.currentLng != null
+        ? {
+            latitude: Number(raw.driverProfile.currentLat),
+            longitude: Number(raw.driverProfile.currentLng),
+          }
+        : undefined;
+    return {
+      id: raw.id,
+      phone: raw.phone,
+      firstName: raw.firstName ?? undefined,
+      lastName: raw.lastName ?? undefined,
+      fullName: raw.fullName,
+      email: raw.email ?? undefined,
+      userType: raw.userType,
+      avatarUrl: raw.avatarUrl ?? undefined,
+      isVerified: !!raw.isVerified,
+      isActive: !!raw.isActive,
+      ratingAvg: Number(raw.ratingAvg ?? 5),
+      ratingCount: Number(raw.ratingCount ?? 0),
+      createdAt: raw.createdAt,
+      driverProfile: {
+        id: raw.driverProfile?.id ?? raw.id,
+        userId: raw.id,
+        vehicleType: raw.driverProfile?.vehicleType ?? 'moto',
+        isOnline: !!raw.driverProfile?.isOnline,
+        currentLocation,
+        walletBalance: Number(raw.driverProfile?.walletBalance ?? 0),
+        totalDeliveries: Number(raw.driverProfile?.totalDeliveries ?? 0),
+        verificationStatus: raw.driverProfile?.verificationStatus ?? 'pending',
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function updateLocation(location: LatLng): Promise<void> {
