@@ -12,6 +12,7 @@ import {
 import '@/utils/globalErrorHandler';
 import { useAuthStore } from '@/stores/auth.store';
 import { SocketProvider } from '@/providers/SocketProvider';
+import { setAuthExpiredHandler } from '@/services/api.client';
 import { colors } from '@/theme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -28,11 +29,22 @@ export default function RootLayout() {
 
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isOnboarded, user, refreshUser } = useAuthStore();
+  const { isAuthenticated, isOnboarded, user, refreshUser, logout } = useAuthStore();
 
   useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
+
+  // Quand le refresh token echoue, on force un logout propre.
+  // Evite les etats zombie ou l'utilisateur est "loggue" cote cache
+  // mais plus aucun appel ne passe (typique apres un wipe DB).
+  useEffect(() => {
+    setAuthExpiredHandler(() => {
+      console.warn('[Auth] session expired, logging out');
+      logout().catch(() => {});
+    });
+    return () => setAuthExpiredHandler(null);
+  }, [logout]);
 
   useEffect(() => {
     if (fontsLoaded) {

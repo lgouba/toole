@@ -64,6 +64,13 @@ api.interceptors.response.use(
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
+// Callback invoque quand le refresh token echoue aussi (session invalide)
+// -> l'app peut logout + renvoyer sur l'ecran de connexion.
+let onAuthExpiredCb: (() => void) | null = null;
+export function setAuthExpiredHandler(cb: (() => void) | null) {
+  onAuthExpiredCb = cb;
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -95,6 +102,7 @@ api.interceptors.response.use(
         const refreshToken = await tokenStorage.getRefreshToken();
         if (!refreshToken) throw new Error('No refresh token');
 
+        console.log('[API] refreshing access token...');
         const { data } = await axios.post(
           `${API_BASE_URL}/api/auth/refresh`,
           { refreshToken },
@@ -103,6 +111,7 @@ api.interceptors.response.use(
 
         const { accessToken, refreshToken: newRefresh } = data.data;
         await tokenStorage.setTokens(accessToken, newRefresh);
+        console.log('[API] token refresh OK');
 
         refreshQueue.forEach((cb) => cb(accessToken));
         refreshQueue = [];
@@ -110,9 +119,15 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        console.warn(
+          '[API] token refresh FAILED, user will be logged out',
+          refreshError,
+        );
         refreshQueue.forEach((cb) => cb(null));
         refreshQueue = [];
         await tokenStorage.clear();
+        // Notifie toute l'app qu'il faut relogger (handler poses dans _layout)
+        if (onAuthExpiredCb) onAuthExpiredCb();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
