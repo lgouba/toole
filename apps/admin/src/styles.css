@@ -623,6 +623,7 @@ table tr:hover td {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .table-avatar .circle {
@@ -637,6 +638,37 @@ table tr:hover td {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.table-avatar > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Utility: keep text on a single line (phone, dates). */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Users list tuning */
+.users-table th,
+.users-table td {
+  vertical-align: middle;
+}
+
+.users-table .col-phone {
+  min-width: 160px;
+  white-space: nowrap;
+}
+
+.users-table .col-actions {
+  width: 90px;
+  text-align: right;
+}
+
+.users-table .col-actions .btn {
+  float: right;
 }
 
 /* =========================================================================

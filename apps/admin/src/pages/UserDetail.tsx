@@ -153,7 +153,7 @@ export default function UserDetail() {
             </button>
           ) : (
             <button className="btn" onClick={reactivate} disabled={busy}>
-              Reactiver
+              {user.suspendedAt ? 'Reactiver' : 'Activer'}
             </button>
           )}
           <button className="btn btn-ghost" onClick={resetOtp} disabled={busy}>
@@ -171,12 +171,16 @@ export default function UserDetail() {
           <div className="value" style={{ fontSize: 18 }}>
             {user.isActive ? (
               <span className="badge badge-active">Actif</span>
-            ) : (
+            ) : user.suspendedAt ? (
               <span className="badge badge-suspended">Suspendu</span>
+            ) : (
+              <span className="badge badge-pending">En attente</span>
             )}
           </div>
-          {!user.isActive && user.suspendReason ? (
+          {!user.isActive && user.suspendedAt && user.suspendReason ? (
             <div className="hint">Motif: {user.suspendReason}</div>
+          ) : !user.isActive && !user.suspendedAt ? (
+            <div className="hint">A activer par un admin</div>
           ) : null}
         </div>
         <div className="stat-card">
