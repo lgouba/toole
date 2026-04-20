@@ -10,6 +10,7 @@ import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
 import { sendSms } from '../lib/sms.js';
 import { env } from '../config/env.js';
+import { emitToAdmins } from './notification.service.js';
 
 export async function sendOtp(phone: string): Promise<{ success: true }> {
   const code = generateOtp();
@@ -126,6 +127,21 @@ export async function registerUser(args: {
     },
     include: { driverProfile: true },
   });
+
+  // Notifie les admins connectes en temps reel d'une nouvelle inscription livreur.
+  if (user.userType === 'driver') {
+    emitToAdmins('admin:new_driver', {
+      id: user.id,
+      fullName: user.fullName,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      vehicleType: user.driverProfile?.vehicleType,
+      vehiclePlate: user.driverProfile?.vehiclePlate,
+      createdAt: user.createdAt,
+    });
+  }
+
   const tokens = await issueTokens(user.id, user.userType);
   return { user, tokens };
 }

@@ -25,3 +25,11 @@ export function emitToUser(userId: string, event: string, payload: unknown) {
 export function emitToUsers(userIds: string[], event: string, payload: unknown) {
   for (const id of userIds) emitToUser(id, event, payload);
 }
+
+/** Room dediee aux comptes admin connectes. */
+export const ADMIN_ROOM = 'admins';
+
+export function emitToAdmins(event: string, payload: unknown) {
+  if (!ioInstance) return;
+  ioInstance.to(ADMIN_ROOM).emit(event, payload);
+}

@@ -7,6 +7,7 @@ import { NumericKeypad } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { haptic } from '@/utils/haptics';
+import { alertConfirmSuccess } from '@/utils/alerts';
 
 export default function CodeValidationScreen() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function CodeValidationScreen() {
     const success = await validateCode(code);
 
     if (success) {
-      haptic.success();
+      alertConfirmSuccess();
       router.replace('/(driver)/delivery-confirm');
     } else {
       haptic.error();

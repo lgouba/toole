@@ -1,5 +1,9 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store';
+import { useNotifications, type AdminNotification } from '../notifications';
+import { formatDistance } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 function Icon({ name }: { name: string }) {
   const paths: Record<string, JSX.Element> = {
@@ -41,6 +45,12 @@ function Icon({ name }: { name: string }) {
         <path d="M21 12H9" />
       </>
     ),
+    bell: (
+      <>
+        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </>
+    ),
   };
   return (
     <svg
@@ -65,8 +75,95 @@ function initials(name: string | undefined): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function NotifBell() {
+  const { items, unreadCount, markAllRead, markRead, clear } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onClick);
+    return () => window.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  const handleClick = (n: AdminNotification) => {
+    markRead(n.id);
+    setOpen(false);
+    if (n.link) navigate(n.link);
+  };
+
+  return (
+    <div className="notif-bell" ref={ref}>
+      <button
+        className="notif-bell-btn"
+        onClick={() => {
+          setOpen((v) => !v);
+          if (!open && unreadCount > 0) {
+            // Marquer tout lu apres une courte pause (visuel)
+            setTimeout(() => markAllRead(), 400);
+          }
+        }}
+      >
+        <Icon name="bell" />
+        {unreadCount > 0 ? (
+          <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+        ) : null}
+      </button>
+
+      {open ? (
+        <div className="notif-panel">
+          <div className="notif-panel-header">
+            <span>Notifications</span>
+            {items.length > 0 ? (
+              <button
+                className="notif-clear"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clear();
+                }}
+              >
+                Effacer
+              </button>
+            ) : null}
+          </div>
+
+          <div className="notif-panel-body">
+            {items.length === 0 ? (
+              <div className="notif-empty">Aucune notification</div>
+            ) : (
+              items.slice(0, 15).map((n) => (
+                <button
+                  key={n.id}
+                  className={`notif-item ${n.read ? '' : 'unread'}`}
+                  onClick={() => handleClick(n)}
+                >
+                  <div className="notif-item-title">{n.title}</div>
+                  {n.body ? (
+                    <div className="notif-item-body">{n.body}</div>
+                  ) : null}
+                  <div className="notif-item-time">
+                    {formatDistance(new Date(n.createdAt), new Date(), {
+                      addSuffix: true,
+                      locale: fr,
+                    })}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -130,7 +227,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="content">{children}</main>
+      <main className="content">
+        <div className="topbar">
+          <NotifBell />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.cl
 import { syncPushTokenToBackend } from '@/services/push.service';
 import { Delivery, DriverWithProfile } from '@/types';
 import { haptic } from '@/utils/haptics';
+import { alertNewRequest, stopAlert } from '@/utils/alerts';
 
 // Dans Expo Go, expo-notifications leve une erreur au simple import en SDK 53+.
 // On charge le module dynamiquement uniquement si on n'est pas dans Expo Go.
@@ -237,7 +238,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
           lastHandledRequestIdRef.current = delivery.id;
           useDriverStore.getState().receiveRequest(delivery);
-          haptic.success();
+          // Alerte forte : vibration longue + haptic repete pour attirer
+          // l'attention meme quand l'app est en arriere-plan / tel en poche.
+          alertNewRequest();
           routerRef.current.push('/(driver)/new-request');
         });
 
@@ -245,6 +248,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           console.log('[Socket] delivery:invalidated', payload?.deliveryId);
           const { currentRequest } = useDriverStore.getState();
           if (currentRequest && currentRequest.id === payload?.deliveryId) {
+            stopAlert();
             useDriverStore.setState({ currentRequest: null });
             // Retour au dashboard driver (safe, marche toujours)
             routerRef.current.replace('/(driver)');

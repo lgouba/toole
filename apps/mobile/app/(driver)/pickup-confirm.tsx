@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { uploadImage } from '@/services/upload.service';
+import { alertConfirmSuccess } from '@/utils/alerts';
 
 export default function PickupConfirmScreen() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function PickupConfirmScreen() {
         return;
       }
       await confirmPickup(uploaded.url);
+      alertConfirmSuccess();
       router.replace('/(driver)/delivery-navigation');
     } finally {
       setUploading(false);

@@ -8,6 +8,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useCountdown } from '@/hooks/useCountdown';
 import { haptic } from '@/utils/haptics';
+import { alertConfirmSuccess, alertRejection, stopAlert } from '@/utils/alerts';
 import { formatCFA, formatDistance, formatDuration } from '@/utils/format';
 import { PACKAGE_LABELS } from '@/types';
 
@@ -38,13 +39,15 @@ export default function NewRequestScreen() {
   }, [currentRequest, router]);
 
   const handleAccept = async () => {
-    haptic.success();
+    stopAlert();
+    alertConfirmSuccess();
     await acceptRequest();
     router.replace('/(driver)/pickup-navigation');
   };
 
   const handleReject = () => {
-    haptic.light();
+    stopAlert();
+    alertRejection();
     rejectRequest();
     router.replace('/(driver)');
   };

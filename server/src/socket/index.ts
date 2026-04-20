@@ -2,7 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server as IoServer, Socket } from 'socket.io';
 import { verifyAccessToken } from '../lib/jwt.js';
 import { env } from '../config/env.js';
-import { setIo, userRoom } from '../services/notification.service.js';
+import { setIo, userRoom, ADMIN_ROOM } from '../services/notification.service.js';
 import { registerSocketHandlers } from './handlers.js';
 import { logger } from '../lib/logger.js';
 
@@ -42,9 +42,12 @@ export function initSocket(httpServer: HttpServer): IoServer {
 
   io.on('connection', (socket) => {
     const authed = socket as AuthedSocket;
-    const { userId } = authed.data;
+    const { userId, userType } = authed.data;
     socket.join(userRoom(userId));
-    logger.info({ userId, socketId: socket.id }, 'Socket connected');
+    if (userType === 'admin') {
+      socket.join(ADMIN_ROOM);
+    }
+    logger.info({ userId, userType, socketId: socket.id }, 'Socket connected');
     registerSocketHandlers(authed);
     socket.on('disconnect', (reason) => {
       logger.info({ userId, socketId: socket.id, reason }, 'Socket disconnected');
