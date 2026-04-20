@@ -17,13 +17,31 @@ import { LatLng } from '@/types';
 
 export default function ActiveDeliveryScreen() {
   const router = useRouter();
-  const { activeDelivery, activeDriver, driverLocation } = useDeliveryStore();
+  // Selectors atomiques pour garantir un re-render a chaque changement
+  const activeDelivery = useDeliveryStore((s) => s.activeDelivery);
+  const activeDriver = useDeliveryStore((s) => s.activeDriver);
+  const driverLocation = useDeliveryStore((s) => s.driverLocation);
+  const setActiveDelivery = useDeliveryStore((s) => s.setActiveDelivery);
+  const setDriverLocation = useDeliveryStore((s) => s.setDriverLocation);
 
   const delivery = activeDelivery;
   const driver = activeDriver;
 
-  // Refetch la delivery au focus et toutes les 15s (fallback si un event socket
-  // est perdu). Met a jour le store -> le stepper se rafraichit automatiquement.
+  // Trace chaque changement de status pour debug in-app
+  useEffect(() => {
+    if (delivery?.status) {
+      console.log(
+        '[ActiveDelivery] status =',
+        delivery.status,
+        'deliveryId =',
+        delivery.id,
+      );
+    }
+  }, [delivery?.status, delivery?.id]);
+
+  // Refetch la delivery au focus et toutes les 5s (polling backup si un event
+  // socket est perdu). Descendu a 5s car la rapidite de mise a jour de l'ecran
+  // client a plus de valeur que l'economie de bande passante.
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
     React.useCallback(() => {
@@ -31,24 +49,36 @@ export default function ActiveDeliveryScreen() {
       if (!deliveryId) return;
 
       const refresh = async () => {
-        const fresh = await getDeliveryById(deliveryId);
-        if (fresh) {
-          useDeliveryStore.getState().setActiveDelivery(fresh);
-          // Si la position du livreur est deja connue cote backend mais qu'on
-          // ne l'avait pas encore recue en socket, on la recupere aussi.
+        try {
+          const fresh = await getDeliveryById(deliveryId);
+          if (!fresh) return;
+          const current = useDeliveryStore.getState().activeDelivery;
+          // Ne set que si le statut a vraiment change pour eviter des re-renders inutiles
+          if (
+            !current ||
+            current.status !== fresh.status ||
+            current.updatedAt !== fresh.updatedAt
+          ) {
+            console.log(
+              '[ActiveDelivery] polling detected change, new status =',
+              fresh.status,
+            );
+            setActiveDelivery(fresh);
+          }
+          // Si la position du livreur est connue cote backend mais pas encore en store
           if (fresh.driverId && !useDeliveryStore.getState().driverLocation) {
             const d = await getDriverById(fresh.driverId);
             if (d?.driverProfile?.currentLocation) {
-              useDeliveryStore
-                .getState()
-                .setDriverLocation(d.driverProfile.currentLocation);
+              setDriverLocation(d.driverProfile.currentLocation);
             }
           }
+        } catch (err) {
+          console.warn('[ActiveDelivery] refresh failed', err);
         }
       };
 
       refresh();
-      intervalRef.current = setInterval(refresh, 15_000);
+      intervalRef.current = setInterval(refresh, 5_000);
       return () => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);

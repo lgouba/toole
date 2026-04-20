@@ -25,6 +25,20 @@ export default function SearchingScreen() {
   const [relaunching, setRelaunching] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const hasNavigatedRef = useRef(false);
+  // ID de la livraison qu'on "regarde" pour ce cycle de recherche.
+  const watchedDeliveryIdRef = useRef<string | null>(null);
+
+  // Reset complet a chaque fois qu'on arrive avec une nouvelle livraison.
+  // Sans ca, un screen precedemment monte garde le timer a 0 et les refs a l'ID de l'ancienne livraison.
+  useEffect(() => {
+    if (!activeDelivery?.id) return;
+    if (watchedDeliveryIdRef.current !== activeDelivery.id) {
+      watchedDeliveryIdRef.current = activeDelivery.id;
+      hasNavigatedRef.current = false;
+      setRemaining(SEARCH_TIMEOUT_SECONDS);
+      setExpired(false);
+    }
+  }, [activeDelivery?.id]);
 
   // Animation du pulse
   const scale = useSharedValue(1);
@@ -59,25 +73,9 @@ export default function SearchingScreen() {
     return () => clearInterval(interval);
   }, [expired]);
 
-  // ID de la livraison qu'on "regarde" pour ce cycle de recherche.
-  // Ca evite de traiter un etat stale (ex: une livraison expired d'un test precedent).
-  const watchedDeliveryIdRef = useRef<string | null>(null);
-
+  // Reagit aux changements de statut (pending -> accepted | expired | cancelled)
   useEffect(() => {
     if (!activeDelivery) return;
-    // A l'arrivee sur l'ecran, la livraison doit etre 'pending'.
-    // Sinon, on est en presence d'un state residuel: on ne declenche pas "expired" tout de suite.
-    if (watchedDeliveryIdRef.current === null) {
-      if (activeDelivery.status !== 'pending') {
-        // State stale (ex: derniere livraison expired en memoire) -> on clear et on revient a l'accueil
-        clear();
-        router.replace('/(client)');
-        return;
-      }
-      watchedDeliveryIdRef.current = activeDelivery.id;
-    }
-
-    // Ne traiter que les changements pour LA livraison qu'on suit
     if (watchedDeliveryIdRef.current !== activeDelivery.id) return;
     if (hasNavigatedRef.current) return;
 
