@@ -128,10 +128,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   confirmPickup: async (photoUri) => {
     const { activeDelivery } = get();
-    if (!activeDelivery) return;
+    if (!activeDelivery) throw new Error('Pas de course active');
 
     const updated = await deliveryService.confirmPickup(activeDelivery.id, photoUri);
-    if (updated) set({ activeDelivery: updated });
+    if (!updated) throw new Error('Echec de la confirmation de recuperation');
+    set({ activeDelivery: updated });
   },
 
   validateCode: async (code) => {

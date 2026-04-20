@@ -30,14 +30,24 @@ export default function PickupConfirmScreen() {
     if (!photo) return;
     setUploading(true);
     try {
+      console.log('[pickup-confirm] uploading photo...');
       const uploaded = await uploadImage(photo, 'packages');
       if (!uploaded) {
         Alert.alert('Erreur', 'Impossible d\'envoyer la photo. Reessayez.');
         return;
       }
+      console.log('[pickup-confirm] photo uploaded, calling backend...');
       await confirmPickup(uploaded.url);
+      console.log('[pickup-confirm] backend OK, navigating');
       alertConfirmSuccess();
       router.replace('/(driver)/delivery-navigation');
+    } catch (err: any) {
+      console.warn('[pickup-confirm] error:', err);
+      const msg =
+        err?.response?.data?.error?.message ??
+        err?.message ??
+        'Echec de la confirmation. Reessayez.';
+      Alert.alert('Erreur', msg);
     } finally {
       setUploading(false);
     }

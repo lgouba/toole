@@ -17,12 +17,15 @@ export default function CodeValidationScreen() {
 
   const handleComplete = async (code: string) => {
     setError('');
+    console.log('[code-validation] trying code', code);
     const success = await validateCode(code);
 
     if (success) {
+      console.log('[code-validation] OK');
       alertConfirmSuccess();
       router.replace('/(driver)/delivery-confirm');
     } else {
+      console.warn('[code-validation] FAILED for code', code);
       haptic.error();
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);

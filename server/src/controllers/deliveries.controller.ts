@@ -118,7 +118,11 @@ export async function rejectCtrl(
   }
 }
 
-const pickupSchema = z.object({ photoUrl: z.string().url() });
+// Accepte soit une URL absolue (https://...) soit un chemin relatif (/uploads/...)
+// que l'app peut generer via /api/uploads/:category
+const pickupSchema = z.object({
+  photoUrl: z.string().min(1).max(500),
+});
 
 export async function pickupCtrl(
   req: AuthedRequest,

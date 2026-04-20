@@ -156,22 +156,43 @@ export async function confirmPickup(
   photoUrl: string
 ): Promise<Delivery | null> {
   try {
+    console.log('[confirmPickup] PUT pickup-confirm for', deliveryId);
     const res = await api.put(`/deliveries/${deliveryId}/pickup-confirm`, { photoUrl });
-    return normalizeDelivery(unwrap<any>(res));
-  } catch {
-    return null;
+    const delivery = normalizeDelivery(unwrap<any>(res));
+    console.log('[confirmPickup] OK, new status =', delivery.status);
+    return delivery;
+  } catch (err: any) {
+    console.warn(
+      '[confirmPickup] FAILED',
+      err?.response?.status,
+      err?.response?.data?.error ?? err?.message,
+    );
+    throw err;
   }
 }
 
 export async function validateDeliveryCode(
   deliveryId: string,
   code: string
-): Promise<{ success: boolean; delivery?: Delivery }> {
+): Promise<{ success: boolean; delivery?: Delivery; errorMessage?: string }> {
   try {
+    console.log('[validateDeliveryCode] PUT validate-code for', deliveryId);
     const res = await api.put(`/deliveries/${deliveryId}/validate-code`, { code });
-    return { success: true, delivery: normalizeDelivery(unwrap<any>(res)) };
-  } catch {
-    return { success: false };
+    const delivery = normalizeDelivery(unwrap<any>(res));
+    console.log('[validateDeliveryCode] OK, new status =', delivery.status);
+    return { success: true, delivery };
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const apiMsg = err?.response?.data?.error?.message;
+    console.warn(
+      '[validateDeliveryCode] FAILED',
+      status,
+      err?.response?.data?.error ?? err?.message,
+    );
+    return {
+      success: false,
+      errorMessage: apiMsg ?? err?.message ?? 'Erreur inconnue',
+    };
   }
 }
 
