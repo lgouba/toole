@@ -3,6 +3,14 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, unwrap } from '@/services/api.client';
 
+export interface PricingSettings {
+  basePriceEnvelope: number;
+  basePriceSmall: number;
+  basePriceLarge: number;
+  pricePerKm: number;
+  platformCommissionPct: number;
+}
+
 export interface PublicSettings {
   appName: string;
   primaryColor: string;
@@ -12,6 +20,7 @@ export interface PublicSettings {
   confettiEnabled: boolean;
   driverSoundEnabled: boolean;
   driverVibrationEnabled: boolean;
+  pricing: PricingSettings;
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
@@ -23,6 +32,13 @@ const DEFAULT_SETTINGS: PublicSettings = {
   confettiEnabled: true,
   driverSoundEnabled: true,
   driverVibrationEnabled: true,
+  pricing: {
+    basePriceEnvelope: 500,
+    basePriceSmall: 800,
+    basePriceLarge: 1200,
+    pricePerKm: 100,
+    platformCommissionPct: 15,
+  },
 };
 
 interface SettingsState {

@@ -1,19 +1,30 @@
 import { PackageType, PriceEstimate } from '@/types';
+import { useSettingsStore } from '@/stores/settings.store';
 
-const BASE_PRICES: Record<PackageType, number> = {
-  envelope: 300,
-  small: 500,
-  large: 1000,
-};
+/**
+ * Calcule le prix estime d'une livraison cote mobile.
+ *
+ * Les valeurs (base, km, commission) sont lues depuis le `settingsStore`
+ * synchronise avec l'admin via `/api/settings`. Refresh automatique toutes les
+ * 5 min + au demarrage de l'app. Le backend reste source de verite lors de la
+ * creation reelle de la livraison.
+ */
+export function calculatePrice(
+  packageType: PackageType,
+  distanceKm: number,
+): PriceEstimate {
+  const { pricing } = useSettingsStore.getState().settings;
 
-const PRICE_PER_KM = 100;
-const PLATFORM_FEE_RATE = 0.15;
+  const basePrice =
+    packageType === 'envelope'
+      ? pricing.basePriceEnvelope
+      : packageType === 'small'
+        ? pricing.basePriceSmall
+        : pricing.basePriceLarge;
 
-export function calculatePrice(packageType: PackageType, distanceKm: number): PriceEstimate {
-  const basePrice = BASE_PRICES[packageType];
-  const distancePrice = Math.ceil(distanceKm) * PRICE_PER_KM;
+  const distancePrice = Math.ceil(distanceKm) * pricing.pricePerKm;
   const price = Math.max(basePrice, basePrice + distancePrice);
-  const platformFee = Math.round(price * PLATFORM_FEE_RATE);
+  const platformFee = Math.round(price * (pricing.platformCommissionPct / 100));
   const driverCommission = price - platformFee;
 
   return {

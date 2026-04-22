@@ -75,5 +75,15 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
     confettiEnabled: s.confettiEnabled,
     driverSoundEnabled: s.driverSoundEnabled,
     driverVibrationEnabled: s.driverVibrationEnabled,
+    // Prix expose pour que le mobile puisse afficher une estimation
+    // immediate sans round-trip. Le backend reste source de verite au
+    // moment de la creation reelle de la livraison.
+    pricing: {
+      basePriceEnvelope: s.basePriceEnvelope,
+      basePriceSmall: s.basePriceSmall,
+      basePriceLarge: s.basePriceLarge,
+      pricePerKm: s.pricePerKm,
+      platformCommissionPct: s.platformCommissionPct,
+    },
   };
 }

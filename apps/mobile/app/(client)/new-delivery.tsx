@@ -18,6 +18,7 @@ import { PriceEstimate, SchedulePicker } from '@/components/delivery';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { useDeliveryPrice } from '@/hooks/useDeliveryPrice';
 import { PackageType, PACKAGE_LABELS } from '@/types';
 import { OUAGADOUGOU_CENTER } from '@/utils/geo';
@@ -34,9 +35,13 @@ export default function NewDeliveryScreen() {
   const { draft, setDraftField, createDelivery, resetDraft, isLoading } = useDeliveryStore();
   const [step, setStep] = useState(0);
 
+  const refreshSettings = useSettingsStore((s) => s.refresh);
+
   // Chaque fois qu'on arrive sur cet ecran, on repart de l'etape 0 avec un draft vide
+  // et on rafraichit les settings (tarifs a jour si l'admin vient de modifier).
   useFocusEffect(
     useCallback(() => {
+      refreshSettings();
       setStep(0);
       resetDraft();
     }, [resetDraft]),
