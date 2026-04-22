@@ -35,6 +35,7 @@ enum PackageType {
 }
 
 enum DeliveryStatus {
+  scheduled  // programmee pour plus tard, pas encore diffusee aux livreurs
   pending
   accepted
   picking_up
@@ -185,6 +186,9 @@ model Delivery {
   cancelComment            String?
   cancelledBy              String?        @db.Uuid
   expiresAt                DateTime?
+  /// Date/heure a laquelle la livraison doit etre diffusee aux livreurs.
+  /// Si null, diffusion immediate (flow classique).
+  scheduledFor             DateTime?
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
@@ -198,6 +202,7 @@ model Delivery {
   @@index([driverId])
   @@index([status])
   @@index([createdAt])
+  @@index([scheduledFor])
 }
 
 model Rating {
@@ -260,6 +265,42 @@ model DriverLocationLog {
   @@index([driverId, createdAt])
   @@index([event])
   @@index([deliveryId])
+}
+
+/// Parametres globaux de la plateforme (singleton). Une seule ligne attendue,
+/// avec id='default'. Modifiable uniquement par les admins. Les valeurs sont
+/// consommees a la fois par le backend (pricing) et par le mobile (theming,
+/// toggles d'animation, nom affiche...).
+model AppSettings {
+  id String @id @default("default")
+
+  // Branding
+  appName              String @default("Tolle")
+  primaryColor         String @default("#1d9e75")
+  secondaryColor       String @default("#d85a30")
+
+  // Monnaie / localisation
+  currency             String @default("FCFA")
+  currencyLocale       String @default("fr-BF")
+
+  // Pricing (FCFA par defaut)
+  basePriceEnvelope    Int    @default(500)
+  basePriceSmall       Int    @default(800)
+  basePriceLarge       Int    @default(1200)
+  pricePerKm           Int    @default(100)
+  platformCommissionPct Int   @default(15)
+
+  // Toggles UX
+  confettiEnabled      Boolean @default(true)
+  driverSoundEnabled   Boolean @default(true)
+  driverVibrationEnabled Boolean @default(true)
+
+  // Reserve pour la tarification dynamique future
+  nightSurchargePct    Int    @default(0)
+  rainSurchargePct     Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?  @db.Uuid
 }
 
 model Transaction {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api';
 import { formatCFA, formatDate } from '../utils';
+import { BarChart } from '../components/BarChart';
 
 interface Stats {
   users: { clients: number; drivers: number; newLast7d: number };
@@ -175,18 +176,52 @@ function initials(name: string | null | undefined): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+interface DailyStat {
+  date: string;
+  delivered: number;
+  cancelled: number;
+  revenue: number;
+}
+
+interface HotZone {
+  lat: number;
+  lng: number;
+  count: number;
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [daily, setDaily] = useState<DailyStat[]>([]);
+  const [hotZones, setHotZones] = useState<HotZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState<string | null>(null);
+  const [chartPeriod, setChartPeriod] = useState<7 | 30 | 90>(30);
 
   const fetchStats = () => {
     return api.get('/admin/stats').then((res) => setStats(unwrap<Stats>(res)));
   };
 
+  const fetchDaily = (days: number) => {
+    return api
+      .get('/admin/stats/daily', { params: { days } })
+      .then((res) => setDaily(unwrap<DailyStat[]>(res)));
+  };
+
+  const fetchHotZones = () => {
+    return api
+      .get('/admin/stats/hotzones', { params: { days: 30 } })
+      .then((res) => setHotZones(unwrap<HotZone[]>(res)));
+  };
+
   useEffect(() => {
-    fetchStats().finally(() => setLoading(false));
+    Promise.all([fetchStats(), fetchDaily(30), fetchHotZones()]).finally(() =>
+      setLoading(false),
+    );
   }, []);
+
+  useEffect(() => {
+    fetchDaily(chartPeriod);
+  }, [chartPeriod]);
 
   const handleActivate = async (userId: string) => {
     if (!confirm('Activer ce livreur ? Il pourra recevoir des courses immediatement.')) return;
@@ -327,6 +362,148 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+      ) : null}
+
+      {/* Evolution graphique */}
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-header">
+            <h2>Evolution des livraisons</h2>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {([7, 30, 90] as const).map((d) => (
+                <button
+                  key={d}
+                  className={`btn ${chartPeriod === d ? '' : 'btn-ghost'} btn-sm`}
+                  onClick={() => setChartPeriod(d)}
+                >
+                  {d}j
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="card-body">
+            {daily.length === 0 ? (
+              <div className="empty">Aucune donnee</div>
+            ) : (
+              <>
+                <BarChart
+                  data={daily.map((d) => ({
+                    label: new Date(d.date).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                    }),
+                    value: d.delivered,
+                    secondary: d.cancelled,
+                  }))}
+                  height={220}
+                  color="#1d9e75"
+                  secondaryColor="#ef4444"
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 16,
+                    marginTop: 12,
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        background: '#1d9e75',
+                        borderRadius: 2,
+                        marginRight: 6,
+                      }}
+                    />
+                    Livrees
+                  </span>
+                  <span>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        background: '#ef4444',
+                        opacity: 0.35,
+                        borderRadius: 2,
+                        marginRight: 6,
+                      }}
+                    />
+                    Annulees/Expirees
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h2>Chiffre d'affaires par jour</h2>
+          </div>
+          <div className="card-body">
+            {daily.length === 0 ? (
+              <div className="empty">Aucune donnee</div>
+            ) : (
+              <BarChart
+                data={daily.map((d) => ({
+                  label: new Date(d.date).toLocaleDateString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  }),
+                  value: d.revenue,
+                }))}
+                height={220}
+                color="#8b5cf6"
+                valueFormatter={(v) => formatCFA(v)}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Zones chaudes */}
+      {hotZones.length > 0 ? (
+        <div className="card">
+          <div className="card-header">
+            <h2>Zones de demande les plus actives (30j)</h2>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Groupes par carre d'environ 1 km
+            </span>
+          </div>
+          <div className="card-body">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {hotZones.map((z, i) => {
+                const max = hotZones[0]?.count ?? 1;
+                const intensity = z.count / max;
+                return (
+                  <a
+                    key={i}
+                    href={`https://www.openstreetmap.org/?mlat=${z.lat}&mlon=${z.lng}#map=15/${z.lat}/${z.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: `rgba(29, 158, 117, ${0.15 + intensity * 0.55})`,
+                      border: '1px solid var(--primary)',
+                      color: 'var(--primary-700)',
+                      textDecoration: 'none',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {z.count} courses · {z.lat.toFixed(2)}, {z.lng.toFixed(2)}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
         </div>
       ) : null}
 

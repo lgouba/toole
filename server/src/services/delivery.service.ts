@@ -26,6 +26,8 @@ export interface CreateDeliveryInput {
   deliveryDetails?: string;
   deliveryLat: number;
   deliveryLng: number;
+  /** Si fourni (future date), la livraison est programmee et diffusee a cette heure-la. */
+  scheduledFor?: Date;
 }
 
 export async function createDelivery(input: CreateDeliveryInput): Promise<Delivery> {
@@ -35,7 +37,13 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     input.deliveryLat,
     input.deliveryLng,
   );
-  const pricing = calculatePrice(input.packageType, distanceKm);
+  const pricing = await calculatePrice(input.packageType, distanceKm);
+
+  // Si la date programmee est dans plus de 5 min, on cree en status 'scheduled'.
+  // Sinon on bascule en 'pending' direct (diffusion immediate).
+  const now = Date.now();
+  const isScheduled =
+    input.scheduledFor && input.scheduledFor.getTime() - now > 5 * 60 * 1000;
 
   const delivery = await prisma.delivery.create({
     data: {
@@ -58,17 +66,60 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       driverCommission: pricing.driverCommission,
       platformFee: pricing.platformFee,
       validationCode: generateValidationCode(),
-      status: 'pending',
-      expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+      status: isScheduled ? 'scheduled' : 'pending',
+      scheduledFor: input.scheduledFor ?? null,
+      expiresAt: isScheduled
+        ? null // l'expiresAt sera pose au moment de la diffusion
+        : new Date(now + DELIVERY_EXPIRY_MS),
     },
   });
 
-  // Notify nearby drivers (fire-and-forget).
-  void notifyNearbyDrivers(delivery).catch((err) =>
-    logger.error({ err, deliveryId: delivery.id }, 'Failed to notify nearby drivers'),
-  );
+  // Si pas programme, notifier les livreurs immediatement
+  if (!isScheduled) {
+    void notifyNearbyDrivers(delivery).catch((err) =>
+      logger.error({ err, deliveryId: delivery.id }, 'Failed to notify nearby drivers'),
+    );
+  }
 
   return delivery;
+}
+
+/**
+ * Scheduler : toutes les 60s, passe les livraisons programmees dont l'heure
+ * est arrivee en status 'pending' et les diffuse aux livreurs proches.
+ */
+export async function processScheduledDeliveries() {
+  const now = new Date();
+  const due = await prisma.delivery.findMany({
+    where: {
+      status: 'scheduled',
+      scheduledFor: { lte: now },
+    },
+  });
+
+  for (const d of due) {
+    try {
+      const updated = await prisma.delivery.update({
+        where: { id: d.id },
+        data: {
+          status: 'pending',
+          expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+        },
+      });
+      logger.info({ deliveryId: d.id }, 'Scheduled delivery activated');
+      // Notifie le client que sa course programmee est maintenant diffusee
+      emitToUser(updated.senderId, 'delivery:status_update', updated);
+      void sendPushToUser(
+        updated.senderId,
+        'Course programmee',
+        'Nous recherchons un livreur pour votre course planifiee.',
+        { type: 'scheduled_started', deliveryId: updated.id },
+      ).catch(() => {});
+      void notifyNearbyDrivers(updated).catch(() => {});
+    } catch (err) {
+      logger.error({ err, deliveryId: d.id }, 'Failed to activate scheduled delivery');
+    }
+  }
 }
 
 async function notifyNearbyDrivers(delivery: Delivery) {
@@ -189,6 +240,18 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
   emitToUser(updated.senderId, 'delivery:accepted', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
 
+  // Push au client : livreur en route (app client en background / ecran eteint)
+  const driver = await prisma.user.findUnique({
+    where: { id: driverId },
+    select: { fullName: true },
+  });
+  void sendPushToUser(
+    updated.senderId,
+    'Livreur en route',
+    `${driver?.fullName ?? 'Un livreur'} a accepte votre course`,
+    { type: 'delivery_accepted', deliveryId: updated.id },
+  ).catch(() => {});
+
   // Pousse tout de suite la position connue du livreur pour que le client voie
   // son marqueur apparaitre immediatement (sans attendre le prochain heartbeat).
   const driverProfile = await prisma.driverProfile.findUnique({
@@ -299,6 +362,14 @@ export async function confirmPickup(
   emitToUser(updated.senderId, 'delivery:status_update', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
 
+  // Push au client: colis recupere
+  void sendPushToUser(
+    updated.senderId,
+    'Colis recupere',
+    'Votre colis est en route vers le destinataire',
+    { type: 'delivery_picked_up', deliveryId: updated.id },
+  ).catch(() => {});
+
   // Tracabilite : log position + event pickup
   const dp = await prisma.driverProfile.findUnique({
     where: { userId: driverId },
@@ -364,6 +435,14 @@ export async function validateCode(
 
   emitToUser(updated.senderId, 'delivery:status_update', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
+
+  // Push au client: livraison terminee (incite a noter)
+  void sendPushToUser(
+    updated.senderId,
+    'Livraison terminee',
+    'Votre colis a ete livre. Notez votre livreur !',
+    { type: 'delivery_delivered', deliveryId: updated.id },
+  ).catch(() => {});
 
   // Tracabilite : log position + event delivered
   const dp = await prisma.driverProfile.findUnique({
@@ -590,7 +669,7 @@ export async function rateDelivery(args: {
   return rating;
 }
 
-export function estimatePrice(
+export async function estimatePrice(
   packageType: PackageType,
   pickupLat: number,
   pickupLng: number,

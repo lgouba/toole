@@ -16,10 +16,14 @@ import driversRoutes from './routes/drivers.routes.js';
 import deliveriesRoutes from './routes/deliveries.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket/index.js';
-import { expirePendingDeliveries } from './services/delivery.service.js';
+import {
+  expirePendingDeliveries,
+  processScheduledDeliveries,
+} from './services/delivery.service.js';
 import { markStaleDriversOffline } from './services/driver.service.js';
 
 const app = express();
@@ -74,6 +78,7 @@ app.use('/api/drivers', driversRoutes);
 app.use('/api/deliveries', deliveriesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 + error handling
 app.use(notFoundHandler);
@@ -103,6 +108,13 @@ async function start() {
         logger.error({ err }, 'markStaleDriversOffline failed'),
       );
     }, 30_000);
+
+    // Scan toutes les 60s pour activer les livraisons programmees dont l'heure est arrivee
+    setInterval(() => {
+      processScheduledDeliveries().catch((err) =>
+        logger.error({ err }, 'processScheduledDeliveries failed'),
+      );
+    }, 60_000);
   } catch (err) {
     logger.error({ err }, 'Failed to start server');
     process.exit(1);

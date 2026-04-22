@@ -1,8 +1,18 @@
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useSettingsStore } from '@/stores/settings.store';
 
+/**
+ * Formate un montant dans la monnaie configurée depuis l'admin.
+ * (Rétrocompat : la fonction s'appelle encore formatCFA même si la monnaie
+ * peut maintenant être autre chose qu'FCFA.)
+ */
 export function formatCFA(amount: number): string {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+  const { settings } = useSettingsStore.getState();
+  const formatted = amount
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${formatted} ${settings.currency}`;
 }
 
 export function formatPhone(phone: string): string {

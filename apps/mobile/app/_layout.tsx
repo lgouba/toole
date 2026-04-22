@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/inter';
 import '@/utils/globalErrorHandler';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { setAuthExpiredHandler } from '@/services/api.client';
 import { colors } from '@/theme';
@@ -34,6 +35,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
+
+  // Refresh public settings au demarrage + toutes les 5 min
+  const refreshSettings = useSettingsStore((s) => s.refresh);
+  useEffect(() => {
+    refreshSettings();
+    const interval = setInterval(() => {
+      refreshSettings();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [refreshSettings]);
 
   // Quand le refresh token echoue, on force un logout propre.
   // Evite les etats zombie ou l'utilisateur est "loggue" cote cache

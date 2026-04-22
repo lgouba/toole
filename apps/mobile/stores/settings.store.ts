@@ -1,0 +1,74 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api, unwrap } from '@/services/api.client';
+
+export interface PublicSettings {
+  appName: string;
+  primaryColor: string;
+  secondaryColor: string;
+  currency: string;
+  currencyLocale: string;
+  confettiEnabled: boolean;
+  driverSoundEnabled: boolean;
+  driverVibrationEnabled: boolean;
+}
+
+const DEFAULT_SETTINGS: PublicSettings = {
+  appName: 'Tolle',
+  primaryColor: '#1d9e75',
+  secondaryColor: '#d85a30',
+  currency: 'FCFA',
+  currencyLocale: 'fr-BF',
+  confettiEnabled: true,
+  driverSoundEnabled: true,
+  driverVibrationEnabled: true,
+};
+
+interface SettingsState {
+  settings: PublicSettings;
+  loaded: boolean;
+  refresh: () => Promise<void>;
+}
+
+/**
+ * Paramètres globaux de la plateforme (monnaie, couleurs, toggles).
+ * Fetchés depuis /api/settings au démarrage, persisté en AsyncStorage pour
+ * être dispo offline et au 1er render.
+ */
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      settings: DEFAULT_SETTINGS,
+      loaded: false,
+
+      refresh: async () => {
+        try {
+          const res = await api.get('/settings');
+          const data = unwrap<PublicSettings>(res);
+          set({ settings: { ...DEFAULT_SETTINGS, ...data }, loaded: true });
+        } catch {
+          // On garde les valeurs en cache / defaut
+          set({ loaded: true });
+        }
+      },
+    }),
+    {
+      name: 'tolle-settings',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ settings: state.settings }),
+    },
+  ),
+);
+
+/** Formatte un montant avec la devise configurée. */
+export function formatCurrency(amount: number): string {
+  const { settings } = useSettingsStore.getState();
+  try {
+    return new Intl.NumberFormat(settings.currencyLocale, {
+      maximumFractionDigits: 0,
+    }).format(amount) + ' ' + settings.currency;
+  } catch {
+    return `${amount} ${settings.currency}`;
+  }
+}

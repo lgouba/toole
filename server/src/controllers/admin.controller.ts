@@ -161,6 +161,85 @@ export async function deleteUserCtrl(
   }
 }
 
+// ---------- Dashboard charts ----------
+
+export async function getDailyStatsCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const days = Math.min(90, Math.max(7, parseInt(String(req.query.days ?? '30'), 10)));
+    const result = await adminService.getDailyStats(days);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getHotZonesCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const days = Math.min(90, Math.max(1, parseInt(String(req.query.days ?? '30'), 10)));
+    const result = await adminService.getHotZones(days, 10);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---------- App settings ----------
+
+import * as settingsService from '../services/settings.service.js';
+
+const settingsUpdateSchema = z.object({
+  appName: z.string().trim().min(1).max(50).optional(),
+  primaryColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  secondaryColor: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  currency: z.string().trim().min(1).max(10).optional(),
+  currencyLocale: z.string().trim().min(2).max(20).optional(),
+  basePriceEnvelope: z.number().int().min(0).optional(),
+  basePriceSmall: z.number().int().min(0).optional(),
+  basePriceLarge: z.number().int().min(0).optional(),
+  pricePerKm: z.number().int().min(0).optional(),
+  platformCommissionPct: z.number().int().min(0).max(100).optional(),
+  confettiEnabled: z.boolean().optional(),
+  driverSoundEnabled: z.boolean().optional(),
+  driverVibrationEnabled: z.boolean().optional(),
+  nightSurchargePct: z.number().int().min(0).max(500).optional(),
+  rainSurchargePct: z.number().int().min(0).max(500).optional(),
+});
+
+export async function getSettingsCtrl(
+  _req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const settings = await settingsService.getAppSettings();
+    return success(res, settings);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateSettingsCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = settingsUpdateSchema.parse(req.body);
+    const settings = await settingsService.updateAppSettings(body, req.user!.id);
+    return success(res, settings);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ---------- Location history ----------
 
 const locationHistorySchema = z.object({

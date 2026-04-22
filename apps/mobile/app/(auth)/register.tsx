@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { UserRole } from '@/types';
 
 type VehicleType = 'moto' | 'velo' | 'voiture' | 'tricycle';
@@ -98,6 +99,7 @@ function validateDate(d: string, m: string, y: string): string | null {
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading, logout } = useAuthStore();
+  const appName = useSettingsStore((s) => s.settings.appName);
   const [step, setStep] = useState<Step>('role');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
@@ -223,7 +225,7 @@ export default function RegisterScreen() {
           {step === 'role' && (
             <>
               <View style={styles.header}>
-                <Text style={styles.title}>Bienvenue sur Tolle</Text>
+                <Text style={styles.title}>Bienvenue sur {appName}</Text>
                 <Text style={styles.subtitle}>
                   Choisissez votre profil pour commencer
                 </Text>

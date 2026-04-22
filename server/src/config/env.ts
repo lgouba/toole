@@ -26,6 +26,17 @@ const envSchema = z.object({
   AT_USERNAME: z.string().optional(),
   AT_API_KEY: z.string().optional(),
   AT_SENDER_ID: z.string().optional(), // e.g. "TOLLE" (optional, uses shortcode if empty)
+
+  // SMTP (Hostinger, Gmail, etc.) — si non renseigne, les emails ne sont pas envoyes
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(465),
+  SMTP_SECURE: z.coerce.boolean().default(true),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().optional(), // ex: "Tolle Admin <noreply@tolle.qalitylabs.fr>"
+
+  // Adresse qui recoit les alertes admin (ex: nouvelle inscription livreur)
+  ADMIN_ALERT_EMAIL: z.string().email().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

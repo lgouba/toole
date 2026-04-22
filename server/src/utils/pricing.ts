@@ -1,13 +1,5 @@
 import { PackageType } from '@prisma/client';
-
-export const BASE_PRICES: Record<PackageType, number> = {
-  envelope: 300,
-  small: 500,
-  large: 1000,
-};
-
-export const PRICE_PER_KM = 100;
-export const PLATFORM_FEE_RATE = 0.15;
+import { getAppSettings } from '../services/settings.service.js';
 
 export interface PriceBreakdown {
   price: number;
@@ -18,15 +10,30 @@ export interface PriceBreakdown {
   driverCommission: number;
 }
 
-export function calculatePrice(
+/**
+ * Calcule le prix d'une livraison en fonction du type de colis et de la distance.
+ * Les valeurs (prix de base par type, prix au km, commission) viennent de la
+ * table AppSettings, modifiable depuis l'admin. Un cache 30s evite de hit la
+ * DB a chaque estimation.
+ */
+export async function calculatePrice(
   packageType: PackageType,
   distanceKm: number,
-): PriceBreakdown {
-  const basePrice = BASE_PRICES[packageType];
-  const distancePrice = Math.ceil(distanceKm) * PRICE_PER_KM;
+): Promise<PriceBreakdown> {
+  const s = await getAppSettings();
+
+  const basePrice =
+    packageType === 'envelope'
+      ? s.basePriceEnvelope
+      : packageType === 'small'
+        ? s.basePriceSmall
+        : s.basePriceLarge;
+
+  const distancePrice = Math.ceil(distanceKm) * s.pricePerKm;
   const price = Math.max(basePrice, basePrice + distancePrice);
-  const platformFee = Math.round(price * PLATFORM_FEE_RATE);
+  const platformFee = Math.round(price * (s.platformCommissionPct / 100));
   const driverCommission = price - platformFee;
+
   return {
     price,
     distanceKm: Math.round(distanceKm * 10) / 10,

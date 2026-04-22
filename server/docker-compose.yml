@@ -41,6 +41,14 @@ services:
       AT_USERNAME: ${AT_USERNAME:-}
       AT_API_KEY: ${AT_API_KEY:-}
       AT_SENDER_ID: ${AT_SENDER_ID:-}
+      # SMTP (Hostinger, Gmail, etc.)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL:-}
 
       # nginx-proxy + acme-companion (auto HTTPS)
       VIRTUAL_HOST: api.tolle.qalitylabs.fr

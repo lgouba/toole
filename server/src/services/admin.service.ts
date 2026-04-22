@@ -255,6 +255,84 @@ export async function getUserDetail(userId: string) {
 }
 
 /**
+ * Agrege les livraisons et CA par jour sur les N derniers jours.
+ * Utilise pour le graphique d'evolution du dashboard.
+ */
+export async function getDailyStats(days = 30) {
+  const from = new Date();
+  from.setHours(0, 0, 0, 0);
+  from.setDate(from.getDate() - (days - 1));
+
+  const rows = await prisma.$queryRaw<
+    { day: Date; delivered: bigint; cancelled: bigint; revenue: bigint | null }[]
+  >`
+    SELECT
+      date_trunc('day', "createdAt") AS day,
+      COUNT(*) FILTER (WHERE status = 'delivered') AS delivered,
+      COUNT(*) FILTER (WHERE status IN ('cancelled', 'expired')) AS cancelled,
+      SUM("price") FILTER (WHERE status = 'delivered') AS revenue
+    FROM "Delivery"
+    WHERE "createdAt" >= ${from}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+
+  const byDay = new Map<string, { delivered: number; cancelled: number; revenue: number }>();
+  for (const r of rows) {
+    const key = new Date(r.day).toISOString().slice(0, 10);
+    byDay.set(key, {
+      delivered: Number(r.delivered),
+      cancelled: Number(r.cancelled),
+      revenue: Number(r.revenue ?? 0),
+    });
+  }
+
+  // Comble les jours manquants avec 0
+  const result: Array<{ date: string; delivered: number; cancelled: number; revenue: number }> = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(from);
+    d.setDate(from.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    const row = byDay.get(key);
+    result.push({
+      date: key,
+      delivered: row?.delivered ?? 0,
+      cancelled: row?.cancelled ?? 0,
+      revenue: row?.revenue ?? 0,
+    });
+  }
+  return result;
+}
+
+/**
+ * Top zones de pickup (par volume). Regroupe les livraisons par carre geo
+ * (arrondi a 0.01 degre = ~1km).
+ */
+export async function getHotZones(days = 30, limit = 5) {
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+
+  const rows = await prisma.$queryRaw<
+    { lat: number; lng: number; count: bigint }[]
+  >`
+    SELECT
+      ROUND("pickupLat"::numeric, 2) AS lat,
+      ROUND("pickupLng"::numeric, 2) AS lng,
+      COUNT(*) AS count
+    FROM "Delivery"
+    WHERE "createdAt" >= ${from}
+    GROUP BY 1, 2
+    ORDER BY count DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    lat: Number(r.lat),
+    lng: Number(r.lng),
+    count: Number(r.count),
+  }));
+}
+
+/**
  * Recupere l'historique GPS d'un livreur, ordre chronologique.
  * Utilise pour reconstituer son parcours (incident, litige).
  */
@@ -324,7 +402,7 @@ export async function setUserActive(
   isActive: boolean,
   reason?: string,
 ) {
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       isActive,
@@ -332,6 +410,19 @@ export async function setUserActive(
       suspendReason: isActive ? null : reason ?? null,
     },
   });
+
+  // Push au livreur qui vient d'etre active (notification positive)
+  if (isActive && updated.userType === 'driver') {
+    const { sendPushToUser } = await import('./push.service.js');
+    void sendPushToUser(
+      userId,
+      'Compte activé !',
+      'Vous pouvez maintenant passer en ligne et recevoir des courses.',
+      { type: 'account_activated' },
+    ).catch(() => {});
+  }
+
+  return updated;
 }
 
 export async function resetUserOtp(userId: string) {

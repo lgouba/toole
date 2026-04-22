@@ -11,6 +11,8 @@ import { logger } from '../lib/logger.js';
 import { sendSms } from '../lib/sms.js';
 import { env } from '../config/env.js';
 import { emitToAdmins } from './notification.service.js';
+import { sendAdminAlert } from '../lib/mailer.js';
+import { getAppSettings } from './settings.service.js';
 
 export async function sendOtp(phone: string): Promise<{ success: true }> {
   const code = generateOtp();
@@ -140,6 +142,51 @@ export async function registerUser(args: {
       vehiclePlate: user.driverProfile?.vehiclePlate,
       createdAt: user.createdAt,
     });
+
+    // Email d'alerte vers l'adresse configuree dans ADMIN_ALERT_EMAIL
+    void (async () => {
+      const settings = await getAppSettings().catch(() => null);
+      const appName = settings?.appName ?? 'Tolle';
+      const dob = user.dateOfBirth
+        ? new Date(user.dateOfBirth).toLocaleDateString('fr-FR')
+        : '—';
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111827;">
+          <div style="background: linear-gradient(135deg, #1d9e75 0%, #0f6e56 100%); padding: 24px; border-radius: 12px 12px 0 0; color: white;">
+            <h1 style="margin: 0; font-size: 20px;">${appName} — Nouveau livreur</h1>
+            <p style="margin: 4px 0 0; opacity: 0.9; font-size: 13px;">Une inscription à valider</p>
+          </div>
+          <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 12px 12px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr><td style="padding: 8px 0; color: #6b7280; width: 130px;">Nom complet</td><td style="padding: 8px 0; font-weight: 600;">${user.fullName}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Téléphone</td><td style="padding: 8px 0;">${user.phone}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Date naissance</td><td style="padding: 8px 0;">${dob}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Véhicule</td><td style="padding: 8px 0; text-transform: capitalize;">${user.driverProfile?.vehicleType ?? '—'}${user.driverProfile?.vehiclePlate ? ` · ${user.driverProfile.vehiclePlate}` : ''}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;">${user.email ?? '—'}</td></tr>
+            </table>
+            <div style="margin-top: 20px; padding: 12px 14px; background: #fef3c7; border-radius: 8px; font-size: 13px; color: #92400e;">
+              Ce livreur est <strong>inactif</strong> par défaut. Connectez-vous au panneau d'administration pour l'activer.
+            </div>
+            <a href="https://admin-tolle.qalitylabs.fr/users/${user.id}" style="display: inline-block; margin-top: 16px; padding: 10px 18px; background: #1d9e75; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Ouvrir la fiche livreur</a>
+          </div>
+        </div>
+      `;
+      const text = `${appName} — Nouveau livreur inscrit
+
+Nom: ${user.fullName}
+Téléphone: ${user.phone}
+Date naissance: ${dob}
+Véhicule: ${user.driverProfile?.vehicleType ?? '—'}${user.driverProfile?.vehiclePlate ? ` (${user.driverProfile.vehiclePlate})` : ''}
+Email: ${user.email ?? '—'}
+
+Ouvrir: https://admin-tolle.qalitylabs.fr/users/${user.id}`;
+
+      await sendAdminAlert(
+        `[${appName}] Nouveau livreur: ${user.fullName}`,
+        html,
+        text,
+      );
+    })();
   }
 
   const tokens = await issueTokens(user.id, user.userType);

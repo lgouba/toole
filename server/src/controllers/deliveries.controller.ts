@@ -29,6 +29,7 @@ const createDeliverySchema = z.object({
   deliveryDetails: z.string().optional(),
   deliveryLat: z.number().min(-90).max(90),
   deliveryLng: z.number().min(-180).max(180),
+  scheduledFor: z.string().datetime().optional(),
 });
 
 export async function createDeliveryCtrl(
@@ -38,7 +39,11 @@ export async function createDeliveryCtrl(
 ) {
   try {
     const body = createDeliverySchema.parse(req.body);
-    const delivery = await createDelivery({ ...body, senderId: req.user!.id });
+    const delivery = await createDelivery({
+      ...body,
+      senderId: req.user!.id,
+      scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : undefined,
+    });
     return success(res, delivery, 201);
   } catch (err) {
     next(err);
@@ -48,6 +53,7 @@ export async function createDeliveryCtrl(
 const listSchema = z.object({
   status: z
     .enum([
+      'scheduled',
       'pending',
       'accepted',
       'picking_up',
@@ -233,7 +239,7 @@ const estimateSchema = z.object({
 export async function estimateCtrl(req: Request, res: Response, next: NextFunction) {
   try {
     const q = estimateSchema.parse(req.query);
-    const result = estimatePrice(
+    const result = await estimatePrice(
       q.packageType,
       q.pickupLat,
       q.pickupLng,

@@ -14,7 +14,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Card } from '@/components/ui';
 import { LocationPicker } from '@/components/LocationPicker';
-import { PriceEstimate } from '@/components/delivery';
+import { PriceEstimate, SchedulePicker } from '@/components/delivery';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -73,7 +73,21 @@ export default function NewDeliveryScreen() {
     }
 
     try {
-      await createDelivery(user.id);
+      const delivery = await createDelivery(user.id);
+      if (delivery?.status === 'scheduled') {
+        const when = draft.scheduledFor
+          ? new Date(draft.scheduledFor).toLocaleString('fr-FR', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })
+          : 'plus tard';
+        Alert.alert(
+          'Livraison programmee',
+          `Votre course sera diffusee aux livreurs le ${when}. Vous recevrez une notification.`,
+          [{ text: 'OK', onPress: () => router.replace('/(client)') }],
+        );
+        return;
+      }
       router.push('/(client)/searching');
     } catch (e: any) {
       const isTimeout =
@@ -224,6 +238,12 @@ export default function NewDeliveryScreen() {
           <Text style={styles.summaryValue}>{draft.recipientName || '-'}</Text>
         </View>
       </Card>
+
+      {/* Programmer la livraison */}
+      <SchedulePicker
+        value={draft.scheduledFor}
+        onChange={(iso) => setDraftField('scheduledFor', iso)}
+      />
     </View>,
   ];
 

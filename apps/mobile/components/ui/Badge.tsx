@@ -4,6 +4,7 @@ import { colors, typography, borderRadius, spacing } from '@/theme';
 import { DeliveryStatus } from '@/types';
 
 const statusConfig: Record<DeliveryStatus, { bg: string; text: string; label: string }> = {
+  scheduled: { bg: '#E8F0FE', text: '#1967D2', label: 'Programmee' },
   pending: { bg: colors.warningLight, text: '#B07A1A', label: 'En attente' },
   accepted: { bg: colors.primaryLight, text: colors.primaryDark, label: 'Acceptee' },
   picking_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recuperation' },

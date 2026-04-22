@@ -50,6 +50,7 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
     ...(draft.deliveryDetails ? { deliveryDetails: draft.deliveryDetails } : {}),
     deliveryLat: draft.deliveryLocation.latitude,
     deliveryLng: draft.deliveryLocation.longitude,
+    ...(draft.scheduledFor ? { scheduledFor: draft.scheduledFor } : {}),
   };
 
   const res = await api.post('/deliveries', payload);

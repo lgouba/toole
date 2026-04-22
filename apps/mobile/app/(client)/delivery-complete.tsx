@@ -25,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { Button, Card, Rating, Avatar } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { formatCFA } from '@/utils/format';
 import { rateDelivery } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
@@ -146,7 +147,9 @@ export default function DeliveryCompleteScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.thanksWrap}>
-          {score >= 4 ? <Confetti /> : null}
+          {score >= 4 && useSettingsStore.getState().settings.confettiEnabled ? (
+            <Confetti />
+          ) : null}
           <View style={styles.thanksIconBg}>
             <Ionicons name="heart" size={60} color={colors.primary} />
           </View>

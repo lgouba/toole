@@ -1,5 +1,6 @@
 import { Vibration, Platform } from 'react-native';
 import { haptic } from './haptics';
+import { useSettingsStore } from '@/stores/settings.store';
 
 /**
  * Alerte forte pour attirer l'attention du livreur quand une course tombe,
@@ -9,6 +10,13 @@ import { haptic } from './haptics';
  *  - Le SON est gere par expo-notifications (son systeme par defaut)
  */
 export function alertNewRequest() {
+  const settings = useSettingsStore.getState().settings;
+  if (!settings.driverVibrationEnabled) {
+    // Si les vibrations sont coupees dans l'admin, on se contente d'un haptic leger
+    haptic.light();
+    return;
+  }
+
   if (Platform.OS === 'android') {
     // Android : pattern [wait, vibrate, wait, vibrate, ...] — non-repetitif
     Vibration.vibrate([0, 600, 180, 400, 180, 400, 180, 600], false);

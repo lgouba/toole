@@ -12,6 +12,10 @@ import {
   deleteUserCtrl,
   verifyDriverCtrl,
   getDriverLocationHistoryCtrl,
+  getSettingsCtrl,
+  updateSettingsCtrl,
+  getDailyStatsCtrl,
+  getHotZonesCtrl,
   listDeliveriesAdminCtrl,
   getDeliveryAdminCtrl,
   forceCancelDeliveryCtrl,
@@ -27,6 +31,8 @@ router.use(authRequired, requireRole('admin'));
 
 router.get('/me', getMeAdminCtrl);
 router.get('/stats', statsCtrl);
+router.get('/stats/daily', getDailyStatsCtrl);
+router.get('/stats/hotzones', getHotZonesCtrl);
 
 // Users
 router.get('/users', listUsersCtrl);
@@ -41,6 +47,10 @@ router.post('/drivers/:id/verify', verifyDriverCtrl);
 
 // Driver tracking (position history for investigations)
 router.get('/drivers/:id/location-history', getDriverLocationHistoryCtrl);
+
+// Platform settings (singleton)
+router.get('/settings', getSettingsCtrl);
+router.put('/settings', updateSettingsCtrl);
 
 // Deliveries
 router.get('/deliveries', listDeliveriesAdminCtrl);

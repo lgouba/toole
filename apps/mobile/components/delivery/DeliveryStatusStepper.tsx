@@ -20,6 +20,7 @@ const STEPS: { key: 'accepted' | 'picked_up' | 'delivered'; label: string; icon:
 
 // Ordre logique des statuts pour calculer l'avancement
 const STATUS_RANK: Record<DeliveryStatus, number> = {
+  scheduled: -1,
   pending: 0,
   accepted: 1,
   picking_up: 1,

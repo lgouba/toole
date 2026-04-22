@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router';
 import { Button, Input } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore } from '@/stores/settings.store';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, isLoading } = useAuthStore();
+  const appName = useSettingsStore((s) => s.settings.appName);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
 
@@ -38,7 +40,7 @@ export default function LoginScreen() {
         style={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>Tolle</Text>
+          <Text style={styles.logo}>{appName}</Text>
           <Text style={styles.title}>Entrez votre numero</Text>
           <Text style={styles.subtitle}>
             Nous vous enverrons un code de verification par SMS

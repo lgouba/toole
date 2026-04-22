@@ -3,6 +3,7 @@ import { LatLng } from './user';
 export type PackageType = 'envelope' | 'small' | 'large';
 
 export type DeliveryStatus =
+  | 'scheduled'
   | 'pending'
   | 'accepted'
   | 'picking_up'
@@ -61,6 +62,7 @@ export interface Delivery {
   deliveredAt?: string;
   cancelledAt?: string;
   expiresAt?: string;
+  scheduledFor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +78,8 @@ export interface DeliveryDraft {
   deliveryLocation?: LatLng;
   recipientName?: string;
   recipientPhone?: string;
+  /** Si defini, la livraison sera programmee pour cette date/heure. */
+  scheduledFor?: string; // ISO datetime
 }
 
 export interface PriceEstimate {
@@ -94,6 +98,7 @@ export const PACKAGE_LABELS: Record<PackageType, string> = {
 };
 
 export const STATUS_LABELS: Record<DeliveryStatus, string> = {
+  scheduled: 'Programmee',
   pending: 'En attente',
   accepted: 'Acceptee',
   picking_up: 'En route (recuperation)',
