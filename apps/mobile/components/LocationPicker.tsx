@@ -7,6 +7,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -20,52 +21,57 @@ import { parseLocationUrl, isShortLocationUrl } from '@/utils/parseLocation';
 import { reverseGeocode, geocodeAddress } from '@/utils/geocode';
 import { DEFAULT_MAP_REGION } from '@/utils/geo';
 
+export type LocationPickerVariant = 'pickup' | 'delivery';
+
 interface LocationPickerProps {
-  label: string;
-  placeholder?: string;
-  iconColor?: string;
+  variant: LocationPickerVariant;
   address: string;
   onAddressChange: (address: string) => void;
   location: LatLng | null;
   onLocationChange: (location: LatLng | null) => void;
-  showUseMyPosition?: boolean;
+  /** Si true, auto-detecte la position GPS au montage (mode "Depuis ma position"). */
+  autoUseGpsOnMount?: boolean;
 }
 
+/**
+ * Picker d'adresse beau et rapide.
+ *
+ * Design:
+ *  - Input autocomplete principal, tres visible
+ *  - 2 chips compactes en dessous : "Lien WhatsApp" et "Carte"
+ *  - (pickup seulement) : au premier montage, si autoUseGpsOnMount=true,
+ *    on essaye la position GPS automatiquement. Sinon l'utilisateur fait
+ *    "Utiliser ma position" via un bouton discret.
+ */
 export function LocationPicker({
-  label,
-  placeholder,
-  iconColor = colors.primary,
+  variant,
   address,
   onAddressChange,
   location,
   onLocationChange,
-  showUseMyPosition = false,
+  autoUseGpsOnMount = false,
 }: LocationPickerProps) {
+  const isPickup = variant === 'pickup';
+  const iconColor = isPickup ? colors.primary : colors.secondary;
+  const placeholder = isPickup
+    ? 'Où récupérer le colis ?'
+    : 'Où livrer le colis ?';
+
   const [showMap, setShowMap] = useState(false);
   const [mapLocation, setMapLocation] = useState<LatLng>(location || DEFAULT_MAP_REGION);
   const [busy, setBusy] = useState<null | 'paste' | 'gps' | 'geocode'>(null);
-  const [showHelp, setShowHelp] = useState(false);
 
-  const lastGeocodedAddressRef = useRef<string>('');
+  const autoGpsTriedRef = useRef(false);
+
+  // Auto GPS au premier rendu si demande
   useEffect(() => {
-    const trimmed = address.trim();
-    if (!trimmed || trimmed.length < 4) return;
+    if (!autoUseGpsOnMount) return;
+    if (autoGpsTriedRef.current) return;
     if (location) return;
-    if (lastGeocodedAddressRef.current === trimmed) return;
-
-    const handle = setTimeout(async () => {
-      lastGeocodedAddressRef.current = trimmed;
-      setBusy('geocode');
-      try {
-        const result = await geocodeAddress(trimmed);
-        if (result) onLocationChange(result.location);
-      } finally {
-        setBusy(null);
-      }
-    }, 1200);
-
-    return () => clearTimeout(handle);
-  }, [address, location, onLocationChange]);
+    autoGpsTriedRef.current = true;
+    void handleUseGps(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePasteLink = async () => {
     setBusy('paste');
@@ -74,36 +80,38 @@ export function LocationPicker({
       if (!text) {
         Alert.alert(
           'Presse-papiers vide',
-          'Ouvrez WhatsApp, copiez une position partagee, puis revenez ici.',
+          "Ouvrez WhatsApp, copiez une position partagée, puis revenez ici.",
         );
         return;
       }
       if (isShortLocationUrl(text)) {
         Alert.alert(
           'Lien raccourci',
-          'Ouvrez le lien dans votre navigateur puis copiez l\'URL complete.',
+          "Ouvrez le lien dans votre navigateur puis copiez l'URL complète.",
         );
         return;
       }
       const parsed = parseLocationUrl(text);
       if (!parsed) {
-        Alert.alert('Lien invalide', 'Ce lien ne contient pas de coordonnees GPS lisibles.');
+        Alert.alert('Lien invalide', 'Ce lien ne contient pas de coordonnées GPS lisibles.');
         return;
       }
       onLocationChange(parsed);
       const readable = await reverseGeocode(parsed);
-      onAddressChange(readable || 'Position partagee (WhatsApp)');
+      onAddressChange(readable || 'Position partagée (WhatsApp)');
     } finally {
       setBusy(null);
     }
   };
 
-  const handleUseGps = async () => {
+  const handleUseGps = async (silent = false) => {
     setBusy('gps');
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission refusee', 'Activez la localisation dans les parametres.');
+        if (!silent) {
+          Alert.alert('Permission refusée', 'Activez la localisation dans les paramètres.');
+        }
         return;
       }
       const pos = await Location.getCurrentPositionAsync({
@@ -111,9 +119,13 @@ export function LocationPicker({
       });
       const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       onLocationChange(loc);
-      onAddressChange('Ma position actuelle');
+      // Reverse geocode pour afficher un nom
+      const readable = await reverseGeocode(loc);
+      onAddressChange(readable || 'Ma position actuelle');
     } catch {
-      Alert.alert('Erreur', 'Impossible de recuperer votre position.');
+      if (!silent) {
+        Alert.alert('Erreur', 'Impossible de récupérer votre position.');
+      }
     } finally {
       setBusy(null);
     }
@@ -140,138 +152,77 @@ export function LocationPicker({
 
   return (
     <View style={styles.container}>
-      <View style={styles.labelRow}>
-        <AddressAutocomplete
-          label={label}
-          placeholder={placeholder}
-          value={address}
-          onChangeText={handleTextChange}
-          onSelect={(s) => {
-            onAddressChange(s.shortName);
-            onLocationChange(s.location);
-            lastGeocodedAddressRef.current = s.shortName;
-          }}
-          iconColor={iconColor}
+      <AddressAutocomplete
+        placeholder={placeholder}
+        value={address}
+        onChangeText={handleTextChange}
+        onSelect={(s) => {
+          onAddressChange(s.shortName);
+          onLocationChange(s.location);
+        }}
+        iconColor={iconColor}
+        hasConfirmedLocation={location != null}
+      />
+
+      {/* Chips d'alternatives */}
+      <View style={styles.chipsRow}>
+        <Chip
+          icon="logo-whatsapp"
+          iconColor="#25D366"
+          label="WhatsApp"
+          busy={busy === 'paste'}
+          onPress={handlePasteLink}
+          disabled={busy !== null}
+        />
+        {isPickup ? (
+          <Chip
+            icon="locate"
+            iconColor={colors.primary}
+            label="Ma position"
+            busy={busy === 'gps'}
+            onPress={() => handleUseGps(false)}
+            disabled={busy !== null}
+          />
+        ) : null}
+        <Chip
+          icon="map-outline"
+          iconColor={colors.textSecondary}
+          label="Sur la carte"
+          onPress={openMap}
+          disabled={busy !== null}
         />
       </View>
 
-      {/* Separateur OU */}
-      <View style={styles.orDivider}>
-        <View style={styles.orLine} />
-        <Text style={styles.orText}>OU choisir autrement</Text>
-        <View style={styles.orLine} />
-      </View>
-
-      {/* Actions detaillees (listes verticalement) */}
-      <View style={styles.actionsList}>
-        <TouchableOpacity
-          style={styles.actionRow}
-          onPress={handlePasteLink}
-          activeOpacity={0.6}
-          disabled={busy !== null}
-        >
-          <View style={[styles.actionIconBox, { backgroundColor: '#25D36620' }]}>
-            {busy === 'paste' ? (
-              <ActivityIndicator size="small" color="#25D366" />
-            ) : (
-              <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-            )}
-          </View>
-          <View style={styles.actionTexts}>
-            <Text style={styles.actionTitle}>Coller un lien WhatsApp</Text>
-            <Text style={styles.actionDesc}>
-              Depuis WhatsApp, partagez une position, copiez le lien, puis appuyez ici
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-        </TouchableOpacity>
-
-        {showUseMyPosition && (
-          <TouchableOpacity
-            style={styles.actionRow}
-            onPress={handleUseGps}
-            activeOpacity={0.6}
-            disabled={busy !== null}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: colors.primaryLight }]}>
-              {busy === 'gps' ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Ionicons name="locate" size={22} color={colors.primary} />
-              )}
-            </View>
-            <View style={styles.actionTexts}>
-              <Text style={styles.actionTitle}>Utiliser ma position GPS</Text>
-              <Text style={styles.actionDesc}>
-                Je suis a cet endroit maintenant
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={styles.actionRow}
-          onPress={openMap}
-          activeOpacity={0.6}
-          disabled={busy !== null}
-        >
-          <View style={[styles.actionIconBox, { backgroundColor: colors.secondaryLight }]}>
-            <Ionicons name="map-outline" size={22} color={colors.secondary} />
-          </View>
-          <View style={styles.actionTexts}>
-            <Text style={styles.actionTitle}>Pointer sur la carte</Text>
-            <Text style={styles.actionDesc}>
-              Si vous connaissez l'endroit exact sans adresse precise
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-        </TouchableOpacity>
-
-        {/* Lien aide */}
-        <TouchableOpacity
-          style={styles.helpBtn}
-          onPress={() => setShowHelp(true)}
-          activeOpacity={0.6}
-        >
-          <Ionicons name="help-circle-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.helpText}>Comment partager une position WhatsApp ?</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Status */}
-      {busy === 'geocode' && (
+      {/* Status discret */}
+      {location && busy !== 'geocode' ? (
         <View style={styles.statusRow}>
-          <ActivityIndicator size="small" color={colors.textSecondary} />
-          <Text style={styles.statusText}>Localisation de l'adresse...</Text>
-        </View>
-      )}
-      {location && busy !== 'geocode' && (
-        <View style={styles.statusRow}>
-          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-          <Text style={styles.statusTextOk}>Position enregistree</Text>
-        </View>
-      )}
-      {!location && !busy && address.trim().length >= 3 && (
-        <View style={styles.statusRow}>
-          <Ionicons name="alert-circle" size={16} color={colors.warning} />
-          <Text style={styles.statusTextWarn}>
-            Position non trouvee. Utilisez une des options ci-dessus.
+          <Ionicons name="checkmark-circle" size={15} color={colors.primary} />
+          <Text style={styles.statusOk} numberOfLines={1}>
+            Position confirmée
           </Text>
         </View>
-      )}
+      ) : !location && !busy && address.trim().length >= 3 ? (
+        <View style={styles.statusRow}>
+          <Ionicons name="alert-circle" size={15} color={colors.warning} />
+          <Text style={styles.statusWarn} numberOfLines={2}>
+            Position non trouvée — choisissez dans la liste, partagez un lien ou pointez sur la carte.
+          </Text>
+        </View>
+      ) : null}
 
       {/* Map picker modal */}
       <Modal visible={showMap} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowMap(false)}>
+            <TouchableOpacity onPress={() => setShowMap(false)} hitSlop={10}>
               <Ionicons name="close" size={26} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Pointer sur la carte</Text>
             <View style={{ width: 26 }} />
           </View>
-          <Text style={styles.modalHint}>Tapez sur la carte pour placer le repere</Text>
+          <Text style={styles.modalHint}>
+            Tapez sur la carte pour placer le repère
+          </Text>
           <Map
             center={mapLocation}
             zoom={14}
@@ -284,145 +235,94 @@ export function LocationPicker({
           </View>
         </View>
       </Modal>
-
-      {/* Help modal */}
-      <Modal visible={showHelp} animationType="slide" transparent>
-        <View style={styles.helpBackdrop}>
-          <View style={styles.helpCard}>
-            <View style={styles.helpHeader}>
-              <Text style={styles.helpTitle}>Partager une position WhatsApp</Text>
-              <TouchableOpacity onPress={() => setShowHelp(false)}>
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.helpStep}>
-              <View style={styles.helpNumber}>
-                <Text style={styles.helpNumberText}>1</Text>
-              </View>
-              <Text style={styles.helpStepText}>
-                Sur WhatsApp, ouvrez une discussion et appuyez sur <Text style={styles.bold}>+</Text>, puis <Text style={styles.bold}>Position</Text>.
-              </Text>
-            </View>
-            <View style={styles.helpStep}>
-              <View style={styles.helpNumber}>
-                <Text style={styles.helpNumberText}>2</Text>
-              </View>
-              <Text style={styles.helpStepText}>
-                Choisissez <Text style={styles.bold}>Envoyer votre position actuelle</Text> ou selectionnez un lieu sur la carte.
-              </Text>
-            </View>
-            <View style={styles.helpStep}>
-              <View style={styles.helpNumber}>
-                <Text style={styles.helpNumberText}>3</Text>
-              </View>
-              <Text style={styles.helpStepText}>
-                Appuyez longuement sur la position envoyee, puis <Text style={styles.bold}>Copier le lien</Text>.
-              </Text>
-            </View>
-            <View style={styles.helpStep}>
-              <View style={styles.helpNumber}>
-                <Text style={styles.helpNumberText}>4</Text>
-              </View>
-              <Text style={styles.helpStepText}>
-                Revenez sur Tolle et appuyez sur <Text style={styles.bold}>Coller un lien WhatsApp</Text>.
-              </Text>
-            </View>
-
-            <Button title="J'ai compris" onPress={() => setShowHelp(false)} />
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-  },
-  labelRow: {
-    // container for input
-  },
-  orDivider: {
+// --- Chip ---
+
+function Chip({
+  icon,
+  iconColor,
+  label,
+  busy,
+  onPress,
+  disabled,
+}: {
+  icon: keyof typeof import('@expo/vector-icons/build/Ionicons').default.glyphMap;
+  iconColor: string;
+  label: string;
+  busy?: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        chipStyles.chip,
+        pressed && !disabled && chipStyles.chipPressed,
+        disabled && chipStyles.chipDisabled,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={iconColor} />
+      ) : (
+        <Ionicons name={icon} size={16} color={iconColor} />
+      )}
+      <Text style={chipStyles.chipLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  orText: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  actionsList: {
-    gap: spacing.sm,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm + 4,
-    borderRadius: borderRadius.md,
+    gap: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 8,
+    backgroundColor: colors.white,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
-    gap: spacing.sm,
   },
-  actionIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  chipPressed: {
+    backgroundColor: colors.background,
   },
-  actionTexts: {
-    flex: 1,
-    gap: 2,
+  chipDisabled: {
+    opacity: 0.5,
   },
-  actionTitle: {
-    ...typography.bodyMedium,
+  chipLabel: {
+    ...typography.caption,
     color: colors.textPrimary,
     fontWeight: '600',
   },
-  actionDesc: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    lineHeight: 16,
+});
+
+const styles = StyleSheet.create({
+  container: {
+    gap: spacing.sm + 2,
   },
-  helpBtn: {
+  chipsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  helpText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textDecorationLine: 'underline',
+    flexWrap: 'wrap',
+    gap: spacing.xs + 2,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: 2,
   },
-  statusText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  statusTextOk: {
-    ...typography.bodySmall,
+  statusOk: {
+    ...typography.caption,
     color: colors.primary,
     fontWeight: '600',
   },
-  statusTextWarn: {
-    ...typography.bodySmall,
+  statusWarn: {
+    ...typography.caption,
     color: colors.warning,
     flex: 1,
   },
@@ -455,56 +355,5 @@ const styles = StyleSheet.create({
   modalFooter: {
     padding: spacing.md,
     paddingBottom: spacing.xl,
-  },
-  // Help modal
-  helpBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  helpCard: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.md,
-  },
-  helpHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  helpTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  helpStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  helpNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpNumberText: {
-    ...typography.bodySmall,
-    color: colors.white,
-    fontWeight: '700',
-  },
-  helpStepText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    flex: 1,
-    lineHeight: 20,
-  },
-  bold: {
-    fontWeight: '700',
-    color: colors.textPrimary,
   },
 });

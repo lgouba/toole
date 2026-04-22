@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Button, Input, Badge } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
@@ -19,12 +19,36 @@ import { getMyKyc, updateMyKyc, DriverKyc } from '@/services/driver.service';
 import { uploadImage, resolveUploadUrl } from '@/services/upload.service';
 import { VehicleType } from '@/types';
 
-const VEHICLE_OPTIONS: { value: VehicleType; label: string; icon: string }[] = [
-  { value: 'moto', label: 'Moto', icon: 'bicycle' },
-  { value: 'velo', label: 'Velo', icon: 'walk' },
-  { value: 'voiture', label: 'Voiture', icon: 'car' },
-  { value: 'tricycle', label: 'Tricycle', icon: 'bus' },
+type IconSet = 'ionicons' | 'material';
+
+const VEHICLE_OPTIONS: {
+  value: VehicleType;
+  label: string;
+  iconSet: IconSet;
+  icon: string;
+}[] = [
+  { value: 'moto', label: 'Moto', iconSet: 'material', icon: 'motorbike' },
+  { value: 'velo', label: 'Velo', iconSet: 'ionicons', icon: 'bicycle' },
+  { value: 'voiture', label: 'Voiture', iconSet: 'ionicons', icon: 'car' },
+  { value: 'tricycle', label: 'Tricycle', iconSet: 'material', icon: 'rickshaw' },
 ];
+
+function VehicleIcon({
+  iconSet,
+  name,
+  size,
+  color,
+}: {
+  iconSet: IconSet;
+  name: string;
+  size: number;
+  color: string;
+}) {
+  if (iconSet === 'material') {
+    return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+  }
+  return <Ionicons name={name as any} size={size} color={color} />;
+}
 
 export default function DriverKycScreen() {
   const router = useRouter();
@@ -183,8 +207,9 @@ export default function DriverKycScreen() {
                 onPress={() => setVehicleType(v.value)}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={v.icon as any}
+                <VehicleIcon
+                  iconSet={v.iconSet}
+                  name={v.icon}
                   size={28}
                   color={sel ? colors.primary : colors.textSecondary}
                 />

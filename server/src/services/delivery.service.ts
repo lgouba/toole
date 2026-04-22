@@ -7,6 +7,7 @@ import { emitToUser, emitToUsers } from './notification.service.js';
 import { findNearbyDrivers } from './driver.service.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
+import { logDriverLocation } from './location-log.service.js';
 
 const DELIVERY_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes to find a driver
 const NEARBY_RADIUS_KM = 5;
@@ -205,6 +206,14 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
       longitude: driverProfile.currentLng,
       updatedAt: driverProfile.lastLocationUpdate,
     });
+    // Tracabilite : log l'acceptation avec position + reference de livraison
+    void logDriverLocation({
+      driverId,
+      latitude: driverProfile.currentLat,
+      longitude: driverProfile.currentLng,
+      event: 'accept',
+      deliveryId: updated.id,
+    });
   }
 
   // Avertir les autres livreurs proches que la course n'est plus disponible
@@ -289,6 +298,22 @@ export async function confirmPickup(
   });
   emitToUser(updated.senderId, 'delivery:status_update', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
+
+  // Tracabilite : log position + event pickup
+  const dp = await prisma.driverProfile.findUnique({
+    where: { userId: driverId },
+    select: { currentLat: true, currentLng: true },
+  });
+  if (dp?.currentLat != null && dp.currentLng != null) {
+    void logDriverLocation({
+      driverId,
+      latitude: dp.currentLat,
+      longitude: dp.currentLng,
+      event: 'pickup',
+      deliveryId: updated.id,
+    });
+  }
+
   return updated;
 }
 
@@ -339,6 +364,22 @@ export async function validateCode(
 
   emitToUser(updated.senderId, 'delivery:status_update', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
+
+  // Tracabilite : log position + event delivered
+  const dp = await prisma.driverProfile.findUnique({
+    where: { userId: driverId },
+    select: { currentLat: true, currentLng: true },
+  });
+  if (dp?.currentLat != null && dp.currentLng != null) {
+    void logDriverLocation({
+      driverId,
+      latitude: dp.currentLat,
+      longitude: dp.currentLng,
+      event: 'delivered',
+      deliveryId: updated.id,
+    });
+  }
+
   return updated;
 }
 
@@ -424,6 +465,24 @@ export async function cancelDelivery(
   const otherParty =
     userId === updated.senderId ? updated.driverId : updated.senderId;
   if (otherParty) emitToUser(otherParty, 'delivery:cancelled', updated);
+
+  // Tracabilite : si un livreur annule, on log sa position
+  if (isDriverCancel && updated.driverId) {
+    const dp = await prisma.driverProfile.findUnique({
+      where: { userId: updated.driverId },
+      select: { currentLat: true, currentLng: true },
+    });
+    if (dp?.currentLat != null && dp.currentLng != null) {
+      void logDriverLocation({
+        driverId: updated.driverId,
+        latitude: dp.currentLat,
+        longitude: dp.currentLng,
+        event: 'cancel',
+        deliveryId: updated.id,
+      });
+    }
+  }
+
   return updated;
 }
 

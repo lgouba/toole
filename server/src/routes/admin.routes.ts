@@ -11,6 +11,7 @@ import {
   resetOtpCtrl,
   deleteUserCtrl,
   verifyDriverCtrl,
+  getDriverLocationHistoryCtrl,
   listDeliveriesAdminCtrl,
   getDeliveryAdminCtrl,
   forceCancelDeliveryCtrl,
@@ -37,6 +38,9 @@ router.delete('/users/:id', deleteUserCtrl);
 
 // Driver KYC
 router.post('/drivers/:id/verify', verifyDriverCtrl);
+
+// Driver tracking (position history for investigations)
+router.get('/drivers/:id/location-history', getDriverLocationHistoryCtrl);
 
 // Deliveries
 router.get('/deliveries', listDeliveriesAdminCtrl);

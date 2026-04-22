@@ -4,6 +4,10 @@ import { emitToUser } from './notification.service.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 import { HttpError } from '../utils/response.js';
+import {
+  logDriverLocation,
+  shouldLogHeartbeat,
+} from './location-log.service.js';
 
 const NEARBY_RADIUS_KM = 5;
 const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
@@ -32,6 +36,17 @@ export async function setOnline(userId: string, isOnline: boolean) {
     where: { userId },
     data: { isOnline },
   });
+
+  // Tracabilite : on log la position actuelle du livreur quand il passe en ligne
+  // ou hors ligne (permet de savoir a partir d'ou il s'est connecte en cas d'incident).
+  if (profile.currentLat != null && profile.currentLng != null) {
+    void logDriverLocation({
+      driverId: userId,
+      latitude: profile.currentLat,
+      longitude: profile.currentLng,
+      event: isOnline ? 'online' : 'offline',
+    });
+  }
 
   // Si le livreur vient de passer en ligne et qu'il a une position connue,
   // on lui envoie les livraisons pending dans sa zone (creees il y a moins de 30 min).
@@ -63,6 +78,19 @@ export async function updateLocation(
     void notifyPendingDeliveriesToDriver(userId, latitude, longitude).catch((err) =>
       logger.error({ err, userId }, 'Failed to notify pending deliveries on location update'),
     );
+
+    // Tracabilite : enregistre un heartbeat toutes les 5 minutes (pas plus)
+    // pour reconstituer le parcours en cas d'incident.
+    void (async () => {
+      if (await shouldLogHeartbeat(userId)) {
+        await logDriverLocation({
+          driverId: userId,
+          latitude,
+          longitude,
+          event: 'heartbeat',
+        });
+      }
+    })();
   }
 
   return profile;

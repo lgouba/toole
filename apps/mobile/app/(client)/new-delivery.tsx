@@ -136,31 +136,37 @@ export default function NewDeliveryScreen() {
 
     // Step 1: Addresses
     <View key="addresses" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Adresses</Text>
-      <Text style={styles.stepHint}>
-        Tapez un nom de lieu ou collez un lien WhatsApp
-      </Text>
+      {/* Tip banner */}
+      <View style={styles.tipBanner}>
+        <Ionicons name="bulb-outline" size={18} color={colors.primary} />
+        <Text style={styles.tipText}>
+          Tapez un lieu (nom de quartier, marché, école...), utilisez votre
+          position GPS, collez un lien WhatsApp ou pointez sur la carte.
+        </Text>
+      </View>
 
-      <View style={styles.locationGroup}>
+      <View style={styles.addressBlock}>
+        <View style={styles.addressHeader}>
+          <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+          <Text style={styles.addressHeading}>Départ</Text>
+        </View>
         <LocationPicker
-          label="Ou recuperer le colis ?"
-          placeholder="Ex: Marche de Dassasgho"
-          iconColor={colors.primary}
+          variant="pickup"
           address={draft.pickupAddress || ''}
           onAddressChange={(v) => setDraftField('pickupAddress', v)}
           location={draft.pickupLocation || null}
           onLocationChange={(loc) => setDraftField('pickupLocation', loc ?? undefined)}
-          showUseMyPosition
+          autoUseGpsOnMount
         />
       </View>
 
-      <View style={styles.divider} />
-
-      <View style={styles.locationGroup}>
+      <View style={styles.addressBlock}>
+        <View style={styles.addressHeader}>
+          <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
+          <Text style={styles.addressHeading}>Arrivée</Text>
+        </View>
         <LocationPicker
-          label="Ou livrer le colis ?"
-          placeholder="Ex: Pharmacie Yalgado"
-          iconColor={colors.secondary}
+          variant="delivery"
           address={draft.deliveryAddress || ''}
           onAddressChange={(v) => setDraftField('deliveryAddress', v)}
           location={draft.deliveryLocation || null}
@@ -241,7 +247,12 @@ export default function NewDeliveryScreen() {
           <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
         </View>
 
-        <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.body}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
           {steps[step]}
         </ScrollView>
 
@@ -343,6 +354,42 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: spacing.lg,
+  },
+  tipBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.primaryLight,
+    marginBottom: spacing.lg,
+  },
+  tipText: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    flex: 1,
+    lineHeight: 17,
+  },
+  addressBlock: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  addressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 2,
+  },
+  addressHeading: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   packageTypes: {
     flexDirection: 'row',

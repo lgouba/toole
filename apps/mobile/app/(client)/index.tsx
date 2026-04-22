@@ -53,12 +53,6 @@ export default function ClientHomeScreen() {
           onPress={() => router.push('/(client)/new-delivery')}
           icon={<Ionicons name="cube-outline" size={20} color={colors.white} />}
         />
-        <Button
-          title="Recherche automatique"
-          variant="outline"
-          onPress={() => router.push('/(client)/new-delivery')}
-          icon={<Ionicons name="flash-outline" size={20} color={colors.primary} />}
-        />
       </View>
     </View>
   );
@@ -97,19 +91,16 @@ const styles = StyleSheet.create({
   },
   bottomCard: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.sm,
+    borderRadius: borderRadius.xl,
+    padding: spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
     elevation: 8,
   },
 });

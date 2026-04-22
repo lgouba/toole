@@ -254,6 +254,71 @@ export async function getUserDetail(userId: string) {
   return { user, recentDeliveries };
 }
 
+/**
+ * Recupere l'historique GPS d'un livreur, ordre chronologique.
+ * Utilise pour reconstituer son parcours (incident, litige).
+ */
+export async function getDriverLocationHistory(
+  driverId: string,
+  params: { from?: Date; to?: Date; limit?: number } = {},
+) {
+  const where: Prisma.DriverLocationLogWhereInput = { driverId };
+  if (params.from || params.to) {
+    where.createdAt = {};
+    if (params.from) where.createdAt.gte = params.from;
+    if (params.to) where.createdAt.lte = params.to;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: driverId },
+    select: {
+      id: true,
+      fullName: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+    },
+  });
+  if (!user) throw new HttpError(404, 'NOT_FOUND', 'Livreur introuvable');
+
+  const logs = await prisma.driverLocationLog.findMany({
+    where,
+    orderBy: { createdAt: 'asc' },
+    take: params.limit ?? 1000,
+    include: {
+      delivery: {
+        select: { id: true, reference: true, status: true },
+      },
+    },
+  });
+
+  // Compte par type d'evenement pour resume rapide
+  const eventCounts: Record<string, number> = {};
+  for (const l of logs) {
+    eventCounts[l.event] = (eventCounts[l.event] ?? 0) + 1;
+  }
+
+  return {
+    driver: user,
+    range: {
+      from: logs[0]?.createdAt ?? null,
+      to: logs[logs.length - 1]?.createdAt ?? null,
+    },
+    eventCounts,
+    total: logs.length,
+    logs: logs.map((l) => ({
+      id: l.id,
+      latitude: l.latitude,
+      longitude: l.longitude,
+      event: l.event,
+      deliveryId: l.deliveryId,
+      deliveryReference: l.delivery?.reference ?? null,
+      deliveryStatus: l.delivery?.status ?? null,
+      createdAt: l.createdAt,
+    })),
+  };
+}
+
 export async function setUserActive(
   userId: string,
   isActive: boolean,

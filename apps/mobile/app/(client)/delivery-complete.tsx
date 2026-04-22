@@ -27,15 +27,43 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { formatCFA } from '@/utils/format';
 import { rateDelivery } from '@/services/delivery.service';
+import { getDriverById } from '@/services/driver.service';
 import { resolveUploadUrl } from '@/services/upload.service';
+import { DriverWithProfile } from '@/types';
 
 export default function DeliveryCompleteScreen() {
   const router = useRouter();
-  const { activeDelivery, activeDriver, clear } = useDeliveryStore();
+  const activeDelivery = useDeliveryStore((s) => s.activeDelivery);
+  const activeDriverFromStore = useDeliveryStore((s) => s.activeDriver);
+  const clear = useDeliveryStore((s) => s.clear);
+
   const [score, setScore] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [fetchedDriver, setFetchedDriver] = useState<DriverWithProfile | null>(
+    null,
+  );
+
+  // Le driver peut avoir ete perdu (app relancee, refetch). On le recupere via API.
+  useEffect(() => {
+    if (activeDriverFromStore) return;
+    if (!activeDelivery?.driverId) return;
+    getDriverById(activeDelivery.driverId).then((d) => {
+      if (d) setFetchedDriver(d);
+    });
+  }, [activeDelivery?.driverId, activeDriverFromStore]);
+
+  const activeDriver = activeDriverFromStore ?? fetchedDriver;
+
+  useEffect(() => {
+    console.log(
+      '[DeliveryComplete] mounted, hasDelivery=',
+      !!activeDelivery,
+      'hasDriver=',
+      !!activeDriver,
+    );
+  }, [activeDelivery, activeDriver]);
 
   // Anim: success check bounce
   const checkScale = useSharedValue(0);
@@ -90,13 +118,22 @@ export default function DeliveryCompleteScreen() {
   };
 
   const handleSkip = () => {
+    console.log('[DeliveryComplete] handleSkip clicked');
     Alert.alert(
       'Passer sans noter ?',
       'Votre avis aide les autres utilisateurs a choisir un livreur de confiance.',
       [
         { text: 'Continuer', style: 'cancel' },
-        { text: 'Passer', style: 'destructive', onPress: handleDone },
+        {
+          text: 'Passer',
+          style: 'destructive',
+          onPress: () => {
+            console.log('[DeliveryComplete] user chose skip -> done');
+            handleDone();
+          },
+        },
       ],
+      { cancelable: true },
     );
   };
 
@@ -165,8 +202,8 @@ export default function DeliveryCompleteScreen() {
           </Card>
         ) : null}
 
-        {activeDriver ? (
-          <View style={styles.ratingSection}>
+        <View style={styles.ratingSection}>
+          {activeDriver ? (
             <View style={styles.driverRow}>
               <Avatar
                 name={activeDriver.fullName}
@@ -175,29 +212,35 @@ export default function DeliveryCompleteScreen() {
               />
               <View style={{ flex: 1 }}>
                 <Text style={styles.driverName}>{activeDriver.fullName}</Text>
-                <Text style={styles.driverHint}>Comment s'est passée la course ?</Text>
+                <Text style={styles.driverHint}>
+                  Comment s'est passée la course ?
+                </Text>
               </View>
             </View>
+          ) : (
+            <Text style={styles.driverHint}>
+              Comment s'est passée la course ?
+            </Text>
+          )}
 
-            <Rating value={score} onChange={setScore} size={44} />
+          <Rating value={score} onChange={setScore} size={44} />
 
-            {score > 0 ? (
-              <View style={styles.commentWrap}>
-                <TextInput
-                  style={styles.commentInput}
-                  placeholder="Un commentaire (optionnel)..."
-                  placeholderTextColor={colors.textTertiary}
-                  value={comment}
-                  onChangeText={setComment}
-                  multiline
-                  maxLength={250}
-                  numberOfLines={3}
-                />
-                <Text style={styles.commentCount}>{comment.length}/250</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+          {score > 0 ? (
+            <View style={styles.commentWrap}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Un commentaire (optionnel)..."
+                placeholderTextColor={colors.textTertiary}
+                value={comment}
+                onChangeText={setComment}
+                multiline
+                maxLength={250}
+                numberOfLines={3}
+              />
+              <Text style={styles.commentCount}>{comment.length}/250</Text>
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>

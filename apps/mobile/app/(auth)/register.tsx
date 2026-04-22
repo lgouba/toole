@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
@@ -39,16 +39,36 @@ const roles: {
   },
 ];
 
+// Icones: on utilise MaterialCommunityIcons pour avoir une vraie moto et un
+// vrai rickshaw (tricycle), que Ionicons ne fournit pas.
 const vehicles: {
   type: VehicleType;
-  icon: keyof typeof Ionicons.glyphMap;
+  iconSet: 'ionicons' | 'material';
+  icon: string;
   label: string;
 }[] = [
-  { type: 'moto', icon: 'bicycle-outline', label: 'Moto' },
-  { type: 'velo', icon: 'walk-outline', label: 'Velo' },
-  { type: 'tricycle', icon: 'bus-outline', label: 'Tricycle' },
-  { type: 'voiture', icon: 'car-outline', label: 'Voiture' },
+  { type: 'moto', iconSet: 'material', icon: 'motorbike', label: 'Moto' },
+  { type: 'velo', iconSet: 'ionicons', icon: 'bicycle-outline', label: 'Velo' },
+  { type: 'tricycle', iconSet: 'material', icon: 'rickshaw', label: 'Tricycle' },
+  { type: 'voiture', iconSet: 'ionicons', icon: 'car-outline', label: 'Voiture' },
 ];
+
+function VehicleIcon({
+  iconSet,
+  name,
+  size,
+  color,
+}: {
+  iconSet: 'ionicons' | 'material';
+  name: string;
+  size: number;
+  color: string;
+}) {
+  if (iconSet === 'material') {
+    return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+  }
+  return <Ionicons name={name as any} size={size} color={color} />;
+}
 
 type Step = 'role' | 'identity' | 'vehicle';
 
@@ -358,7 +378,8 @@ export default function RegisterScreen() {
                         vehicleType === v.type && styles.vehicleIconSelected,
                       ]}
                     >
-                      <Ionicons
+                      <VehicleIcon
+                        iconSet={v.iconSet}
                         name={v.icon}
                         size={26}
                         color={

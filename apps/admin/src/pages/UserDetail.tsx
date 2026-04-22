@@ -147,6 +147,14 @@ export default function UserDetail() {
           </h1>
         </div>
         <div className="row">
+          {isDriver ? (
+            <Link
+              to={`/drivers/${user.id}/tracking`}
+              className="btn btn-outline"
+            >
+              Voir parcours GPS
+            </Link>
+          ) : null}
           {user.isActive ? (
             <button className="btn btn-danger" onClick={suspend} disabled={busy}>
               Suspendre

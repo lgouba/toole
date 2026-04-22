@@ -161,6 +161,32 @@ export async function deleteUserCtrl(
   }
 }
 
+// ---------- Location history ----------
+
+const locationHistorySchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  limit: z.coerce.number().min(1).max(5000).optional(),
+});
+
+export async function getDriverLocationHistoryCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const q = locationHistorySchema.parse(req.query);
+    const result = await adminService.getDriverLocationHistory(req.params.id, {
+      from: q.from ? new Date(q.from) : undefined,
+      to: q.to ? new Date(q.to) : undefined,
+      limit: q.limit,
+    });
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ---------- KYC ----------
 
 const verifySchema = z.object({

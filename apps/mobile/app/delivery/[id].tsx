@@ -22,6 +22,13 @@ import { resolveUploadUrl } from '@/services/upload.service';
 import { formatCFA, formatDateTime, formatDistance } from '@/utils/format';
 import { openPhone } from '@/utils/linking';
 
+/** Livraison encore en cours : on peut afficher les numeros de telephone. */
+function isActiveDelivery(status: string): boolean {
+  return ['pending', 'accepted', 'picking_up', 'picked_up', 'delivering'].includes(
+    status,
+  );
+}
+
 export default function DeliveryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -164,20 +171,25 @@ export default function DeliveryDetailScreen() {
           </View>
         </Card>
 
-        {/* Destinataire */}
+        {/* Destinataire : numero et bouton appel masques une fois la livraison
+            terminee / annulee / expiree (confidentialite) */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Destinataire</Text>
           <View style={styles.recipientRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.recipientName}>{delivery.recipientName}</Text>
-              <Text style={styles.recipientPhone}>{delivery.recipientPhone}</Text>
+              {isActiveDelivery(delivery.status) ? (
+                <Text style={styles.recipientPhone}>{delivery.recipientPhone}</Text>
+              ) : null}
             </View>
-            <TouchableOpacity
-              style={styles.callBtn}
-              onPress={() => openPhone(delivery.recipientPhone)}
-            >
-              <Ionicons name="call" size={20} color={colors.primary} />
-            </TouchableOpacity>
+            {isActiveDelivery(delivery.status) ? (
+              <TouchableOpacity
+                style={styles.callBtn}
+                onPress={() => openPhone(delivery.recipientPhone)}
+              >
+                <Ionicons name="call" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            ) : null}
           </View>
         </Card>
 

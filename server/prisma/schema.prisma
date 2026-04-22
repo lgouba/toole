@@ -104,6 +104,7 @@ model User {
   refreshTokens     RefreshToken[]
   transactions      Transaction[]
   pushTokens        PushToken[]
+  locationLogs      DriverLocationLog[]
 
   @@index([phone])
   @@index([userType])
@@ -191,6 +192,7 @@ model Delivery {
   driver       User?         @relation("Driver", fields: [driverId], references: [id])
   ratings      Rating[]
   transactions Transaction[]
+  locationLogs DriverLocationLog[]
 
   @@index([senderId])
   @@index([driverId])
@@ -236,6 +238,28 @@ model OtpCode {
   createdAt DateTime @default(now())
 
   @@index([phone])
+}
+
+/// Tracabilite: journal des positions GPS des livreurs.
+/// Inscrit a chaque evenement important (online, offline, accept, pickup,
+/// delivered) + heartbeat toutes les ~5min tant que le livreur est online.
+/// Permet a un admin de reconstituer le parcours d'un livreur en cas d'incident
+/// (colis disparu, litige, etc.).
+model DriverLocationLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  driverId   String   @db.Uuid
+  latitude   Float
+  longitude  Float
+  event      String   // 'online' | 'offline' | 'heartbeat' | 'accept' | 'pickup' | 'delivered' | 'cancel'
+  deliveryId String?  @db.Uuid
+  createdAt  DateTime @default(now())
+
+  driver     User      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  delivery   Delivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+
+  @@index([driverId, createdAt])
+  @@index([event])
+  @@index([deliveryId])
 }
 
 model Transaction {

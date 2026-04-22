@@ -9,6 +9,7 @@ import Drivers from './pages/Drivers';
 import UserDetail from './pages/UserDetail';
 import Deliveries from './pages/Deliveries';
 import DeliveryDetail from './pages/DeliveryDetail';
+import DriverTracking from './pages/DriverTracking';
 import NotificationProvider from './components/NotificationProvider';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/clients" element={<Clients />} />
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/users/:id" element={<UserDetail />} />
+          <Route path="/drivers/:id/tracking" element={<DriverTracking />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/deliveries/:id" element={<DeliveryDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />
