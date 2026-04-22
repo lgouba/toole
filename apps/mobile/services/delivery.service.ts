@@ -95,11 +95,19 @@ export async function getDeliveries(
 }
 
 /**
- * Statuts consideres comme "active" (une livraison en cours qu'il ne faut pas
- * perdre). Inclut 'pending' cote client (recherche de livreur en cours).
+ * Statuts actifs selon le role :
+ *  - Client : 'pending' (recherche en cours) + statuts livraison en cours
+ *  - Livreur : statuts livraison en cours uniquement (une demande 'pending'
+ *    n'est pas "sa" livraison tant qu'il n'a pas accepte)
  */
-const ACTIVE_STATUSES: DeliveryStatus[] = [
+const CLIENT_ACTIVE_STATUSES: DeliveryStatus[] = [
   'pending',
+  'accepted',
+  'picking_up',
+  'picked_up',
+  'delivering',
+];
+const DRIVER_ACTIVE_STATUSES: DeliveryStatus[] = [
   'accepted',
   'picking_up',
   'picked_up',
@@ -121,9 +129,11 @@ export async function getActiveDelivery(
       },
     });
     const list = unwrap<any[]>(res).map(normalizeDelivery);
+    const activeStatuses =
+      role === 'client' ? CLIENT_ACTIVE_STATUSES : DRIVER_ACTIVE_STATUSES;
     // La liste est en general ordonnee recent->ancien ; on prend la 1re active.
     return (
-      list.find((d) => ACTIVE_STATUSES.includes(d.status as DeliveryStatus)) ??
+      list.find((d) => activeStatuses.includes(d.status as DeliveryStatus)) ??
       null
     );
   } catch {

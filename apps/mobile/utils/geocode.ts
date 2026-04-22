@@ -98,7 +98,47 @@ export async function reverseGeocode(location: LatLng): Promise<string | null> {
   }>(`${NOMINATIM_BASE}/reverse?${params}`);
 
   if (!data) return null;
-  return buildShortName(data) || data.display_name || null;
+  // Pour un reverse-geocode (ex. "Ma position actuelle"), on veut une adresse
+  // la plus complete possible : numero + rue + quartier + ville.
+  return buildFullAddress(data) || buildShortName(data) || data.display_name || null;
+}
+
+/**
+ * Construit une adresse detaillee a partir d'une reponse Nominatim reverse.
+ * Exemple: "Rue 10.74, Secteur 15, Dassasgho, Ouagadougou"
+ */
+function buildFullAddress(d: {
+  display_name?: string;
+  address?: Record<string, string>;
+}): string {
+  const a = d.address ?? {};
+  const parts: string[] = [];
+
+  // Numero de maison + rue si disponibles
+  const street = a.road || a.pedestrian || a.footway || a.residential;
+  if (street) {
+    if (a.house_number) {
+      parts.push(`${a.house_number} ${street}`);
+    } else {
+      parts.push(street);
+    }
+  } else if (a.amenity || a.building || a.shop || a.office || a.tourism) {
+    parts.push(a.amenity || a.building || a.shop || a.office || a.tourism!);
+  }
+
+  // Quartier / secteur
+  const sector = a.neighbourhood || a.suburb || a.city_district || a.district;
+  if (sector && !parts.includes(sector)) parts.push(sector);
+
+  // Ville
+  const city = a.city || a.town || a.village || a.municipality;
+  if (city && !parts.includes(city)) parts.push(city);
+
+  // Au moins 2 elements pour considerer que c'est "complet"
+  if (parts.length < 2) {
+    return '';
+  }
+  return parts.join(', ');
 }
 
 function buildShortName(d: {

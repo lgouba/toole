@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { API_BASE_URL } from '@/config/api';
 import { tokenStorage } from './api.client';
 
@@ -12,6 +13,25 @@ export interface UploadResult {
 }
 
 /**
+ * Compresse et redimensionne l'image a max 1280px de large avec qualite ~0.6.
+ * Objectif : chaque photo passe sous 500 Ko pour eviter les 413 (request too
+ * large) et accelerer l'upload sur reseau mobile BF.
+ */
+async function compressImage(localUri: string): Promise<string> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      localUri,
+      [{ resize: { width: 1280 } }],
+      { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    return result.uri;
+  } catch (err) {
+    console.warn('[upload] compression failed, using original', err);
+    return localUri;
+  }
+}
+
+/**
  * Upload un fichier local vers le backend.
  * Utilise fetch avec FormData (compatible Expo + React Native).
  */
@@ -21,17 +41,21 @@ export async function uploadImage(
 ): Promise<UploadResult | null> {
   try {
     const token = await tokenStorage.getAccessToken();
+    // Compression prealable : resize + qualite reduite pour passer sous la
+    // limite nginx et accelerer l'upload sur reseau mobile.
+    const compressedUri = await compressImage(localUri);
     const form = new FormData();
 
-    // On devine le type mime depuis l'extension
-    const ext = localUri.split('.').pop()?.toLowerCase() || 'jpg';
-    const mime =
-      ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-    const name = `photo-${Date.now()}.${ext}`;
+    // On fixe le type mime a JPEG car la compression produit du JPEG
+    const mime = 'image/jpeg';
+    const name = `photo-${Date.now()}.jpg`;
 
     // React Native accepte { uri, name, type } dans un FormData (non typé standard)
     const fileDescriptor = {
-      uri: Platform.OS === 'android' ? localUri : localUri.replace('file://', ''),
+      uri:
+        Platform.OS === 'android'
+          ? compressedUri
+          : compressedUri.replace('file://', ''),
       name,
       type: mime,
     } as unknown as Blob;

@@ -17,12 +17,30 @@ export default function PickupConfirmScreen() {
   const [uploading, setUploading] = useState(false);
 
   const takePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhoto(result.assets[0].uri);
+    try {
+      // Demande explicite de permission camera (Android a besoin d'une demande
+      // a chaque usage si pas encore accordee)
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Permission camera refusee',
+          "Autorisez l'acces a l'appareil photo dans les parametres de votre telephone pour prendre la photo du colis.",
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhoto(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      console.warn('[pickup-confirm] camera error', err);
+      Alert.alert(
+        'Erreur camera',
+        err?.message ?? "Impossible d'ouvrir l'appareil photo.",
+      );
     }
   };
 

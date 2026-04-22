@@ -54,6 +54,9 @@ services:
       VIRTUAL_HOST: api.tolle.qalitylabs.fr
       VIRTUAL_PORT: "3000"
       VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-nginx-proxy}
+      # Nginx-proxy lit cette env var pour configurer client_max_body_size
+      # sur le vhost genere. Necessaire pour accepter les uploads photo.
+      CLIENT_MAX_BODY_SIZE: 10m
       LETSENCRYPT_HOST: api.tolle.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
       UPLOAD_DIR: /app/uploads

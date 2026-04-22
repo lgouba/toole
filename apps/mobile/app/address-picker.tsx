@@ -67,6 +67,9 @@ export default function AddressPickerScreen() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
+  // Flag qui bloque la prochaine recherche automatique quand l'utilisateur
+  // vient de choisir une suggestion / GPS / WhatsApp / carte.
+  const skipNextSearchRef = useRef(false);
 
   // Autofocus au montage
   useEffect(() => {
@@ -76,6 +79,14 @@ export default function AddressPickerScreen() {
 
   // Recherche autocomplete
   useEffect(() => {
+    // Si on vient de choisir une valeur programmee, on ne relance pas une search
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      setSuggestions([]);
+      setLoading(false);
+      return;
+    }
+
     const q = query.trim();
     if (q.length < 2) {
       setSuggestions([]);
@@ -98,9 +109,11 @@ export default function AddressPickerScreen() {
   }, [query]);
 
   const handleSelect = (s: GeocodeSuggestion) => {
+    skipNextSearchRef.current = true;
     setQuery(s.shortName);
     setPickedLocation(s.location);
     setSuggestions([]);
+    inputRef.current?.blur();
   };
 
   const handleUseGps = async () => {
@@ -117,8 +130,10 @@ export default function AddressPickerScreen() {
       const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setPickedLocation(loc);
       const readable = await reverseGeocode(loc);
+      skipNextSearchRef.current = true;
       setQuery(readable || 'Ma position actuelle');
       setSuggestions([]);
+      inputRef.current?.blur();
     } catch {
       Alert.alert('Erreur', 'Impossible de récupérer votre position.');
     } finally {
@@ -154,8 +169,10 @@ export default function AddressPickerScreen() {
       }
       setPickedLocation(parsed);
       const readable = await reverseGeocode(parsed);
+      skipNextSearchRef.current = true;
       setQuery(readable || 'Position partagée (WhatsApp)');
       setSuggestions([]);
+      inputRef.current?.blur();
     } finally {
       setBusy(null);
     }
@@ -170,6 +187,7 @@ export default function AddressPickerScreen() {
     setPickedLocation(mapLocation);
     setShowMap(false);
     const readable = await reverseGeocode(mapLocation);
+    skipNextSearchRef.current = true;
     setQuery(readable || 'Position choisie sur la carte');
     setSuggestions([]);
   };

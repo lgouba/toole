@@ -32,14 +32,24 @@ export function ActiveDeliveryGuard() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const runCheck = async () => {
-    if (!isAuthenticated || !user) return;
-    // Throttle : ne pas refaire le check a moins de 5s d'intervalle
-    if (Date.now() - lastCheckRef.current < 5000) return;
+    if (!isAuthenticated || !user) {
+      console.log('[Guard] skipped: not authenticated');
+      return;
+    }
+    if (Date.now() - lastCheckRef.current < 5000) {
+      console.log('[Guard] throttled');
+      return;
+    }
     lastCheckRef.current = Date.now();
 
     try {
       const role = user.userType === 'driver' ? 'driver' : 'client';
+      console.log('[Guard] checking for', role, user.fullName);
       const active = await getActiveDelivery(role);
+      console.log(
+        '[Guard] active delivery =',
+        active ? `${active.id} (${active.status})` : 'none',
+      );
       if (!active) return;
 
       // Met a jour les stores pour que les ecrans cibles trouvent leurs donnees
@@ -49,34 +59,50 @@ export function ActiveDeliveryGuard() {
         useDriverStore.setState({ activeDelivery: active });
       }
 
-      // Ou se trouve l'utilisateur actuellement ?
       const topSegment = segments[0] as string | undefined;
       const currentPath = '/' + segments.join('/');
 
       const targetPath = computeTargetPath(role, active.status);
+      console.log('[Guard] target=', targetPath, 'current=', currentPath);
       if (!targetPath) return;
 
-      // Si on est deja sur l'ecran cible, on ne fait rien.
-      if (currentPath === targetPath) return;
+      if (currentPath === targetPath) {
+        console.log('[Guard] already on target');
+        return;
+      }
 
-      // Si on est sur un ecran "neutre" (profil, historique, accueil vide),
-      // on redirige. Mais on NE redirige PAS s'il est en train de creer une
-      // nouvelle livraison, de faire son KYC, ou de regler ses parametres.
+      // Ecrans ou il ne faut PAS rediriger meme si le statut ne correspond pas
+      // strictement (l'utilisateur est en train d'interagir avec un flow actif).
       const protectedFlows = [
         'new-delivery',
         'profile-edit',
         'settings',
         'kyc',
         'address-picker',
+        // Ecrans de confirmation / validation cote livreur - il est dans l'etape
+        // "je suis arrive / je prends la photo / je valide le code", meme si le
+        // statut DB est encore "accepted" / "picked_up"
+        'pickup-confirm',
+        'delivery-confirm',
+        'code-validation',
+        // Ecran nouvelle demande : la course n'est pas encore accepted en DB,
+        // mais l'utilisateur est en train de decider
+        'new-request',
       ];
-      if (protectedFlows.some((p) => currentPath.includes(p))) return;
+      if (protectedFlows.some((p) => currentPath.includes(p))) {
+        console.log('[Guard] in protected flow, not redirecting');
+        return;
+      }
 
-      // Pas encore loggue correctement ou sur auth ?
-      if (topSegment === '(auth)') return;
+      if (topSegment === '(auth)') {
+        console.log('[Guard] in auth flow, not redirecting');
+        return;
+      }
 
+      console.log('[Guard] REDIRECTING to', targetPath);
       router.replace(targetPath as never);
-    } catch {
-      // Silence : si le reseau plante on laisse l'app continuer.
+    } catch (err) {
+      console.warn('[Guard] error', err);
     }
   };
 

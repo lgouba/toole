@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,16 +36,41 @@ export default function NewDeliveryScreen() {
   const [step, setStep] = useState(0);
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
+  // Flag qui indique si on a deja initialise le wizard pour cette session.
+  // On veut reset SEULEMENT la premiere fois qu'on entre (depuis l'accueil),
+  // pas quand on revient d'un sous-ecran comme address-picker.
+  const initializedRef = useRef(false);
 
-  // Chaque fois qu'on arrive sur cet ecran, on repart de l'etape 0 avec un draft vide
-  // et on rafraichit les settings (tarifs a jour si l'admin vient de modifier).
   useFocusEffect(
     useCallback(() => {
+      // Toujours rafraichir les settings (tarifs eventuellement modifies)
       refreshSettings();
-      setStep(0);
-      resetDraft();
-    }, [resetDraft]),
+
+      if (!initializedRef.current) {
+        // Premiere entree : wizard propre
+        setStep(0);
+        resetDraft();
+        initializedRef.current = true;
+      }
+
+      // Quand on quitte l'ecran completement (pas juste pousser un sous-ecran),
+      // on reset le flag pour que la prochaine entree reparte a zero.
+      return () => {
+        // Note : useFocusEffect est appele aussi quand on push address-picker,
+        // mais on ne reset PAS dans le cleanup. Le reset se fera si l'ecran
+        // est unmounte (ex: navigation vers searching / accueil).
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
   );
+
+  // Quand le composant est unmount (retour a l'accueil par exemple),
+  // on remet le flag pour que la prochaine ouverture reparte de zero.
+  React.useEffect(() => {
+    return () => {
+      initializedRef.current = false;
+    };
+  }, []);
 
   // Prix calcule UNIQUEMENT quand les deux positions sont definies
   const estimate = useDeliveryPrice(
