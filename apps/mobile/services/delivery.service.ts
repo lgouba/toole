@@ -94,6 +94,43 @@ export async function getDeliveries(
   return list.map(normalizeDelivery);
 }
 
+/**
+ * Statuts consideres comme "active" (une livraison en cours qu'il ne faut pas
+ * perdre). Inclut 'pending' cote client (recherche de livreur en cours).
+ */
+const ACTIVE_STATUSES: DeliveryStatus[] = [
+  'pending',
+  'accepted',
+  'picking_up',
+  'picked_up',
+  'delivering',
+];
+
+/**
+ * Recupere la livraison active courante de l'utilisateur. Utilise pour la
+ * navigation guard : si une livraison est en cours et que l'utilisateur est
+ * perdu sur un autre ecran, on le ramene automatiquement.
+ */
+export async function getActiveDelivery(
+  role: 'client' | 'driver',
+): Promise<Delivery | null> {
+  try {
+    const res = await api.get('/deliveries', {
+      params: {
+        role: role === 'client' ? 'sender' : 'driver',
+      },
+    });
+    const list = unwrap<any[]>(res).map(normalizeDelivery);
+    // La liste est en general ordonnee recent->ancien ; on prend la 1re active.
+    return (
+      list.find((d) => ACTIVE_STATUSES.includes(d.status as DeliveryStatus)) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function getDeliveryById(id: string): Promise<Delivery | null> {
   try {
     const res = await api.get(`/deliveries/${id}`);

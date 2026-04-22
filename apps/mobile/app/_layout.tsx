@@ -13,6 +13,7 @@ import '@/utils/globalErrorHandler';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { SocketProvider } from '@/providers/SocketProvider';
+import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { setAuthExpiredHandler } from '@/services/api.client';
 import { colors } from '@/theme';
 
@@ -116,6 +117,7 @@ export default function RootLayout() {
 
   return (
     <SocketProvider>
+      <ActiveDeliveryGuard />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />
@@ -123,6 +125,10 @@ export default function RootLayout() {
         <Stack.Screen name="delivery/[id]" />
         <Stack.Screen name="profile-edit" />
         <Stack.Screen name="settings" />
+        <Stack.Screen
+          name="address-picker"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>

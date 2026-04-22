@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Card } from '@/components/ui';
-import { LocationPicker } from '@/components/LocationPicker';
+import { AddressField } from '@/components/AddressField';
 import { PriceEstimate, SchedulePicker } from '@/components/delivery';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
@@ -155,41 +155,21 @@ export default function NewDeliveryScreen() {
 
     // Step 1: Addresses
     <View key="addresses" style={styles.stepContent}>
-      {/* Tip banner */}
-      <View style={styles.tipBanner}>
-        <Ionicons name="bulb-outline" size={18} color={colors.primary} />
-        <Text style={styles.tipText}>
-          Tapez un lieu (nom de quartier, marché, école...), utilisez votre
-          position GPS, collez un lien WhatsApp ou pointez sur la carte.
-        </Text>
-      </View>
+      <Text style={styles.stepTitle}>Trajet</Text>
+      <Text style={styles.stepHint}>
+        Appuyez sur chaque champ pour saisir l'adresse.
+      </Text>
 
-      <View style={styles.addressBlock}>
-        <View style={styles.addressHeader}>
-          <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-          <Text style={styles.addressHeading}>Départ</Text>
-        </View>
-        <LocationPicker
+      <View style={{ gap: spacing.sm }}>
+        <AddressField
           variant="pickup"
-          address={draft.pickupAddress || ''}
-          onAddressChange={(v) => setDraftField('pickupAddress', v)}
-          location={draft.pickupLocation || null}
-          onLocationChange={(loc) => setDraftField('pickupLocation', loc ?? undefined)}
-          autoUseGpsOnMount
+          address={draft.pickupAddress}
+          location={draft.pickupLocation}
         />
-      </View>
-
-      <View style={styles.addressBlock}>
-        <View style={styles.addressHeader}>
-          <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
-          <Text style={styles.addressHeading}>Arrivée</Text>
-        </View>
-        <LocationPicker
+        <AddressField
           variant="delivery"
-          address={draft.deliveryAddress || ''}
-          onAddressChange={(v) => setDraftField('deliveryAddress', v)}
-          location={draft.deliveryLocation || null}
-          onLocationChange={(loc) => setDraftField('deliveryLocation', loc ?? undefined)}
+          address={draft.deliveryAddress}
+          location={draft.deliveryLocation}
         />
       </View>
     </View>,

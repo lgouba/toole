@@ -143,15 +143,15 @@ export function AddressAutocomplete({
     Keyboard.dismiss();
   };
 
-  // La dropdown s'affiche quand :
-  //  - le champ est focus
-  //  - l'utilisateur n'a pas explicitement selectionne
-  //  - il y a du texte >= MIN_CHARS
+  // La dropdown reste visible tant que :
+  //  - l'utilisateur n'a pas explicitement selectionne une suggestion
+  //  - il y a du texte (>= MIN_CHARS)
+  //  - on a de quoi afficher (loading, suggestions, ou message "aucun resultat")
+  // NOTE : on NE conditionne PAS sur `focused`. Taper ailleurs dans l'ecran
+  // (par ex. l'arriere-plan, le bouton Continuer, etc.) ne doit pas faire
+  // disparaitre les suggestions — sinon l'utilisateur les perd involontairement.
   const showDropdown =
-    focused &&
-    !dismissedDropdown &&
-    value.trim().length >= MIN_CHARS &&
-    (loading || suggestions.length > 0 || !loading);
+    !dismissedDropdown && value.trim().length >= MIN_CHARS;
 
   return (
     <View style={styles.container}>
