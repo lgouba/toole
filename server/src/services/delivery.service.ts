@@ -4,7 +4,7 @@ import { generateReference, generateValidationCode, haversineKm } from '../utils
 import { calculatePrice } from '../utils/pricing.js';
 import { HttpError } from '../utils/response.js';
 import { emitToUser, emitToUsers } from './notification.service.js';
-import { findNearbyDrivers } from './driver.service.js';
+import { findNearbyDrivers, notifyPendingDeliveriesToDriver } from './driver.service.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 import { logDriverLocation } from './location-log.service.js';
@@ -299,8 +299,28 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
 }
 
 export async function rejectDelivery(deliveryId: string, driverId: string) {
-  // No state change — just log. Next-driver fallback is out of scope.
   logger.info({ deliveryId, driverId }, 'Driver rejected delivery');
+
+  // Apres un refus, on verifie si d'autres demandes pending existent dans sa
+  // zone (ex: une course de client B qu'il avait ignoree quand il regardait
+  // celle de client A). On les lui repousse pour qu'il ne rate pas
+  // l'opportunite.
+  const profile = await prisma.driverProfile.findUnique({
+    where: { userId: driverId },
+    select: { currentLat: true, currentLng: true, isOnline: true },
+  });
+  if (
+    profile?.isOnline &&
+    profile.currentLat != null &&
+    profile.currentLng != null
+  ) {
+    void notifyPendingDeliveriesToDriver(
+      driverId,
+      profile.currentLat,
+      profile.currentLng,
+    ).catch(() => {});
+  }
+
   return { ok: true };
 }
 

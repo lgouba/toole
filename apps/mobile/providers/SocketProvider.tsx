@@ -219,23 +219,41 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
 
-          // Dedup: si on a deja gere cette demande recemment, ignorer
+          // Dedup: si on a deja traite cette demande (meme id), ignorer
           if (lastHandledRequestIdRef.current === delivery.id) {
             console.log('[Socket] duplicate new_request ignored', delivery.id);
             return;
           }
 
-          // Si le livreur a deja une course active ou une demande en cours, ignorer
           const { activeDelivery, currentRequest } = useDriverStore.getState();
+
+          // 1) Livreur deja en course -> ignore completement
           if (activeDelivery) {
-            console.log('[Socket] driver already has active delivery, ignoring request');
-            return;
-          }
-          if (currentRequest && currentRequest.id === delivery.id) {
-            console.log('[Socket] same request already displayed');
+            console.log('[Socket] driver busy with active delivery, ignoring', delivery.id);
             return;
           }
 
+          // 2) Livreur deja en train de regarder une autre demande
+          //    -> on NE l'ECRASE PAS. La nouvelle course reste disponible
+          //    pour les autres livreurs. Si personne ne la prend, le livreur
+          //    pourra la voir une fois qu'il aura repondu a la 1re (via
+          //    le batch "pending" emis au retour sur le dashboard driver).
+          if (currentRequest) {
+            if (currentRequest.id === delivery.id) {
+              console.log('[Socket] same request already displayed', delivery.id);
+              return;
+            }
+            console.log(
+              '[Socket] driver busy on another request, skipping',
+              delivery.id,
+              '(currently viewing',
+              currentRequest.id,
+              ')',
+            );
+            return;
+          }
+
+          // Pas de demande en cours -> on affiche celle-ci
           lastHandledRequestIdRef.current = delivery.id;
           useDriverStore.getState().receiveRequest(delivery);
           // Alerte forte : vibration longue + haptic repete pour attirer

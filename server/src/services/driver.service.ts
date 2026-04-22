@@ -100,7 +100,7 @@ export async function updateLocation(
  * Cherche les livraisons 'pending' dans le rayon du livreur et les emet via Socket.
  * Evite d'emettre plusieurs fois la meme (bonus: le client Socket doit deduper de son cote si besoin).
  */
-async function notifyPendingDeliveriesToDriver(
+export async function notifyPendingDeliveriesToDriver(
   userId: string,
   lat: number,
   lng: number,
