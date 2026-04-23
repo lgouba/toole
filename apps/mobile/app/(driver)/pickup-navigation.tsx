@@ -8,7 +8,7 @@ import { Map } from '@/components/map/Map';
 import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
-import { openPhone, shareLocationWhatsApp } from '@/utils/linking';
+import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
@@ -48,6 +48,19 @@ export default function PickupNavigationScreen() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.actionBtn}
+            onPress={() =>
+              openNavigation(
+                activeDelivery.pickupLocation.latitude,
+                activeDelivery.pickupLocation.longitude,
+                activeDelivery.pickupAddress,
+              )
+            }
+          >
+            <Ionicons name="navigate" size={22} color={colors.primary} />
+            <Text style={styles.actionLabel}>Itinéraire</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
             onPress={() => openPhone(activeDelivery.recipientPhone)}
           >
             <Ionicons name="call" size={22} color={colors.primary} />
@@ -60,7 +73,7 @@ export default function PickupNavigationScreen() {
                 activeDelivery.recipientPhone,
                 activeDelivery.reference,
                 activeDelivery.pickupLocation.latitude,
-                activeDelivery.pickupLocation.longitude
+                activeDelivery.pickupLocation.longitude,
               )
             }
           >

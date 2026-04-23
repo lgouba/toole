@@ -351,9 +351,11 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     alignItems: 'center',
+    justifyContent: 'center', // centre verticalement sur grands ecrans
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
+    gap: spacing.xs,
   },
   successIconWrap: {
     marginBottom: spacing.lg,
@@ -411,10 +413,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.lg,
     padding: spacing.lg,
+    paddingVertical: spacing.xl,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
+    // Leger effet d'elevation pour attirer l'oeil sur la zone de notation
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   driverRow: {
     flexDirection: 'row',

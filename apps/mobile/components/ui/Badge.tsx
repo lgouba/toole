@@ -1,19 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors, typography, borderRadius, spacing } from '@/theme';
+import { typography, borderRadius, spacing, useColors } from '@/theme';
 import { DeliveryStatus } from '@/types';
-
-const statusConfig: Record<DeliveryStatus, { bg: string; text: string; label: string }> = {
-  scheduled: { bg: '#E8F0FE', text: '#1967D2', label: 'Programmee' },
-  pending: { bg: colors.warningLight, text: '#B07A1A', label: 'En attente' },
-  accepted: { bg: colors.primaryLight, text: colors.primaryDark, label: 'Acceptee' },
-  picking_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recuperation' },
-  picked_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recupere' },
-  delivering: { bg: colors.secondaryLight, text: colors.secondary, label: 'En livraison' },
-  delivered: { bg: colors.successLight, text: colors.primaryDark, label: 'Livree' },
-  cancelled: { bg: colors.errorLight, text: colors.error, label: 'Annulee' },
-  expired: { bg: colors.surface, text: colors.textSecondary, label: 'Expiree' },
-};
 
 interface BadgeProps {
   status: DeliveryStatus;
@@ -21,6 +9,23 @@ interface BadgeProps {
 }
 
 export function Badge({ status, style }: BadgeProps) {
+  const colors = useColors();
+
+  const statusConfig: Record<
+    DeliveryStatus,
+    { bg: string; text: string; label: string }
+  > = {
+    scheduled: { bg: '#E8F0FE', text: '#1967D2', label: 'Programmee' },
+    pending: { bg: colors.warningLight, text: '#B07A1A', label: 'En attente' },
+    accepted: { bg: colors.primaryLight, text: colors.primaryDark, label: 'Acceptee' },
+    picking_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recuperation' },
+    picked_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recupere' },
+    delivering: { bg: colors.secondaryLight, text: colors.secondary, label: 'En livraison' },
+    delivered: { bg: colors.successLight, text: colors.primaryDark, label: 'Livree' },
+    cancelled: { bg: colors.errorLight, text: colors.error, label: 'Annulee' },
+    expired: { bg: colors.surface, text: colors.textSecondary, label: 'Expiree' },
+  };
+
   const config = statusConfig[status];
 
   return (

@@ -4,6 +4,12 @@ export interface GeocodeSuggestion {
   location: LatLng;
   displayName: string;
   shortName: string;
+  /**
+   * true si la suggestion pointe vers une adresse precise (rue, numero,
+   * batiment) plutot qu'une zone large (ville, departement). Utilise pour
+   * avertir le livreur si l'adresse est trop floue.
+   */
+  isPrecise: boolean;
 }
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
@@ -71,7 +77,33 @@ export async function searchAddresses(
     location: { latitude: parseFloat(d.lat), longitude: parseFloat(d.lon) },
     displayName: d.display_name,
     shortName: buildShortName(d),
+    isPrecise: isPreciseAddress(d),
   }));
+}
+
+/**
+ * Une suggestion est consideree "precise" si Nominatim a identifie
+ * un numero de maison, une rue, un batiment / commerce / amenity.
+ * Un resultat qui ne contient que city/state/country est imprecis.
+ */
+function isPreciseAddress(d: {
+  address?: Record<string, string>;
+}): boolean {
+  const a = d.address ?? {};
+  return !!(
+    a.house_number ||
+    a.road ||
+    a.pedestrian ||
+    a.footway ||
+    a.residential ||
+    a.building ||
+    a.amenity ||
+    a.shop ||
+    a.office ||
+    a.tourism ||
+    a.leisure ||
+    a.neighbourhood
+  );
 }
 
 export async function geocodeAddress(

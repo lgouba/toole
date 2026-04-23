@@ -108,12 +108,24 @@ export default function AddressPickerScreen() {
     };
   }, [query]);
 
+  /**
+   * Valide une position choisie, met a jour le draft et ferme l'ecran.
+   * Utilise partout ou l'utilisateur a fait un choix explicite
+   * (suggestion tappee, GPS, WhatsApp, carte).
+   */
+  const finalizeSelection = (loc: LatLng, label: string) => {
+    if (isPickup) {
+      setDraftField('pickupAddress', label.trim() || 'Position choisie');
+      setDraftField('pickupLocation', loc);
+    } else {
+      setDraftField('deliveryAddress', label.trim() || 'Position choisie');
+      setDraftField('deliveryLocation', loc);
+    }
+    router.back();
+  };
+
   const handleSelect = (s: GeocodeSuggestion) => {
-    skipNextSearchRef.current = true;
-    setQuery(s.shortName);
-    setPickedLocation(s.location);
-    setSuggestions([]);
-    inputRef.current?.blur();
+    finalizeSelection(s.location, s.shortName);
   };
 
   const handleUseGps = async () => {
@@ -128,12 +140,8 @@ export default function AddressPickerScreen() {
         accuracy: Location.Accuracy.BestForNavigation,
       });
       const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      setPickedLocation(loc);
       const readable = await reverseGeocode(loc);
-      skipNextSearchRef.current = true;
-      setQuery(readable || 'Ma position actuelle');
-      setSuggestions([]);
-      inputRef.current?.blur();
+      finalizeSelection(loc, readable || 'Ma position actuelle');
     } catch {
       Alert.alert('Erreur', 'Impossible de récupérer votre position.');
     } finally {
@@ -167,12 +175,8 @@ export default function AddressPickerScreen() {
         );
         return;
       }
-      setPickedLocation(parsed);
       const readable = await reverseGeocode(parsed);
-      skipNextSearchRef.current = true;
-      setQuery(readable || 'Position partagée (WhatsApp)');
-      setSuggestions([]);
-      inputRef.current?.blur();
+      finalizeSelection(parsed, readable || 'Position partagée (WhatsApp)');
     } finally {
       setBusy(null);
     }
@@ -184,12 +188,9 @@ export default function AddressPickerScreen() {
   };
 
   const confirmMapLocation = async () => {
-    setPickedLocation(mapLocation);
     setShowMap(false);
     const readable = await reverseGeocode(mapLocation);
-    skipNextSearchRef.current = true;
-    setQuery(readable || 'Position choisie sur la carte');
-    setSuggestions([]);
+    finalizeSelection(mapLocation, readable || 'Position choisie sur la carte');
   };
 
   const handleConfirm = () => {
@@ -320,9 +321,46 @@ export default function AddressPickerScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing.md }}
         ListEmptyComponent={
-          !loading && query.trim().length >= 2 ? (
+          loading ? null : query.trim().length >= 2 ? (
             <Text style={styles.empty}>Aucun résultat</Text>
-          ) : null
+          ) : (
+            <View style={styles.emptyHelp}>
+              <View style={styles.emptyIcon}>
+                <Ionicons
+                  name="search"
+                  size={32}
+                  color={colors.textTertiary}
+                />
+              </View>
+              <Text style={styles.emptyTitle}>Commencez à taper</Text>
+              <Text style={styles.emptyHint}>
+                Ou utilisez un des raccourcis ci-dessus pour choisir rapidement.
+              </Text>
+              <View style={styles.tipsBox}>
+                <View style={styles.tip}>
+                  <Ionicons
+                    name="bulb-outline"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.tipText}>
+                    Soyez précis : "Marché de Dassasgho" plutôt que "Ouagadougou"
+                  </Text>
+                </View>
+                <View style={styles.tip}>
+                  <Ionicons
+                    name="pin-outline"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.tipText}>
+                    Un nom de lieu connu (école, pharmacie, marché) marche mieux
+                    qu'une adresse postale classique.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )
         }
         renderItem={({ item, index }) => (
           <Pressable
@@ -347,6 +385,18 @@ export default function AddressPickerScreen() {
               <Text style={styles.suggestionSecondary} numberOfLines={1}>
                 {item.displayName}
               </Text>
+              {!item.isPrecise ? (
+                <View style={styles.imprecise}>
+                  <Ionicons
+                    name="alert-circle"
+                    size={12}
+                    color={colors.warning}
+                  />
+                  <Text style={styles.impreciseText}>
+                    Zone large — pensez a preciser la rue
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </Pressable>
         )}
@@ -549,11 +599,66 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  imprecise: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  impreciseText: {
+    ...typography.caption,
+    color: colors.warning,
+    fontSize: 11,
+  },
   empty: {
     ...typography.bodySmall,
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: spacing.xl,
+  },
+  emptyHelp: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  emptyHint: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  tipsBox: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+    width: '100%',
+  },
+  tip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+  },
+  tipText: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    flex: 1,
+    lineHeight: 18,
   },
   footer: {
     padding: spacing.md,

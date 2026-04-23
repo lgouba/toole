@@ -104,6 +104,20 @@ export default function Settings() {
             <h2>Branding</h2>
           </div>
           <div className="card-body">
+            <div
+              style={{
+                padding: '10px 12px',
+                background: 'var(--warning-bg)',
+                color: '#92400e',
+                borderRadius: 8,
+                fontSize: 12.5,
+                marginBottom: 14,
+              }}
+            >
+              💡 Les couleurs sont appliquées au prochain redémarrage de l'application
+              mobile chez l'utilisateur (fermeture + réouverture). Le nom de l'app et
+              la monnaie s'appliquent immédiatement.
+            </div>
             <div className="form">
               <label>
                 Nom de l'application

@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
+import { ThemeGate } from '@/providers/ThemeGate';
 import { setAuthExpiredHandler } from '@/services/api.client';
 import { colors } from '@/theme';
 
@@ -116,9 +117,10 @@ export default function RootLayout() {
   }
 
   return (
-    <SocketProvider>
-      <ActiveDeliveryGuard />
-      <Stack screenOptions={{ headerShown: false }}>
+    <ThemeGate>
+      <SocketProvider>
+        <ActiveDeliveryGuard />
+        <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(driver)" />
@@ -132,6 +134,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>
+    </ThemeGate>
   );
 }
 

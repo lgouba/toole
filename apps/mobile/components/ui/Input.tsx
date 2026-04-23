@@ -7,7 +7,7 @@ import {
   TextInputProps,
   ViewStyle,
 } from 'react-native';
-import { colors, typography, borderRadius, sizes, spacing } from '@/theme';
+import { colors, typography, borderRadius, sizes, spacing, useColors } from '@/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -27,6 +27,7 @@ export function Input({
   ...props
 }: InputProps) {
   const [focused, setFocused] = useState(false);
+  const dynColors = useColors();
 
   return (
     <View style={containerStyle}>
@@ -34,7 +35,7 @@ export function Input({
       <View
         style={[
           styles.inputContainer,
-          focused && styles.inputFocused,
+          focused && { borderColor: dynColors.borderFocus, borderWidth: 1.5 },
           error ? styles.inputError : undefined,
         ]}
       >

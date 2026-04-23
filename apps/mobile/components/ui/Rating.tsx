@@ -145,12 +145,14 @@ function Star({
   };
 
   return (
-    <Pressable onPress={handlePress} hitSlop={6}>
+    <Pressable onPress={handlePress} hitSlop={8}>
       <Animated.View style={[animatedStyle, { padding: 4 }]}>
         <Ionicons
           name={active ? 'star' : 'star-outline'}
           size={size}
-          color={active ? colors.warning : '#d1d5db'}
+          // Couleur inactive plus contrastee pour que les etoiles soient
+          // bien visibles sur fond blanc (avant: #d1d5db trop pale)
+          color={active ? colors.warning : '#9ca3af'}
         />
       </Animated.View>
     </Pressable>

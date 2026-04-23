@@ -8,7 +8,7 @@ import { Map } from '@/components/map/Map';
 import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
-import { openPhone, shareLocationWhatsApp } from '@/utils/linking';
+import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 
 export default function DeliveryNavigationScreen() {
   const router = useRouter();
@@ -49,6 +49,19 @@ export default function DeliveryNavigationScreen() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.actionBtn}
+            onPress={() =>
+              openNavigation(
+                activeDelivery.deliveryLocation.latitude,
+                activeDelivery.deliveryLocation.longitude,
+                activeDelivery.deliveryAddress,
+              )
+            }
+          >
+            <Ionicons name="navigate" size={22} color={colors.primary} />
+            <Text style={styles.actionLabel}>Itinéraire</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
             onPress={() => openPhone(activeDelivery.recipientPhone)}
           >
             <Ionicons name="call" size={22} color={colors.primary} />
@@ -61,7 +74,7 @@ export default function DeliveryNavigationScreen() {
                 activeDelivery.recipientPhone,
                 activeDelivery.reference,
                 activeDelivery.deliveryLocation.latitude,
-                activeDelivery.deliveryLocation.longitude
+                activeDelivery.deliveryLocation.longitude,
               )
             }
           >
