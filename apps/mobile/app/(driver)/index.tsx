@@ -1,61 +1,139 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { Map } from '@/components/map/Map';
 import { OnlineToggle, StatsCard } from '@/components/driver';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { DEFAULT_MAP_REGION } from '@/utils/geo';
+import { LatLng } from '@/types';
 
 export default function DriverHomeScreen() {
   const user = useAuthStore((s) => s.user);
-  const { isOnline, toggleOnline, todayDeliveries, todayEarnings } = useDriverStore();
+  const isOnline = useDriverStore((s) => s.isOnline);
+  const toggleOnline = useDriverStore((s) => s.toggleOnline);
+  const todayDeliveries = useDriverStore((s) => s.todayDeliveries);
+  const todayEarnings = useDriverStore((s) => s.todayEarnings);
+  const currentLocation = useDriverStore((s) => s.currentLocation);
+  const activeDelivery = useDriverStore((s) => s.activeDelivery);
 
   const firstName = user?.firstName || user?.fullName.split(' ')[0] || 'Livreur';
   const isActivated = !!user?.isActive;
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.greeting}>Bonjour, {firstName}</Text>
+  const [fallbackPos, setFallbackPos] = useState<LatLng | null>(null);
 
-        {/* Banniere d'activation */}
+  // Si on n'a pas de currentLocation (livreur hors-ligne au premier lancement),
+  // on demande une position GPS juste pour centrer la carte proprement.
+  useEffect(() => {
+    if (currentLocation) return;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setFallbackPos({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      } catch {
+        // ignore
+      }
+    })();
+  }, [currentLocation]);
+
+  // Position du livreur (fallback sur GPS une fois, sinon centre Ouaga)
+  const myPosition: LatLng =
+    currentLocation ?? fallbackPos ?? DEFAULT_MAP_REGION;
+
+  // Markers a afficher :
+  //  - toujours : position du livreur (avatar moto)
+  //  - si course active : pickup + delivery
+  const mapMarkers = useMemo(() => {
+    const list: Array<{
+      id: string;
+      coordinate: LatLng;
+      icon: 'driver' | 'pickup' | 'delivery';
+    }> = [{ id: 'me', coordinate: myPosition, icon: 'driver' }];
+    if (activeDelivery) {
+      list.push({
+        id: 'pickup',
+        coordinate: {
+          latitude: Number(activeDelivery.pickupLocation.latitude),
+          longitude: Number(activeDelivery.pickupLocation.longitude),
+        },
+        icon: 'pickup',
+      });
+      list.push({
+        id: 'delivery',
+        coordinate: {
+          latitude: Number(activeDelivery.deliveryLocation.latitude),
+          longitude: Number(activeDelivery.deliveryLocation.longitude),
+        },
+        icon: 'delivery',
+      });
+    }
+    return list;
+  }, [myPosition, activeDelivery]);
+
+  // Trajet : si course active, tracer pickup -> delivery
+  const routeCoords: [LatLng, LatLng] | undefined = activeDelivery
+    ? [
+        activeDelivery.pickupLocation,
+        activeDelivery.deliveryLocation,
+      ]
+    : undefined;
+
+  return (
+    <View style={styles.container}>
+      <Map
+        center={myPosition}
+        zoom={14}
+        interactive
+        markers={mapMarkers}
+        routeCoordinates={routeCoords}
+      />
+
+      {/* Overlay d'informations en haut */}
+      <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
+        <View style={styles.greetingCard}>
+          <Text style={styles.greeting}>Bonjour, {firstName}</Text>
+        </View>
+
         {!isActivated ? (
           <View style={styles.pendingCard}>
             <View style={styles.pendingIconWrap}>
-              <Ionicons name="time-outline" size={28} color={colors.warning} />
+              <Ionicons name="time-outline" size={24} color={colors.warning} />
             </View>
-            <Text style={styles.pendingTitle}>Compte en cours de validation</Text>
-            <Text style={styles.pendingText}>
-              Notre équipe examine votre inscription. Vous recevrez une notification
-              dès que votre compte sera activé et vous pourrez commencer à recevoir
-              des courses.
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingTitle}>Compte en validation</Text>
+              <Text style={styles.pendingText} numberOfLines={2}>
+                Vous recevrez une notification dès que votre compte sera activé.
+              </Text>
+            </View>
           </View>
         ) : (
-          <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+          <View style={styles.onlineWrap}>
+            <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
+          </View>
         )}
+      </SafeAreaView>
 
-        <View style={styles.statsSection}>
+      {/* Overlay stats en bas */}
+      <SafeAreaView edges={['bottom']} style={styles.bottomOverlay} pointerEvents="box-none">
+        <View style={styles.statsWrap}>
           <StatsCard
             deliveriesToday={todayDeliveries}
             earningsToday={todayEarnings}
             ratingAvg={user?.ratingAvg || 5}
           />
         </View>
-
-        <View style={styles.mapContainer}>
-          <Map
-            center={DEFAULT_MAP_REGION}
-            zoom={14}
-            interactive={false}
-            markers={[{ id: 'me', coordinate: DEFAULT_MAP_REGION, icon: 'driver' }]}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -64,49 +142,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
+  topOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    gap: spacing.sm,
+  },
+  greetingCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
   },
   greeting: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.textPrimary,
   },
+  onlineWrap: {
+    // OnlineToggle a deja son propre style
+  },
   pendingCard: {
-    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.warningLight,
     borderWidth: 1,
     borderColor: colors.warning,
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   pendingIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pendingTitle: {
-    ...typography.h3,
+    ...typography.bodyMedium,
     color: '#a66908',
-    textAlign: 'center',
+    fontWeight: '700',
   },
   pendingText: {
-    ...typography.bodySmall,
+    ...typography.caption,
     color: '#a66908',
-    textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 2,
   },
-  statsSection: {
-    marginTop: spacing.xs,
+  bottomOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
-  mapContainer: {
-    height: 200,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    marginTop: spacing.xs,
+  statsWrap: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
 });

@@ -11,6 +11,15 @@ export interface PricingSettings {
   platformCommissionPct: number;
 }
 
+export interface OperationSettings {
+  /** Duree de recherche d'un livreur avant expiration cote client (en minutes) */
+  deliveryExpiryMinutes: number;
+  /** Delai avant que le livreur puisse annuler apres acceptation (en secondes) */
+  driverCancelCooldownSeconds: number;
+  /** Rayon de diffusion aux livreurs (km) — informatif pour le mobile */
+  nearbyRadiusKm: number;
+}
+
 export interface PublicSettings {
   appName: string;
   primaryColor: string;
@@ -21,6 +30,7 @@ export interface PublicSettings {
   driverSoundEnabled: boolean;
   driverVibrationEnabled: boolean;
   pricing: PricingSettings;
+  operations: OperationSettings;
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
@@ -38,6 +48,11 @@ const DEFAULT_SETTINGS: PublicSettings = {
     basePriceLarge: 1200,
     pricePerKm: 100,
     platformCommissionPct: 15,
+  },
+  operations: {
+    deliveryExpiryMinutes: 5,
+    driverCancelCooldownSeconds: 120,
+    nearbyRadiusKm: 5,
   },
 };
 

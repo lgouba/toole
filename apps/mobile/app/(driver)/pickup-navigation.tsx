@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,12 +8,34 @@ import { Map } from '@/components/map/Map';
 import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
+import { useSettingsStore } from '@/stores/settings.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
+  const cooldownSec = useSettingsStore(
+    (s) => s.settings.operations.driverCancelCooldownSeconds,
+  );
   const [showCancel, setShowCancel] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  // Calcule et decremente le cooldown d'annulation base sur `acceptedAt`
+  useEffect(() => {
+    if (!activeDelivery?.acceptedAt) {
+      setCooldownRemaining(0);
+      return;
+    }
+    const update = () => {
+      const acceptedAt = new Date(activeDelivery.acceptedAt!).getTime();
+      const elapsed = (Date.now() - acceptedAt) / 1000;
+      const left = Math.max(0, Math.ceil(cooldownSec - elapsed));
+      setCooldownRemaining(left);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [activeDelivery?.acceptedAt, cooldownSec]);
 
   if (!activeDelivery) return null;
 
@@ -88,9 +110,14 @@ export default function PickupNavigationScreen() {
         />
         <View style={{ height: 8 }} />
         <Button
-          title="Annuler la course"
+          title={
+            cooldownRemaining > 0
+              ? `Annuler dans ${cooldownRemaining}s`
+              : 'Annuler la course'
+          }
           variant="outline"
           onPress={() => setShowCancel(true)}
+          disabled={cooldownRemaining > 0}
         />
       </View>
 

@@ -17,6 +17,10 @@ interface AppSettings {
   driverVibrationEnabled: boolean;
   nightSurchargePct: number;
   rainSurchargePct: number;
+  deliveryExpiryMinutes: number;
+  driverCancelCooldownSeconds: number;
+  nearbyRadiusKm: number;
+  driverHeartbeatMaxAgeSeconds: number;
   updatedAt: string;
 }
 
@@ -376,6 +380,126 @@ export default function Settings() {
               Ces majorations ne sont pas encore appliquees. Elles seront activees dans
               une prochaine version.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Reglages operationnels */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Reglages operationnels</h2>
+        </div>
+        <div className="card-body">
+          <div className="form">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+              }}
+            >
+              <label>
+                Duree de recherche d'un livreur (minutes)
+                <input
+                  type="number"
+                  value={settings.deliveryExpiryMinutes}
+                  onChange={(e) =>
+                    update(
+                      'deliveryExpiryMinutes',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={1}
+                  max={60}
+                />
+              </label>
+              <label>
+                Delai avant annulation livreur (secondes)
+                <input
+                  type="number"
+                  value={settings.driverCancelCooldownSeconds}
+                  onChange={(e) =>
+                    update(
+                      'driverCancelCooldownSeconds',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={0}
+                  max={1800}
+                />
+              </label>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+              }}
+            >
+              <label>
+                Rayon de diffusion aux livreurs (km)
+                <input
+                  type="number"
+                  value={settings.nearbyRadiusKm}
+                  onChange={(e) =>
+                    update(
+                      'nearbyRadiusKm',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={1}
+                  max={50}
+                />
+              </label>
+              <label>
+                Fraicheur GPS livreur (secondes)
+                <input
+                  type="number"
+                  value={settings.driverHeartbeatMaxAgeSeconds}
+                  onChange={(e) =>
+                    update(
+                      'driverHeartbeatMaxAgeSeconds',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={30}
+                  max={600}
+                />
+              </label>
+            </div>
+
+            <div
+              style={{
+                marginTop: 8,
+                padding: 12,
+                background: 'var(--bg-alt)',
+                borderRadius: 10,
+                fontSize: 12.5,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+              }}
+            >
+              <strong>Explications :</strong>
+              <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                <li>
+                  <b>Duree de recherche</b> : temps maximum d'attente avant qu'une
+                  demande client expire si aucun livreur n'accepte (defaut 5 min).
+                </li>
+                <li>
+                  <b>Delai avant annulation</b> : un livreur ne peut pas annuler
+                  immediatement apres avoir accepte (evite les abus). Defaut 120s.
+                </li>
+                <li>
+                  <b>Rayon de diffusion</b> : rayon autour du pickup pour chercher
+                  les livreurs disponibles. Defaut 5 km.
+                </li>
+                <li>
+                  <b>Fraicheur GPS</b> : si un livreur n'a pas envoye sa position
+                  depuis N secondes, il est considere hors-ligne. Defaut 120s.
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

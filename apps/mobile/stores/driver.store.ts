@@ -106,7 +106,10 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       } catch {
         // ok on passe quand meme offline cote UI
       }
-      set({ isOnline: false, currentLocation: null });
+      // On garde la derniere currentLocation connue pour centrer la carte
+      // meme quand le livreur est hors ligne (recuperation GPS hors-line
+      // via expo-location au besoin).
+      set({ isOnline: false });
     }
   },
 
@@ -157,15 +160,24 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   cancelActiveDelivery: async (reason, comment) => {
     const { activeDelivery } = get();
     if (!activeDelivery) return false;
-    const updated = await deliveryService.cancelDelivery(
-      activeDelivery.id,
-      reason,
-      comment,
-    );
-    // updated peut revenir avec status 'pending' (remise en file) ou 'cancelled'
-    if (updated) {
-      set({ activeDelivery: null, currentRequest: null });
-      return true;
+    try {
+      const updated = await deliveryService.cancelDelivery(
+        activeDelivery.id,
+        reason,
+        comment,
+      );
+      // updated peut revenir avec status 'pending' (remise en file) ou 'cancelled'
+      if (updated) {
+        set({ activeDelivery: null, currentRequest: null });
+        return true;
+      }
+    } catch (err: any) {
+      // Backend peut renvoyer 429 avec un message (cooldown non ecoule)
+      const msg =
+        err?.response?.data?.error?.message ??
+        'Impossible d\'annuler la course. Reessayez.';
+      Alert.alert('Annulation impossible', msg);
+      return false;
     }
     return false;
   },

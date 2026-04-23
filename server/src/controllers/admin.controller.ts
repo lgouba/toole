@@ -211,6 +211,10 @@ const settingsUpdateSchema = z.object({
   driverVibrationEnabled: z.boolean().optional(),
   nightSurchargePct: z.number().int().min(0).max(500).optional(),
   rainSurchargePct: z.number().int().min(0).max(500).optional(),
+  deliveryExpiryMinutes: z.number().int().min(1).max(60).optional(),
+  driverCancelCooldownSeconds: z.number().int().min(0).max(1800).optional(),
+  nearbyRadiusKm: z.number().int().min(1).max(50).optional(),
+  driverHeartbeatMaxAgeSeconds: z.number().int().min(30).max(600).optional(),
 });
 
 export async function getSettingsCtrl(

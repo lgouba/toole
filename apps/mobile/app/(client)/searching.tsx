@@ -13,14 +13,17 @@ import Animated, {
 import { Button } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
-
-const SEARCH_TIMEOUT_SECONDS = 300; // 5 minutes (align backend)
+import { useSettingsStore } from '@/stores/settings.store';
 
 export default function SearchingScreen() {
   const router = useRouter();
   const { activeDelivery, clear, relaunch, updateStatus } = useDeliveryStore();
+  // Duree de recherche pilotee par l'admin (en minutes), convertie en secondes
+  const searchTimeoutSeconds = useSettingsStore(
+    (s) => s.settings.operations.deliveryExpiryMinutes * 60,
+  );
 
-  const [remaining, setRemaining] = useState(SEARCH_TIMEOUT_SECONDS);
+  const [remaining, setRemaining] = useState(searchTimeoutSeconds);
   const [expired, setExpired] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -35,7 +38,7 @@ export default function SearchingScreen() {
     if (watchedDeliveryIdRef.current !== activeDelivery.id) {
       watchedDeliveryIdRef.current = activeDelivery.id;
       hasNavigatedRef.current = false;
-      setRemaining(SEARCH_TIMEOUT_SECONDS);
+      setRemaining(searchTimeoutSeconds);
       setExpired(false);
     }
   }, [activeDelivery?.id]);
@@ -135,7 +138,7 @@ export default function SearchingScreen() {
     setRelaunching(false);
     if (ok) {
       setExpired(false);
-      setRemaining(SEARCH_TIMEOUT_SECONDS);
+      setRemaining(searchTimeoutSeconds);
     }
   };
 

@@ -46,6 +46,10 @@ export async function updateAppSettings(
     driverVibrationEnabled: boolean;
     nightSurchargePct: number;
     rainSurchargePct: number;
+    deliveryExpiryMinutes: number;
+    driverCancelCooldownSeconds: number;
+    nearbyRadiusKm: number;
+    driverHeartbeatMaxAgeSeconds: number;
   }>,
   updatedBy?: string,
 ) {
@@ -84,6 +88,11 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
       basePriceLarge: s.basePriceLarge,
       pricePerKm: s.pricePerKm,
       platformCommissionPct: s.platformCommissionPct,
+    },
+    operations: {
+      deliveryExpiryMinutes: s.deliveryExpiryMinutes,
+      driverCancelCooldownSeconds: s.driverCancelCooldownSeconds,
+      nearbyRadiusKm: s.nearbyRadiusKm,
     },
   };
 }

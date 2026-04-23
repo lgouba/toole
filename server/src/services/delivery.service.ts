@@ -8,9 +8,39 @@ import { findNearbyDrivers, notifyPendingDeliveriesToDriver } from './driver.ser
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 import { logDriverLocation } from './location-log.service.js';
+import { getAppSettings } from './settings.service.js';
 
-const DELIVERY_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes to find a driver
-const NEARBY_RADIUS_KM = 5;
+/**
+ * Valeur par defaut si AppSettings ne renvoie rien. Lu dynamiquement via
+ * `getDeliveryExpiryMs()` qui interroge la DB.
+ */
+const DEFAULT_DELIVERY_EXPIRY_MS = 5 * 60 * 1000;
+
+async function getDeliveryExpiryMs(): Promise<number> {
+  try {
+    const s = await getAppSettings();
+    return s.deliveryExpiryMinutes * 60 * 1000;
+  } catch {
+    return DEFAULT_DELIVERY_EXPIRY_MS;
+  }
+}
+
+async function getDriverCancelCooldownMs(): Promise<number> {
+  try {
+    const s = await getAppSettings();
+    return s.driverCancelCooldownSeconds * 1000;
+  } catch {
+    return 120 * 1000;
+  }
+}
+async function getNearbyRadiusKm(): Promise<number> {
+  try {
+    const s = await getAppSettings();
+    return s.nearbyRadiusKm;
+  } catch {
+    return 5;
+  }
+}
 
 export interface CreateDeliveryInput {
   senderId: string;
@@ -38,6 +68,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     input.deliveryLng,
   );
   const pricing = await calculatePrice(input.packageType, distanceKm);
+  const expiryMs = await getDeliveryExpiryMs();
 
   // Si la date programmee est dans plus de 5 min, on cree en status 'scheduled'.
   // Sinon on bascule en 'pending' direct (diffusion immediate).
@@ -70,7 +101,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       scheduledFor: input.scheduledFor ?? null,
       expiresAt: isScheduled
         ? null // l'expiresAt sera pose au moment de la diffusion
-        : new Date(now + DELIVERY_EXPIRY_MS),
+        : new Date(now + expiryMs),
     },
   });
 
@@ -96,6 +127,8 @@ export async function processScheduledDeliveries() {
       scheduledFor: { lte: now },
     },
   });
+  if (due.length === 0) return;
+  const expiryMs = await getDeliveryExpiryMs();
 
   for (const d of due) {
     try {
@@ -103,7 +136,7 @@ export async function processScheduledDeliveries() {
         where: { id: d.id },
         data: {
           status: 'pending',
-          expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+          expiresAt: new Date(Date.now() + expiryMs),
         },
       });
       logger.info({ deliveryId: d.id }, 'Scheduled delivery activated');
@@ -123,10 +156,11 @@ export async function processScheduledDeliveries() {
 }
 
 async function notifyNearbyDrivers(delivery: Delivery) {
+  const radiusKm = await getNearbyRadiusKm();
   const drivers = await findNearbyDrivers(
     delivery.pickupLat,
     delivery.pickupLng,
-    NEARBY_RADIUS_KM,
+    radiusKm,
   );
   const ids = drivers.map((d) => d.userId);
   if (ids.length) {
@@ -281,10 +315,11 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
 
   // Avertir les autres livreurs proches que la course n'est plus disponible
   void (async () => {
+    const radiusKm = await getNearbyRadiusKm();
     const drivers = await findNearbyDrivers(
       updated.pickupLat,
       updated.pickupLng,
-      NEARBY_RADIUS_KM,
+      radiusKm,
     );
     const otherIds = drivers.map((d) => d.userId).filter((id) => id !== driverId);
     if (otherIds.length) {
@@ -342,11 +377,12 @@ export async function relaunchDelivery(deliveryId: string, userId: string) {
     );
   }
 
+  const expiryMs = await getDeliveryExpiryMs();
   const updated = await prisma.delivery.update({
     where: { id: deliveryId },
     data: {
       status: 'pending',
-      expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+      expiresAt: new Date(Date.now() + expiryMs),
     },
   });
 
@@ -507,6 +543,22 @@ export async function cancelDelivery(
   }
 
   const isDriverCancel = userId === delivery.driverId;
+
+  // Cooldown : un livreur ne peut pas annuler immediatement apres avoir accepte
+  // (evite les abus : acceptation pour bloquer les autres, puis annulation)
+  if (isDriverCancel && delivery.acceptedAt) {
+    const cooldownMs = await getDriverCancelCooldownMs();
+    const elapsedMs = Date.now() - delivery.acceptedAt.getTime();
+    if (elapsedMs < cooldownMs) {
+      const remainingSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+      throw new HttpError(
+        429,
+        'CANCEL_COOLDOWN',
+        `Vous pourrez annuler dans ${remainingSec}s.`,
+      );
+    }
+  }
+
   const canReassignToOthers =
     isDriverCancel &&
     delivery.status !== 'picked_up' &&
@@ -515,13 +567,14 @@ export async function cancelDelivery(
   // Cas special : le livreur annule une course deja acceptee (mais pas encore recuperee)
   // → on remet en pending pour que d'autres livreurs puissent la prendre.
   if (canReassignToOthers) {
+    const expiryMs = await getDeliveryExpiryMs();
     const updated = await prisma.delivery.update({
       where: { id: deliveryId },
       data: {
         status: 'pending',
         driverId: null,
         acceptedAt: null,
-        expiresAt: new Date(Date.now() + DELIVERY_EXPIRY_MS),
+        expiresAt: new Date(Date.now() + expiryMs),
       },
     });
 
@@ -593,10 +646,11 @@ async function broadcastDeliveryInvalidation(
   delivery: Delivery,
   reason: 'cancelled' | 'expired',
 ) {
+  const radiusKm = await getNearbyRadiusKm();
   const drivers = await findNearbyDrivers(
     delivery.pickupLat,
     delivery.pickupLng,
-    NEARBY_RADIUS_KM,
+    radiusKm,
   );
   const ids = drivers.map((d) => d.userId);
   if (ids.length) {

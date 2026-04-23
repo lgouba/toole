@@ -56,35 +56,36 @@ function buildHtml(
                   <div class="driver-marker-outer">
                     <div class="driver-marker-pulse"></div>
                     <div class="driver-marker-inner" data-id="${m.id}">
-                      <svg viewBox="0 0 48 48" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+                      <svg viewBox="0 0 48 48" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
                         <!-- Ombre sous la moto -->
-                        <ellipse cx="24" cy="42" rx="14" ry="3" fill="rgba(0,0,0,0.2)"/>
+                        <ellipse cx="24" cy="42" rx="14" ry="3" fill="rgba(0,0,0,0.25)"/>
                         <!-- Roue arriere -->
-                        <circle cx="13" cy="34" r="5" fill="#1a1a1a"/>
-                        <circle cx="13" cy="34" r="2" fill="#444"/>
+                        <circle cx="13" cy="34" r="5.5" fill="#1a1a1a"/>
+                        <circle cx="13" cy="34" r="2.2" fill="#666"/>
                         <!-- Roue avant -->
-                        <circle cx="35" cy="34" r="5" fill="#1a1a1a"/>
-                        <circle cx="35" cy="34" r="2" fill="#444"/>
+                        <circle cx="35" cy="34" r="5.5" fill="#1a1a1a"/>
+                        <circle cx="35" cy="34" r="2.2" fill="#666"/>
                         <!-- Corps de la moto -->
-                        <path d="M13 34 L19 26 L29 26 L35 34" stroke="${colors.primary}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M13 34 L19 26 L29 26 L35 34" stroke="${colors.primary}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                         <!-- Reservoir / selle -->
-                        <rect x="18" y="24" width="12" height="4" rx="2" fill="${colors.primary}"/>
+                        <rect x="17" y="23" width="14" height="5" rx="2.5" fill="${colors.primary}"/>
                         <!-- Guidon -->
-                        <path d="M32 26 L34 22" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M32 26 L35 21" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
                         <!-- Corps du livreur -->
-                        <rect x="20" y="14" width="8" height="12" rx="4" fill="${colors.secondary}"/>
+                        <rect x="19" y="13" width="10" height="13" rx="5" fill="${colors.secondary}"/>
                         <!-- Tete / casque -->
-                        <circle cx="24" cy="10" r="5" fill="#2a2a2a"/>
+                        <circle cx="24" cy="9" r="5.5" fill="#2a2a2a"/>
                         <!-- Visiere -->
-                        <path d="M20 9 L28 9" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M19 8.5 L29 8.5" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
                         <!-- Sac de livraison dans le dos -->
-                        <rect x="17" y="16" width="5" height="7" rx="1" fill="#fff" stroke="${colors.primary}" stroke-width="1"/>
+                        <rect x="15" y="15" width="6" height="9" rx="1.5" fill="#fff" stroke="${colors.primary}" stroke-width="1.2"/>
+                        <rect x="16.5" y="18.5" width="3" height="2" rx="0.3" fill="${colors.primary}"/>
                       </svg>
                     </div>
                   </div>
                 \`,
-                iconSize: [56, 56],
-                iconAnchor: [28, 28],
+                iconSize: [88, 88],
+                iconAnchor: [44, 44],
               }),
             }).addTo(map);
             ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
@@ -153,15 +154,15 @@ function buildHtml(
     /* Livreur motard anime */
     .driver-marker-outer {
       position: relative;
-      width: 56px;
-      height: 56px;
+      width: 88px;
+      height: 88px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .driver-marker-pulse {
       position: absolute;
-      inset: 0;
+      inset: 8px;
       border-radius: 50%;
       background: ${colors.primary};
       opacity: 0.3;
@@ -169,15 +170,15 @@ function buildHtml(
     }
     .driver-marker-inner {
       position: relative;
-      width: 44px;
-      height: 44px;
+      width: 72px;
+      height: 72px;
       border-radius: 50%;
       background: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-      border: 2px solid ${colors.primary};
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+      border: 3px solid ${colors.primary};
       /* Transition douce pour la rotation */
       transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
       /* Rotation initiale neutre */

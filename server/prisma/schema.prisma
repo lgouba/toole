@@ -299,6 +299,18 @@ model AppSettings {
   nightSurchargePct    Int    @default(0)
   rainSurchargePct     Int    @default(0)
 
+  // Reglages operationnels
+  /// Duree de recherche d'un livreur (avant expiration de la demande cote client)
+  deliveryExpiryMinutes     Int @default(5)
+  /// Delai minimum avant que le livreur puisse annuler apres avoir accepte
+  /// (eviter les abus : accepter pour bloquer les autres puis annuler)
+  driverCancelCooldownSeconds Int @default(120)
+  /// Rayon en km autour du pickup pour diffuser une demande aux livreurs
+  nearbyRadiusKm            Int @default(5)
+  /// Fraicheur GPS requise pour considerer un livreur comme disponible
+  /// (si le dernier heartbeat date de plus, on le passe offline auto)
+  driverHeartbeatMaxAgeSeconds Int @default(120)
+
   updatedAt DateTime @updatedAt
   updatedBy String?  @db.Uuid
 }

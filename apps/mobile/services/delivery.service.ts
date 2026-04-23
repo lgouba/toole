@@ -188,15 +188,13 @@ export async function cancelDelivery(
   reason?: string,
   comment?: string,
 ): Promise<Delivery | null> {
-  try {
-    const res = await api.put(`/deliveries/${deliveryId}/cancel`, {
-      reason,
-      comment,
-    });
-    return normalizeDelivery(unwrap<any>(res));
-  } catch {
-    return null;
-  }
+  // On laisse remonter l'erreur (notamment 429 CANCEL_COOLDOWN)
+  // pour que l'UI puisse afficher un message explicite.
+  const res = await api.put(`/deliveries/${deliveryId}/cancel`, {
+    reason,
+    comment,
+  });
+  return normalizeDelivery(unwrap<any>(res));
 }
 
 export async function confirmPickup(

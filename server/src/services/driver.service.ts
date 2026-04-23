@@ -8,13 +8,31 @@ import {
   logDriverLocation,
   shouldLogHeartbeat,
 } from './location-log.service.js';
+import { getAppSettings } from './settings.service.js';
 
-const NEARBY_RADIUS_KM = 5;
-const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min
-// Un livreur est considere "actif" seulement si sa position a ete mise a jour
-// dans les 2 dernieres minutes (le mobile push toutes les 10s, on tolere des
-// coupures reseau courtes).
-const ACTIVE_DRIVER_MAX_AGE_MS = 120 * 1000;
+// Defaults si AppSettings indisponible. Les vraies valeurs sont lues via
+// getRadiusKm() / getActiveDriverMaxAgeMs() qui consultent la DB (cache 30s).
+const DEFAULT_NEARBY_RADIUS_KM = 5;
+const DEFAULT_ACTIVE_DRIVER_MAX_AGE_MS = 120 * 1000;
+const PENDING_LOOKBACK_MS = 30 * 60 * 1000; // 30 min (non parametrable pour l'instant)
+
+async function getRadiusKm(): Promise<number> {
+  try {
+    const s = await getAppSettings();
+    return s.nearbyRadiusKm;
+  } catch {
+    return DEFAULT_NEARBY_RADIUS_KM;
+  }
+}
+
+async function getActiveDriverMaxAgeMs(): Promise<number> {
+  try {
+    const s = await getAppSettings();
+    return s.driverHeartbeatMaxAgeSeconds * 1000;
+  } catch {
+    return DEFAULT_ACTIVE_DRIVER_MAX_AGE_MS;
+  }
+}
 
 export async function setOnline(userId: string, isOnline: boolean) {
   // Empeche un livreur non active par l'admin de passer en ligne.
@@ -106,10 +124,11 @@ export async function notifyPendingDeliveriesToDriver(
   lng: number,
 ) {
   const cutoff = new Date(Date.now() - PENDING_LOOKBACK_MS);
+  const radiusKm = await getRadiusKm();
 
   // Bounding box pour pre-filtrer en SQL
-  const latDelta = NEARBY_RADIUS_KM / 111;
-  const lngDelta = NEARBY_RADIUS_KM / (111 * Math.cos((lat * Math.PI) / 180) || 1);
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1);
 
   const pendings = await prisma.delivery.findMany({
     where: {
@@ -124,7 +143,7 @@ export async function notifyPendingDeliveriesToDriver(
   let count = 0;
   for (const delivery of pendings) {
     const dist = haversineKm(lat, lng, delivery.pickupLat, delivery.pickupLng);
-    if (dist > NEARBY_RADIUS_KM) continue;
+    if (dist > radiusKm) continue;
     const { validationCode: _vc, ...safe } = delivery;
     emitToUser(userId, 'delivery:new_request', safe);
     count++;
@@ -163,7 +182,8 @@ export async function findNearbyDrivers(
   const latDelta = radiusKm / 111;
   const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1);
 
-  const activeCutoff = new Date(Date.now() - ACTIVE_DRIVER_MAX_AGE_MS);
+  const maxAgeMs = await getActiveDriverMaxAgeMs();
+  const activeCutoff = new Date(Date.now() - maxAgeMs);
   const candidates = await prisma.driverProfile.findMany({
     where: {
       isOnline: true,
@@ -220,7 +240,8 @@ export async function getPublicDriverProfile(userId: string) {
  * Evite les livreurs zombies (app fermee sans clic sur "Hors ligne").
  */
 export async function markStaleDriversOffline() {
-  const cutoff = new Date(Date.now() - ACTIVE_DRIVER_MAX_AGE_MS);
+  const maxAgeMs = await getActiveDriverMaxAgeMs();
+  const cutoff = new Date(Date.now() - maxAgeMs);
   const result = await prisma.driverProfile.updateMany({
     where: {
       isOnline: true,
