@@ -50,6 +50,8 @@ export async function updateAppSettings(
     driverCancelCooldownSeconds: number;
     nearbyRadiusKm: number;
     driverHeartbeatMaxAgeSeconds: number;
+    minWithdrawAmount: number;
+    commissionDebtLimit: number;
   }>,
   updatedBy?: string,
 ) {

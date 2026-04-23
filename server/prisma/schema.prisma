@@ -48,10 +48,13 @@ enum DeliveryStatus {
 
 enum TransactionType {
   payment
-  commission
+  commission      // gain du livreur sur une livraison (credit)
+  commission_debt // dette plateforme sur un paiement cash (debit)
   tip
   topup
   withdrawal
+  withdrawal_fee  // reserve pour frais de retrait eventuels
+  adjustment      // correction manuelle admin
 }
 
 enum PaymentMethod {
@@ -299,6 +302,15 @@ model AppSettings {
   nightSurchargePct    Int    @default(0)
   rainSurchargePct     Int    @default(0)
 
+  // Reglages wallet / paiement
+  /// Montant minimum pour un retrait livreur (en unite de devise)
+  minWithdrawAmount         Int @default(1000)
+  /// Plafond de dette commission qu'un livreur peut avoir avant d'etre
+  /// bloque (il doit alors regler sa dette avant d'accepter de nouvelles courses).
+  commissionDebtLimit       Int @default(10000)
+  /// Mode de paiement par defaut propose au client lors d'une commande
+  defaultPaymentMethod      PaymentMethod @default(cash)
+
   // Reglages operationnels
   /// Duree de recherche d'un livreur (avant expiration de la demande cote client)
   deliveryExpiryMinutes     Int @default(5)
@@ -320,9 +332,18 @@ model Transaction {
   userId           String            @db.Uuid
   deliveryId       String?           @db.Uuid
   type             TransactionType
+  /// Montant. Positif = credit pour le userId, negatif = debit.
   amount           Int
   paymentMethod    PaymentMethod
   paymentReference String?
+  /// Numero Mobile Money destinataire (pour un retrait) ou emetteur (pour un topup).
+  /// Stocke au format brut "226XXXXXXXX" ; formatage XX XX XX XX cote UI.
+  phoneNumber      String?
+  /// Note facultative ajoutee par l'admin (ex: "vire via Orange Money", reference)
+  note             String?
+  /// Admin qui a valide / rejete la transaction
+  processedBy      String?           @db.Uuid
+  processedAt      DateTime?
   status           TransactionStatus @default(pending)
   createdAt        DateTime          @default(now())
 
@@ -332,4 +353,5 @@ model Transaction {
   @@index([userId])
   @@index([deliveryId])
   @@index([status])
+  @@index([type])
 }

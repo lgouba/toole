@@ -21,6 +21,8 @@ interface AppSettings {
   driverCancelCooldownSeconds: number;
   nearbyRadiusKm: number;
   driverHeartbeatMaxAgeSeconds: number;
+  minWithdrawAmount: number;
+  commissionDebtLimit: number;
   updatedAt: string;
 }
 
@@ -499,6 +501,68 @@ export default function Settings() {
                   depuis N secondes, il est considere hors-ligne. Defaut 120s.
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Portefeuille / Paiement */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Portefeuille et paiement</h2>
+        </div>
+        <div className="card-body">
+          <div className="form">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+              }}
+            >
+              <label>
+                Montant minimum de retrait ({settings.currency})
+                <input
+                  type="number"
+                  value={settings.minWithdrawAmount}
+                  onChange={(e) =>
+                    update(
+                      'minWithdrawAmount',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={0}
+                />
+              </label>
+              <label>
+                Plafond dette commission ({settings.currency})
+                <input
+                  type="number"
+                  value={settings.commissionDebtLimit}
+                  onChange={(e) =>
+                    update(
+                      'commissionDebtLimit',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={0}
+                />
+              </label>
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                padding: 12,
+                background: 'var(--bg-alt)',
+                borderRadius: 10,
+                fontSize: 12.5,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+              }}
+            >
+              <b>Plafond dette commission</b> : dès que la dette d'un livreur
+              dépasse ce montant, il ne peut plus accepter de nouvelles courses
+              tant qu'il n'a pas réglé via Mobile Money.
             </div>
           </div>
         </div>

@@ -131,6 +131,7 @@ export default function RootLayout() {
           name="address-picker"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="wallet-flow" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>

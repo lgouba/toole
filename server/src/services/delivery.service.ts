@@ -262,6 +262,22 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
     throw new HttpError(400, 'EXPIRED', 'Delivery request has expired');
   }
 
+  // Verifie la dette commission du livreur : bloque si au-dela du plafond admin.
+  const settings = await getAppSettings();
+  const balanceCheck = await prisma.driverProfile.findUnique({
+    where: { userId: driverId },
+    select: { walletBalance: true },
+  });
+  // walletBalance negatif = dette. On compare sa valeur absolue au plafond.
+  const currentDebt = Math.max(0, -(balanceCheck?.walletBalance ?? 0));
+  if (currentDebt >= settings.commissionDebtLimit) {
+    throw new HttpError(
+      403,
+      'DEBT_LIMIT_EXCEEDED',
+      `Votre dette plateforme (${currentDebt} ${settings.currency}) a atteint le plafond. Reglez via l'onglet Portefeuille pour accepter de nouvelles courses.`,
+    );
+  }
+
   const updated = await prisma.delivery.update({
     where: { id: deliveryId },
     data: {
@@ -467,21 +483,44 @@ export async function validateCode(
       data: { status: 'delivered', deliveredAt: new Date() },
     });
 
-    if (d.driverCommission && d.driverId) {
+    if (d.driverCommission && d.platformFee && d.driverId) {
+      // Modele cash : le client paie tout le prix cash au livreur.
+      // - Le livreur encaisse driverCommission (gain net) physiquement.
+      // - Il doit platformFee a la plateforme (dette cumulee).
+      //
+      // On enregistre 2 transactions pour la tracabilite :
+      //   1. commission      : + driverCommission (gain historique, paymentMethod=cash)
+      //   2. commission_debt : - platformFee (dette cumulee envers la plateforme)
+      //
+      // Le walletBalance du livreur est decremente de platformFee : il represente
+      // la "balance nette" de ses obligations envers la plateforme. S'il devient
+      // tres negatif, le livreur est bloque jusqu'a ce qu'il regle sa dette.
       await tx.transaction.create({
         data: {
           userId: d.driverId,
           deliveryId: d.id,
           type: 'commission',
           amount: d.driverCommission,
-          paymentMethod: 'wallet',
+          paymentMethod: 'cash',
           status: 'completed',
+          note: 'Gain livreur (paiement cash du client)',
+        },
+      });
+      await tx.transaction.create({
+        data: {
+          userId: d.driverId,
+          deliveryId: d.id,
+          type: 'commission_debt',
+          amount: -d.platformFee,
+          paymentMethod: 'cash',
+          status: 'completed',
+          note: 'Commission plateforme due (paiement cash)',
         },
       });
       await tx.driverProfile.update({
         where: { userId: d.driverId },
         data: {
-          walletBalance: { increment: d.driverCommission },
+          walletBalance: { decrement: d.platformFee },
           totalDeliveries: { increment: 1 },
         },
       });

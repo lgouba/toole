@@ -1,262 +1,416 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  Modal,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Input } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
-import { useWalletStore } from '@/stores/wallet.store';
-import { useAuthStore } from '@/stores/auth.store';
-import { formatCFA, formatRelativeTime } from '@/utils/format';
-import { TRANSACTION_LABELS, PAYMENT_METHOD_LABELS, Transaction } from '@/types';
+import { formatCFA, formatDateTime } from '@/utils/format';
+import {
+  getMyWallet,
+  getMyTransactions,
+  formatPhoneForDisplay,
+  TX_TYPE_LABEL,
+  WalletSnapshot,
+  Transaction,
+} from '@/services/wallet.service';
 
 export default function WalletScreen() {
-  const user = useAuthStore((s) => s.user);
-  const { balance, transactions, fetchBalance, fetchTransactions, topUp, withdraw, isLoading } =
-    useWalletStore();
-  const [modalType, setModalType] = useState<'topup' | 'withdraw' | null>(null);
-  const [amount, setAmount] = useState('');
+  const router = useRouter();
+  const [wallet, setWallet] = useState<WalletSnapshot | null>(null);
+  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchBalance();
-      fetchTransactions(user.id);
+  const load = async () => {
+    try {
+      const [w, t] = await Promise.all([getMyWallet(), getMyTransactions()]);
+      setWallet(w);
+      setTxs(t);
+    } catch {
+      // silent
     }
-  }, [user]);
-
-  const handleAction = async () => {
-    if (!user || !amount) return;
-    const numAmount = parseInt(amount, 10);
-    if (isNaN(numAmount) || numAmount <= 0) return;
-
-    if (modalType === 'topup') {
-      await topUp(user.id, numAmount, 'orange_money');
-    } else {
-      await withdraw(user.id, numAmount, 'orange_money');
-    }
-    setModalType(null);
-    setAmount('');
   };
 
-  const renderTransaction = ({ item }: { item: Transaction }) => {
-    const isIncome = item.type === 'commission' || item.type === 'tip' || item.type === 'topup';
+  useFocusEffect(
+    useCallback(() => {
+      load().finally(() => setLoading(false));
+    }, []),
+  );
 
-    return (
-      <View style={styles.txRow}>
-        <View style={[styles.txIcon, { backgroundColor: isIncome ? colors.primaryLight : colors.errorLight }]}>
-          <Ionicons
-            name={isIncome ? 'arrow-down' : 'arrow-up'}
-            size={16}
-            color={isIncome ? colors.primary : colors.error}
-          />
-        </View>
-        <View style={styles.txInfo}>
-          <Text style={styles.txType}>{TRANSACTION_LABELS[item.type]}</Text>
-          <Text style={styles.txMethod}>{PAYMENT_METHOD_LABELS[item.paymentMethod]}</Text>
-        </View>
-        <View style={styles.txRight}>
-          <Text style={[styles.txAmount, { color: isIncome ? colors.primary : colors.error }]}>
-            {isIncome ? '+' : '-'}{formatCFA(item.amount)}
-          </Text>
-          <Text style={styles.txTime}>{formatRelativeTime(item.createdAt)}</Text>
-        </View>
-      </View>
-    );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   };
+
+  const debt = wallet?.commissionDebt ?? 0;
+  const balance = wallet?.balance ?? 0;
+  const hasDebt = debt > 0;
+  const canWithdraw = balance > 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Balance card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Solde disponible</Text>
-        <Text style={styles.balanceValue}>{formatCFA(balance)}</Text>
-        <View style={styles.balanceActions}>
-          <Button
-            title="Recharger"
-            size="small"
-            onPress={() => setModalType('topup')}
-            style={styles.balanceBtn}
-          />
-          <Button
-            title="Retirer"
-            variant="outline"
-            size="small"
-            onPress={() => setModalType('withdraw')}
-            style={styles.balanceBtn}
-          />
-        </View>
-      </View>
-
-      {/* Transactions */}
-      <Text style={styles.sectionTitle}>Historique</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTransaction}
-        contentContainerStyle={styles.txList}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>Aucune transaction</Text>
+        data={txs}
+        keyExtractor={(t) => t.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      />
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.pageTitle}>Portefeuille</Text>
 
-      {/* Modal */}
-      <Modal visible={modalType !== null} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {modalType === 'topup' ? 'Recharger' : 'Retirer'}
-              </Text>
-              <TouchableOpacity onPress={() => { setModalType(null); setAmount(''); }}>
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
+            {/* Card principale : dette ou solde */}
+            {hasDebt ? (
+              <View style={[styles.balanceCard, styles.balanceCardDebt]}>
+                <View style={styles.balanceRow}>
+                  <View>
+                    <Text style={styles.balanceLabel}>
+                      À régler à la plateforme
+                    </Text>
+                    <Text style={styles.balanceValueDebt}>
+                      {formatCFA(debt)}
+                    </Text>
+                    <Text style={styles.balanceHint}>
+                      Commission des courses payées cash
+                    </Text>
+                  </View>
+                  <View style={styles.debtIconWrap}>
+                    <Ionicons
+                      name="alert-circle"
+                      size={32}
+                      color={colors.error}
+                    />
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() =>
+                    router.push(`/wallet-flow?mode=topup&amount=${debt}`)
+                  }
+                >
+                  <Ionicons name="wallet" size={18} color={colors.white} />
+                  <Text style={styles.primaryBtnText}>Régler maintenant</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.balanceCard}>
+                <View style={styles.balanceRow}>
+                  <View>
+                    <Text style={styles.balanceLabel}>Solde disponible</Text>
+                    <Text style={styles.balanceValue}>{formatCFA(balance)}</Text>
+                    <Text style={styles.balanceHint}>
+                      {canWithdraw
+                        ? 'Disponible pour retrait'
+                        : 'Effectuez des livraisons pour gagner'}
+                    </Text>
+                  </View>
+                  <View style={styles.walletIconWrap}>
+                    <Ionicons name="wallet" size={32} color={colors.primary} />
+                  </View>
+                </View>
+                {canWithdraw ? (
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={() => router.push('/wallet-flow?mode=withdraw')}
+                  >
+                    <Ionicons
+                      name="arrow-down-circle"
+                      size={18}
+                      color={colors.white}
+                    />
+                    <Text style={styles.primaryBtnText}>Retirer</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
+            {/* Stats rapides */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>
+                  {wallet?.totalDeliveries ?? 0}
+                </Text>
+                <Text style={styles.statLabel}>Livraisons</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>
+                  {hasDebt ? formatCFA(debt) : '—'}
+                </Text>
+                <Text style={styles.statLabel}>Dette cash</Text>
+              </View>
             </View>
 
-            <Input
-              label="Montant (FCFA)"
-              placeholder="5000"
-              keyboardType="number-pad"
-              value={amount}
-              onChangeText={setAmount}
-              containerStyle={styles.modalInput}
-            />
-
-            <Text style={styles.modalInfo}>
-              Via Orange Money
-            </Text>
-
-            <Button
-              title={modalType === 'topup' ? 'Recharger' : 'Retirer'}
-              onPress={handleAction}
-              loading={isLoading}
-              disabled={!amount}
-            />
+            <Text style={styles.historyTitle}>Historique</Text>
           </View>
-        </View>
-      </Modal>
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.empty}>
+              <Ionicons
+                name="receipt-outline"
+                size={40}
+                color={colors.textTertiary}
+              />
+              <Text style={styles.emptyText}>Aucune transaction</Text>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => <TransactionRow tx={item} />}
+        contentContainerStyle={styles.scroll}
+      />
     </SafeAreaView>
   );
 }
 
+function TransactionRow({ tx }: { tx: Transaction }) {
+  const isPositive = tx.amount > 0;
+  const iconByType: Record<Transaction['type'], keyof typeof Ionicons.glyphMap> = {
+    payment: 'cash-outline',
+    commission: 'bicycle-outline',
+    commission_debt: 'remove-circle-outline',
+    tip: 'gift-outline',
+    topup: 'arrow-up-circle-outline',
+    withdrawal: 'arrow-down-circle-outline',
+    withdrawal_fee: 'card-outline',
+    adjustment: 'construct-outline',
+  };
+  const statusBadge =
+    tx.status === 'pending'
+      ? { bg: colors.warningLight, color: colors.warning, label: 'En attente' }
+      : tx.status === 'failed'
+        ? { bg: colors.errorLight, color: colors.error, label: 'Échoué' }
+        : null;
+
+  return (
+    <View style={styles.txRow}>
+      <View
+        style={[
+          styles.txIcon,
+          {
+            backgroundColor: isPositive
+              ? colors.primaryLight
+              : colors.errorLight,
+          },
+        ]}
+      >
+        <Ionicons
+          name={iconByType[tx.type]}
+          size={18}
+          color={isPositive ? colors.primary : colors.error}
+        />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={styles.txTopRow}>
+          <Text style={styles.txLabel} numberOfLines={1}>
+            {TX_TYPE_LABEL[tx.type]}
+          </Text>
+          <Text
+            style={[
+              styles.txAmount,
+              { color: isPositive ? colors.primary : colors.error },
+            ]}
+          >
+            {isPositive ? '+' : ''}
+            {formatCFA(tx.amount)}
+          </Text>
+        </View>
+        <View style={styles.txBottomRow}>
+          <Text style={styles.txMeta} numberOfLines={1}>
+            {tx.delivery?.reference
+              ? `${tx.delivery.reference} · `
+              : tx.phoneNumber
+                ? `${formatPhoneForDisplay(tx.phoneNumber)} · `
+                : ''}
+            {formatDateTime(tx.createdAt)}
+          </Text>
+          {statusBadge ? (
+            <View style={[styles.badge, { backgroundColor: statusBadge.bg }]}>
+              <Text style={[styles.badgeText, { color: statusBadge.color }]}>
+                {statusBadge.label}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
+  pageTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   balanceCard: {
-    backgroundColor: colors.primary,
-    margin: spacing.lg,
-    borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  balanceCardDebt: {
+    backgroundColor: colors.errorLight,
+    borderColor: colors.error,
+  },
+  balanceRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
   balanceLabel: {
-    ...typography.captionMedium,
-    color: 'rgba(255,255,255,0.8)',
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   balanceValue: {
     ...typography.h1,
-    color: colors.white,
-    marginVertical: spacing.sm,
+    color: colors.textPrimary,
+    marginTop: spacing.xs,
   },
-  balanceActions: {
+  balanceValueDebt: {
+    ...typography.h1,
+    color: colors.error,
+    marginTop: spacing.xs,
+  },
+  balanceHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  walletIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  debtIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+  },
+  primaryBtnText: {
+    ...typography.button,
+    color: colors.white,
+  },
+  statsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  balanceBtn: {
+  statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderColor: 'rgba(255,255,255,0.5)',
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  sectionTitle: {
+  statValue: {
+    ...typography.h3,
+    color: colors.textPrimary,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  historyTitle: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
-    paddingHorizontal: spacing.lg,
+    fontWeight: '700',
     marginBottom: spacing.sm,
-  },
-  txList: {
-    paddingHorizontal: spacing.lg,
   },
   txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     gap: spacing.sm,
+    padding: spacing.sm + 2,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 6,
   },
   txIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  txInfo: {
-    flex: 1,
-  },
-  txType: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: '500',
-  },
-  txMethod: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  txRight: {
-    alignItems: 'flex-end',
-  },
-  txAmount: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-  },
-  txTime: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-  emptyText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingTop: spacing.xxl,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: colors.overlay,
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  modalHeader: {
+  txTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
   },
-  modalTitle: {
-    ...typography.h3,
+  txLabel: {
+    ...typography.bodyMedium,
     color: colors.textPrimary,
+    flex: 1,
+    minWidth: 0,
   },
-  modalInput: {
-    marginBottom: spacing.md,
+  txAmount: {
+    ...typography.bodyMedium,
+    fontWeight: '700',
   },
-  modalInfo: {
-    ...typography.bodySmall,
+  txBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: spacing.sm,
+  },
+  txMeta: {
+    ...typography.caption,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
+    flex: 1,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  badgeText: {
+    ...typography.caption,
+    fontWeight: '700',
+    fontSize: 10,
+  },
+  empty: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
   },
 });

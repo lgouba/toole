@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Map } from '@/components/map/Map';
-import { OnlineToggle, StatsCard } from '@/components/driver';
+import { OnlineToggle } from '@/components/driver';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDriverStore } from '@/stores/driver.store';
@@ -15,8 +15,6 @@ export default function DriverHomeScreen() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useDriverStore((s) => s.isOnline);
   const toggleOnline = useDriverStore((s) => s.toggleOnline);
-  const todayDeliveries = useDriverStore((s) => s.todayDeliveries);
-  const todayEarnings = useDriverStore((s) => s.todayEarnings);
   const currentLocation = useDriverStore((s) => s.currentLocation);
   const activeDelivery = useDriverStore((s) => s.activeDelivery);
 
@@ -96,6 +94,7 @@ export default function DriverHomeScreen() {
         interactive
         markers={mapMarkers}
         routeCoordinates={routeCoords}
+        fitToContent={!!activeDelivery}
       />
 
       {/* Overlay d'informations en haut */}
@@ -121,17 +120,6 @@ export default function DriverHomeScreen() {
             <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
           </View>
         )}
-      </SafeAreaView>
-
-      {/* Overlay stats en bas */}
-      <SafeAreaView edges={['bottom']} style={styles.bottomOverlay} pointerEvents="box-none">
-        <View style={styles.statsWrap}>
-          <StatsCard
-            deliveriesToday={todayDeliveries}
-            earningsToday={todayEarnings}
-            ratingAvg={user?.ratingAvg || 5}
-          />
-        </View>
       </SafeAreaView>
     </View>
   );
@@ -195,15 +183,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: '#a66908',
     marginTop: 2,
-  },
-  bottomOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  statsWrap: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
   },
 });

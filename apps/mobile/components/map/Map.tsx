@@ -21,6 +21,12 @@ interface MapProps {
   routeCoordinates?: [LatLng, LatLng];
   style?: ViewStyle;
   interactive?: boolean;
+  /**
+   * Si vrai, la carte ajuste automatiquement son zoom/position pour inclure
+   * tous les markers + la route (au lieu de se centrer sur `center`).
+   * Utilise quand on veut montrer tout le parcours du client.
+   */
+  fitToContent?: boolean;
 }
 
 /** Serialise uniquement la structure d'un marker (pas sa position precise). */
@@ -41,12 +47,14 @@ function buildHtml(
   markers: MapMarker[],
   route: [LatLng, LatLng] | null,
   interactive: boolean,
+  fitToContent: boolean,
 ): string {
   const markersJs = markers
     .map((m) => {
       if (m.icon === 'driver') {
-        // Livreur a moto : SVG anime avec rotation selon la direction
-        // + legere pulsation pour bien le reperer.
+        // Livreur a moto — vue de profil 3/4 style Deliveroo / UberEats.
+        // Personnage bien visible avec sac de livraison cube dans le dos.
+        // Flip horizontal selon la direction de deplacement.
         return `
           {
             const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
@@ -56,36 +64,132 @@ function buildHtml(
                   <div class="driver-marker-outer">
                     <div class="driver-marker-pulse"></div>
                     <div class="driver-marker-inner" data-id="${m.id}">
-                      <svg viewBox="0 0 48 48" width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Ombre sous la moto -->
-                        <ellipse cx="24" cy="42" rx="14" ry="3" fill="rgba(0,0,0,0.25)"/>
+                      <svg viewBox="0 0 100 100" width="92" height="92" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="bag-${m.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="${colors.primary}"/>
+                            <stop offset="100%" stop-color="${colors.primaryDark}"/>
+                          </linearGradient>
+                          <linearGradient id="skin-${m.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#c48b62"/>
+                            <stop offset="100%" stop-color="#a56b44"/>
+                          </linearGradient>
+                        </defs>
+
+                        <!-- Ombre portee sous la moto -->
+                        <ellipse cx="50" cy="92" rx="30" ry="3" fill="rgba(0,0,0,0.2)"/>
+
+                        <!-- ======= MOTO ======= -->
+
                         <!-- Roue arriere -->
-                        <circle cx="13" cy="34" r="5.5" fill="#1a1a1a"/>
-                        <circle cx="13" cy="34" r="2.2" fill="#666"/>
+                        <circle cx="22" cy="78" r="12" fill="#1a1a1a"/>
+                        <circle cx="22" cy="78" r="7" fill="#3a3a3a"/>
+                        <circle cx="22" cy="78" r="3" fill="#1a1a1a"/>
+                        <!-- Rayons -->
+                        <line x1="22" y1="71" x2="22" y2="85" stroke="#666" stroke-width="1"/>
+                        <line x1="15" y1="78" x2="29" y2="78" stroke="#666" stroke-width="1"/>
+
                         <!-- Roue avant -->
-                        <circle cx="35" cy="34" r="5.5" fill="#1a1a1a"/>
-                        <circle cx="35" cy="34" r="2.2" fill="#666"/>
-                        <!-- Corps de la moto -->
-                        <path d="M13 34 L19 26 L29 26 L35 34" stroke="${colors.primary}" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                        <!-- Reservoir / selle -->
-                        <rect x="17" y="23" width="14" height="5" rx="2.5" fill="${colors.primary}"/>
+                        <circle cx="78" cy="78" r="12" fill="#1a1a1a"/>
+                        <circle cx="78" cy="78" r="7" fill="#3a3a3a"/>
+                        <circle cx="78" cy="78" r="3" fill="#1a1a1a"/>
+                        <line x1="78" y1="71" x2="78" y2="85" stroke="#666" stroke-width="1"/>
+                        <line x1="71" y1="78" x2="85" y2="78" stroke="#666" stroke-width="1"/>
+
+                        <!-- Chassis / cadre rouge (scooter style) -->
+                        <path d="M 22 78 Q 35 60 50 58 Q 65 58 78 78"
+                              fill="none"
+                              stroke="${colors.secondary}"
+                              stroke-width="6"
+                              stroke-linecap="round"/>
+
+                        <!-- Carenage avant -->
+                        <path d="M 70 55 L 85 50 L 88 72 L 72 72 Z"
+                              fill="${colors.secondary}"
+                              stroke="#8a3a1f"
+                              stroke-width="1"/>
+
+                        <!-- Phare avant -->
+                        <ellipse cx="84" cy="58" rx="3" ry="2.5" fill="#ffe680" stroke="#333" stroke-width="0.8"/>
+
                         <!-- Guidon -->
-                        <path d="M32 26 L35 21" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
-                        <!-- Corps du livreur -->
-                        <rect x="19" y="13" width="10" height="13" rx="5" fill="${colors.secondary}"/>
-                        <!-- Tete / casque -->
-                        <circle cx="24" cy="9" r="5.5" fill="#2a2a2a"/>
-                        <!-- Visiere -->
-                        <path d="M19 8.5 L29 8.5" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
-                        <!-- Sac de livraison dans le dos -->
-                        <rect x="15" y="15" width="6" height="9" rx="1.5" fill="#fff" stroke="${colors.primary}" stroke-width="1.2"/>
-                        <rect x="16.5" y="18.5" width="3" height="2" rx="0.3" fill="${colors.primary}"/>
+                        <path d="M 70 55 L 64 38" stroke="#333" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="63" cy="37" r="2.5" fill="#1a1a1a"/>
+
+                        <!-- Selle -->
+                        <path d="M 38 58 L 52 56 L 52 62 L 38 64 Z" fill="#1a1a1a"/>
+
+                        <!-- ======= LIVREUR ======= -->
+
+                        <!-- Jambes (pantalon sombre) -->
+                        <path d="M 45 60 L 42 72 L 47 74 L 50 62 Z" fill="#2a3a55"/>
+                        <path d="M 50 58 L 55 68 L 60 66 L 56 56 Z" fill="#2a3a55"/>
+
+                        <!-- Bras qui tient le guidon -->
+                        <path d="M 52 42 Q 58 38 63 37" stroke="#d4a075" stroke-width="6" stroke-linecap="round" fill="none"/>
+                        <path d="M 52 42 Q 58 38 63 37" stroke="#4a7bc8" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.95"/>
+
+                        <!-- Torse (veste bleue) -->
+                        <path d="M 40 58 Q 38 45 44 38 L 58 38 Q 64 46 62 58 L 58 60 L 44 60 Z"
+                              fill="#4a7bc8"
+                              stroke="#2d4e7a"
+                              stroke-width="1"/>
+
+                        <!-- Col de veste (contour clair) -->
+                        <path d="M 44 38 L 48 42 L 54 42 L 58 38"
+                              fill="none"
+                              stroke="#8bb4ea"
+                              stroke-width="1"/>
+
+                        <!-- Cou -->
+                        <rect x="47" y="34" width="8" height="6" rx="1" fill="url(#skin-${m.id})"/>
+
+                        <!-- Tete -->
+                        <circle cx="51" cy="28" r="9" fill="url(#skin-${m.id})"/>
+
+                        <!-- CASQUE (par dessus la tete) -->
+                        <path d="M 41 28 Q 41 16 51 15 Q 61 16 61 28 L 61 32 L 58 32 L 58 28 Q 58 20 51 20 Q 44 20 44 28 L 44 32 L 41 32 Z"
+                              fill="#dd3333"
+                              stroke="#8a1d1d"
+                              stroke-width="0.8"/>
+
+                        <!-- Bande blanche decorative sur le casque -->
+                        <path d="M 42 22 Q 51 20 60 22"
+                              stroke="#fff"
+                              stroke-width="1.5"
+                              fill="none"/>
+
+                        <!-- Visiere (plastique transparent bleute) -->
+                        <path d="M 43 26 Q 51 24 59 26 L 59 31 Q 51 30 43 31 Z"
+                              fill="#5ab8ff"
+                              opacity="0.85"
+                              stroke="#2d5f8a"
+                              stroke-width="0.8"/>
+
+                        <!-- Reflet sur la visiere -->
+                        <path d="M 45 26 L 48 28" stroke="#fff" stroke-width="1" opacity="0.9"/>
+
+                        <!-- ======= SAC DE LIVRAISON DANS LE DOS ======= -->
+                        <!-- Sac cube style Deliveroo, bien visible derriere -->
+                        <rect x="26" y="38" width="20" height="22" rx="2"
+                              fill="url(#bag-${m.id})"
+                              stroke="#0a3d2a"
+                              stroke-width="1"/>
+                        <!-- Ombre du sac sur le corps -->
+                        <rect x="28" y="40" width="16" height="18" rx="1" fill="rgba(0,0,0,0.08)"/>
+                        <!-- Logo sur le sac (cercle simple) -->
+                        <circle cx="36" cy="49" r="4" fill="#fff"/>
+                        <circle cx="36" cy="49" r="2.5" fill="${colors.primary}"/>
+                        <!-- Sangle sur l'epaule -->
+                        <path d="M 44 38 L 48 34 L 52 34 L 48 38"
+                              fill="#0a3d2a"
+                              opacity="0.7"/>
                       </svg>
                     </div>
                   </div>
                 \`,
-                iconSize: [88, 88],
-                iconAnchor: [44, 44],
+                iconSize: [104, 104],
+                iconAnchor: [52, 52],
               }),
             }).addTo(map);
             ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
@@ -151,38 +255,40 @@ function buildHtml(
     body { background: #F5F5F0; }
     .custom-marker { transition: transform 0.4s linear; }
 
-    /* Livreur motard anime */
+    /* Livreur motard anime - design UberEats/Deliveroo */
     .driver-marker-outer {
       position: relative;
-      width: 88px;
-      height: 88px;
+      width: 104px;
+      height: 104px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
+    /* Halo pulsant discret sous le personnage */
     .driver-marker-pulse {
       position: absolute;
-      inset: 8px;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 20px;
       border-radius: 50%;
       background: ${colors.primary};
-      opacity: 0.3;
-      animation: driver-pulse 2s ease-out infinite;
+      opacity: 0.25;
+      animation: driver-pulse-ground 2s ease-out infinite;
     }
     .driver-marker-inner {
       position: relative;
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      background: white;
+      width: 96px;
+      height: 96px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-      border: 3px solid ${colors.primary};
-      /* Transition douce pour la rotation */
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-      /* Rotation initiale neutre */
-      transform: rotate(0deg);
+      /* Pas de fond rond : le SVG a son propre design complet */
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+      /* Transition douce pour le flip horizontal selon la direction */
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: scaleX(1);
     }
     /* Petit bounce quand la moto bouge (simule les vibrations) */
     .driver-marker-inner.moving {
@@ -192,9 +298,14 @@ function buildHtml(
       0% { transform: scale(1); opacity: 0.4; }
       100% { transform: scale(1.6); opacity: 0; }
     }
+    /* Halo elliptique au sol qui pulse */
+    @keyframes driver-pulse-ground {
+      0% { transform: translateX(-50%) scale(0.6); opacity: 0.4; }
+      100% { transform: translateX(-50%) scale(1.4); opacity: 0; }
+    }
     @keyframes driver-bounce {
       0%, 100% { translate: 0 0; }
-      50% { translate: 0 -2px; }
+      50% { translate: 0 -3px; }
     }
   </style>
 </head>
@@ -237,8 +348,9 @@ function buildHtml(
         var m = window._markers[id];
         if (!m) return;
 
-        // Si c'est le livreur, on calcule l'angle de deplacement
-        // et on oriente le SVG dans cette direction
+        // Si c'est le livreur, on flip horizontalement le SVG selon la
+        // direction (livreur face a droite = vers l'Est, flip = vers l'Ouest).
+        // Le SVG est dessine vue de profil oriente a droite par defaut.
         var prev = window._prevPositions && window._prevPositions[id];
         if (prev && (Math.abs(prev.lat - lat) > 1e-6 || Math.abs(prev.lng - lng) > 1e-6)) {
           var bearing = computeBearing(prev.lat, prev.lng, lat, lng);
@@ -246,10 +358,11 @@ function buildHtml(
           if (el) {
             var inner = el.querySelector('.driver-marker-inner');
             if (inner) {
-              // Le SVG est dessine "vers le haut" par defaut (Nord).
-              // bearing 0 = Nord, 90 = Est. Pour Leaflet, CSS rotate tourne dans le sens des aiguilles.
-              inner.style.transform = 'rotate(' + bearing + 'deg)';
-              // Anime un petit rebond le temps du deplacement
+              // bearing 0-180 = va vers l'Est (droite) -> pas de flip
+              // bearing 180-360 = va vers l'Ouest (gauche) -> flip horizontal
+              var goingWest = bearing > 180 && bearing < 360;
+              inner.style.transform = goingWest ? 'scaleX(-1)' : 'scaleX(1)';
+              // Petit rebond vertical pour simuler les vibrations
               inner.classList.add('moving');
               setTimeout(function() { inner.classList.remove('moving'); }, 400);
             }
@@ -278,6 +391,30 @@ function buildHtml(
     ${markersJs}
     ${routeJs}
     ${interactive ? clickJs : ''}
+
+    ${
+      fitToContent && (markers.length > 0 || route)
+        ? `
+      // Ajuste la vue pour englober tous les markers + la route
+      var _points = [${[
+        ...markers.map(
+          (m) => `[${m.coordinate.latitude}, ${m.coordinate.longitude}]`,
+        ),
+        ...(route
+          ? [
+              `[${route[0].latitude}, ${route[0].longitude}]`,
+              `[${route[1].latitude}, ${route[1].longitude}]`,
+            ]
+          : []),
+      ].join(', ')}];
+      if (_points.length >= 2) {
+        try {
+          map.fitBounds(_points, { padding: [60, 60], maxZoom: 16 });
+        } catch (e) {}
+      }
+    `
+        : ''
+    }
   </script>
 </body>
 </html>
@@ -292,6 +429,7 @@ export function Map({
   routeCoordinates,
   style,
   interactive = true,
+  fitToContent = false,
 }: MapProps) {
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
@@ -306,9 +444,17 @@ export function Map({
   );
 
   const html = useMemo(
-    () => buildHtml(center, zoom, markers, routeCoordinates || null, interactive),
+    () =>
+      buildHtml(
+        center,
+        zoom,
+        markers,
+        routeCoordinates || null,
+        interactive,
+        fitToContent,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [center.latitude, center.longitude, zoom, structureKey, interactive],
+    [center.latitude, center.longitude, zoom, structureKey, interactive, fitToContent],
   );
 
   // Detecte les changements de coordonnees de markers et injecte des updates.

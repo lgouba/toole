@@ -397,6 +397,127 @@ export async function getDriverLocationHistory(
   };
 }
 
+// ---------- Wallet / transactions ----------
+
+export async function listPendingPayouts(params: {
+  type?: 'withdrawal' | 'topup';
+  take?: number;
+  skip?: number;
+} = {}) {
+  const where: Prisma.TransactionWhereInput = {
+    status: 'pending',
+  };
+  if (params.type) where.type = params.type;
+
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: params.take ?? 50,
+      skip: params.skip ?? 0,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            userType: true,
+          },
+        },
+      },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return { items, total };
+}
+
+export async function listAllTransactions(params: {
+  userId?: string;
+  type?: string;
+  status?: string;
+  take?: number;
+  skip?: number;
+} = {}) {
+  const where: Prisma.TransactionWhereInput = {};
+  if (params.userId) where.userId = params.userId;
+  if (params.type) where.type = params.type as any;
+  if (params.status) where.status = params.status as any;
+
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: params.take ?? 50,
+      skip: params.skip ?? 0,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            userType: true,
+          },
+        },
+      },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return { items, total };
+}
+
+/**
+ * Validation admin d'un topup (livreur a verse sa dette via Mobile Money).
+ * Credit le walletBalance du livreur (reduit sa dette).
+ */
+export async function confirmTopup(args: {
+  transactionId: string;
+  adminId: string;
+  note?: string;
+}) {
+  const tx = await prisma.transaction.findUnique({
+    where: { id: args.transactionId },
+  });
+  if (!tx) throw new HttpError(404, 'NOT_FOUND', 'Transaction introuvable');
+  if (tx.type !== 'topup') {
+    throw new HttpError(400, 'INVALID_TYPE', 'Cette transaction n\'est pas un topup');
+  }
+  if (tx.status !== 'pending') {
+    throw new HttpError(400, 'INVALID_STATE', 'Cette transaction est deja traitee');
+  }
+
+  return prisma.$transaction(async (trx) => {
+    await trx.driverProfile.update({
+      where: { userId: tx.userId },
+      data: { walletBalance: { increment: tx.amount } },
+    });
+    return trx.transaction.update({
+      where: { id: tx.id },
+      data: {
+        status: 'completed',
+        processedBy: args.adminId,
+        processedAt: new Date(),
+        note: args.note ?? 'Paiement confirme',
+      },
+    });
+  });
+}
+
+export async function rejectTopup(args: {
+  transactionId: string;
+  adminId: string;
+  note?: string;
+}) {
+  return prisma.transaction.update({
+    where: { id: args.transactionId },
+    data: {
+      status: 'failed',
+      processedBy: args.adminId,
+      processedAt: new Date(),
+      note: args.note ?? 'Rejete par admin (paiement non recu)',
+    },
+  });
+}
+
 export async function setUserActive(
   userId: string,
   isActive: boolean,

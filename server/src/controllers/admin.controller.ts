@@ -215,6 +215,8 @@ const settingsUpdateSchema = z.object({
   driverCancelCooldownSeconds: z.number().int().min(0).max(1800).optional(),
   nearbyRadiusKm: z.number().int().min(1).max(50).optional(),
   driverHeartbeatMaxAgeSeconds: z.number().int().min(30).max(600).optional(),
+  minWithdrawAmount: z.number().int().min(0).max(1000000).optional(),
+  commissionDebtLimit: z.number().int().min(0).max(10000000).optional(),
 });
 
 export async function getSettingsCtrl(
@@ -239,6 +241,150 @@ export async function updateSettingsCtrl(
     const body = settingsUpdateSchema.parse(req.body);
     const settings = await settingsService.updateAppSettings(body, req.user!.id);
     return success(res, settings);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---------- Wallet / Transactions ----------
+
+import * as walletService from '../services/wallet.service.js';
+
+const listTxSchema = z.object({
+  userId: z.string().uuid().optional(),
+  type: z.string().optional(),
+  status: z.string().optional(),
+  take: z.coerce.number().min(1).max(200).optional(),
+  skip: z.coerce.number().min(0).optional(),
+});
+
+export async function listTransactionsCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const q = listTxSchema.parse(req.query);
+    const result = await adminService.listAllTransactions(q);
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listPendingPayoutsCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const type = (req.query.type === 'topup' || req.query.type === 'withdrawal')
+      ? (req.query.type as 'topup' | 'withdrawal')
+      : undefined;
+    const result = await adminService.listPendingPayouts({ type });
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const decisionSchema = z.object({
+  note: z.string().max(500).optional(),
+});
+
+export async function markWithdrawalPaidCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = decisionSchema.parse(req.body ?? {});
+    const tx = await walletService.processWithdrawal({
+      transactionId: req.params.id,
+      adminId: req.user!.id,
+      decision: 'complete',
+      note: body.note,
+    });
+    return success(res, tx);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectWithdrawalCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = decisionSchema.parse(req.body ?? {});
+    const tx = await walletService.processWithdrawal({
+      transactionId: req.params.id,
+      adminId: req.user!.id,
+      decision: 'reject',
+      note: body.note,
+    });
+    return success(res, tx);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function confirmTopupCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = decisionSchema.parse(req.body ?? {});
+    const tx = await adminService.confirmTopup({
+      transactionId: req.params.id,
+      adminId: req.user!.id,
+      note: body.note,
+    });
+    return success(res, tx);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rejectTopupCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = decisionSchema.parse(req.body ?? {});
+    const tx = await adminService.rejectTopup({
+      transactionId: req.params.id,
+      adminId: req.user!.id,
+      note: body.note,
+    });
+    return success(res, tx);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const adjustSchema = z.object({
+  amount: z.number().int(),
+  note: z.string().min(1).max(500),
+});
+
+export async function adjustWalletCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = adjustSchema.parse(req.body);
+    const tx = await walletService.adminAdjustWallet({
+      driverUserId: req.params.id,
+      adminId: req.user!.id,
+      amount: body.amount,
+      note: body.note,
+    });
+    return success(res, tx);
   } catch (err) {
     next(err);
   }

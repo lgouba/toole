@@ -51,6 +51,13 @@ function Icon({ name }: { name: string }) {
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </>
     ),
+    money: (
+      <>
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="2.5" />
+        <path d="M6 10v.01M18 14v.01" />
+      </>
+    ),
     settings: (
       <>
         <circle cx="12" cy="12" r="3" />
@@ -219,6 +226,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <Icon name="box" />
             </span>
             <span>Livraisons</span>
+          </NavLink>
+          <NavLink
+            to="/transactions"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Icon name="money" />
+            </span>
+            <span>Transactions</span>
           </NavLink>
 
           <div className="nav-section">Configuration</div>

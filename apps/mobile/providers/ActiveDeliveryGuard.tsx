@@ -88,6 +88,8 @@ export function ActiveDeliveryGuard() {
         // Ecran nouvelle demande : la course n'est pas encore accepted en DB,
         // mais l'utilisateur est en train de decider
         'new-request',
+        // Flow portefeuille (retrait/topup)
+        'wallet-flow',
       ];
       if (protectedFlows.some((p) => currentPath.includes(p))) {
         console.log('[Guard] in protected flow, not redirecting');

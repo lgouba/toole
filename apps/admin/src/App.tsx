@@ -11,6 +11,7 @@ import Deliveries from './pages/Deliveries';
 import DeliveryDetail from './pages/DeliveryDetail';
 import DriverTracking from './pages/DriverTracking';
 import Settings from './pages/Settings';
+import Transactions from './pages/Transactions';
 import NotificationProvider from './components/NotificationProvider';
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/users/:id" element={<UserDetail />} />
           <Route path="/drivers/:id/tracking" element={<DriverTracking />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/transactions" element={<Transactions />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/deliveries/:id" element={<DeliveryDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />

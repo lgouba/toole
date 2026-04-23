@@ -125,21 +125,13 @@ export default function ActiveDeliveryScreen() {
     fallback,
   );
 
-  // Adapte la route affichee selon la phase de la course :
-  //  - livreur vers pickup (avant ramassage) : driver -> pickup
-  //  - livreur vers delivery (apres ramassage) : driver -> delivery
-  //  - sans position livreur : pickup -> delivery (fallback)
+  // Toujours afficher le trajet complet pickup -> delivery. Le livreur
+  // apparait en plus sur la carte a sa position courante et se deplace
+  // le long (en principe) de ce trajet.
   const routeCoords = useMemo<[LatLng, LatLng] | undefined>(() => {
     if (!delivery) return undefined;
-    const pickedUp =
-      delivery.status === 'picked_up' || delivery.status === 'delivering';
-    if (driverPos) {
-      return pickedUp
-        ? [driverPos, delivery.deliveryLocation]
-        : [driverPos, delivery.pickupLocation];
-    }
     return [delivery.pickupLocation, delivery.deliveryLocation];
-  }, [driverPos, delivery?.status, delivery?.pickupLocation, delivery?.deliveryLocation]);
+  }, [delivery?.pickupLocation, delivery?.deliveryLocation]);
 
   // Marqueurs : toujours afficher pickup + delivery + (livreur si connu)
   const mapMarkers = useMemo(() => {
@@ -183,6 +175,7 @@ export default function ActiveDeliveryScreen() {
         zoom={14}
         markers={mapMarkers}
         routeCoordinates={routeCoords}
+        fitToContent
       />
 
       {/* Back button */}

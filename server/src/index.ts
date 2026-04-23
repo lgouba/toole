@@ -17,6 +17,7 @@ import deliveriesRoutes from './routes/deliveries.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket/index.js';
@@ -79,6 +80,7 @@ app.use('/api/deliveries', deliveriesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // 404 + error handling
 app.use(notFoundHandler);
