@@ -20,33 +20,27 @@ import { getAppSettings } from './settings.service.js';
  * le livreur doit rembourser a la plateforme s'il fait beaucoup de courses cash.
  */
 
-/** Calcule la dette commission cash totale d'un livreur (positif = il doit a la plateforme) */
-export async function getDriverCommissionDebt(userId: string): Promise<number> {
-  const agg = await prisma.transaction.aggregate({
-    where: {
-      userId,
-      type: 'commission_debt',
-      status: 'completed',
-    },
-    _sum: { amount: true },
-  });
-  // amount est negatif pour un debit. Dette = valeur absolue.
-  return Math.abs(agg._sum.amount ?? 0);
-}
-
-/** Recupere le solde wallet + la dette d'un livreur */
+/**
+ * Recupere le solde wallet + la dette d'un livreur.
+ *
+ * La dette est deduite directement du walletBalance (source unique de verite) :
+ *   - walletBalance > 0 -> solde disponible pour retrait, dette = 0
+ *   - walletBalance < 0 -> dette = -walletBalance, balance = 0
+ *
+ * Chaque operation (commission_debt, topup, withdrawal, adjustment) a deja
+ * modifie walletBalance au moment de sa validation, donc on s'appuie dessus.
+ */
 export async function getWalletSnapshot(userId: string) {
-  const [profile, debt] = await Promise.all([
-    prisma.driverProfile.findUnique({
-      where: { userId },
-      select: { walletBalance: true, totalDeliveries: true },
-    }),
-    getDriverCommissionDebt(userId),
-  ]);
+  const profile = await prisma.driverProfile.findUnique({
+    where: { userId },
+    select: { walletBalance: true, totalDeliveries: true },
+  });
   if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
+
+  const raw = profile.walletBalance;
   return {
-    balance: profile.walletBalance,
-    commissionDebt: debt,
+    balance: Math.max(0, raw),
+    commissionDebt: Math.max(0, -raw),
     totalDeliveries: profile.totalDeliveries,
   };
 }

@@ -41,10 +41,14 @@ export default function WalletFlowScreen() {
   const params = useLocalSearchParams<{ mode?: string; amount?: string }>();
   const mode: Mode = params.mode === 'topup' ? 'topup' : 'withdraw';
   const initialAmount = params.amount ? String(params.amount) : '';
+  // Pour un règlement de dette, le montant est impose (= dette totale).
+  // Le livreur ne peut pas payer partiellement : il a deja encaisse le cash.
+  const amountLocked = mode === 'topup' && !!initialAmount;
 
   const user = useAuthStore((s) => s.user);
 
-  const [step, setStep] = useState<Step>('amount');
+  // Si montant verrouille, on saute directement a l'etape 2 (phone)
+  const [step, setStep] = useState<Step>(amountLocked ? 'phone' : 'amount');
   const [amount, setAmount] = useState(initialAmount);
   const [operator, setOperator] = useState<'orange_money' | 'moov_money' | null>(
     null,
@@ -155,7 +159,7 @@ export default function WalletFlowScreen() {
   const handleBack = () => {
     setError('');
     if (step === 'otp') return setStep('phone');
-    if (step === 'phone') return setStep('amount');
+    if (step === 'phone' && !amountLocked) return setStep('amount');
     router.back();
   };
 
@@ -177,8 +181,15 @@ export default function WalletFlowScreen() {
           style={[
             styles.progressFill,
             {
-              width:
-                step === 'amount' ? '33%' : step === 'phone' ? '66%' : '100%',
+              width: amountLocked
+                ? step === 'phone'
+                  ? '50%'
+                  : '100%'
+                : step === 'amount'
+                  ? '33%'
+                  : step === 'phone'
+                    ? '66%'
+                    : '100%',
             },
           ]}
         />
@@ -196,25 +207,41 @@ export default function WalletFlowScreen() {
           {step === 'amount' && (
             <>
               <Text style={styles.stepTitle}>
-                {mode === 'withdraw' ? 'Combien voulez-vous retirer ?' : 'Combien voulez-vous régler ?'}
+                {mode === 'withdraw'
+                  ? 'Combien voulez-vous retirer ?'
+                  : 'Combien voulez-vous régler ?'}
               </Text>
-              <View style={styles.amountBox}>
+              <Text style={styles.stepHint}>Entrez le montant en FCFA</Text>
+
+              <View style={styles.amountContainer}>
                 <TextInput
                   style={styles.amountInput}
                   placeholder="0"
                   placeholderTextColor={colors.textTertiary}
                   keyboardType="number-pad"
                   value={amount}
-                  onChangeText={(t) => setAmount(t.replace(/\D/g, ''))}
+                  onChangeText={(t) => setAmount(t.replace(/\D/g, '').slice(0, 10))}
                   autoFocus
+                  textAlign="center"
                 />
-                <Text style={styles.amountUnit}>FCFA</Text>
+                <Text style={styles.amountCurrency}>FCFA</Text>
               </View>
-              {amount && amountValid ? (
-                <Text style={styles.amountPreview}>
-                  {formatCFA(parseInt(amount, 10))}
-                </Text>
-              ) : null}
+
+              {/* Suggestions de montants rapides */}
+              <View style={styles.quickAmountsRow}>
+                {[1000, 2000, 5000, 10000].map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={styles.quickAmountChip}
+                    onPress={() => setAmount(String(v))}
+                  >
+                    <Text style={styles.quickAmountText}>
+                      {formatCFA(v)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </>
           )}
@@ -222,6 +249,21 @@ export default function WalletFlowScreen() {
           {/* Étape 2 : opérateur + numéro */}
           {step === 'phone' && (
             <>
+              {amountLocked ? (
+                <View style={styles.lockedAmountCard}>
+                  <Text style={styles.lockedAmountLabel}>
+                    Montant à régler
+                  </Text>
+                  <Text style={styles.lockedAmountValue}>
+                    {formatCFA(parseInt(amount, 10))}
+                  </Text>
+                  <Text style={styles.lockedAmountHint}>
+                    Correspond à la totalité de votre dette commission. Vous ne
+                    pouvez pas régler partiellement.
+                  </Text>
+                </View>
+              ) : null}
+
               <Text style={styles.stepTitle}>Compte Mobile Money</Text>
               <Text style={styles.stepHint}>
                 {mode === 'withdraw'
@@ -399,30 +441,80 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: spacing.xs,
   },
-  amountBox: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.md,
+  amountContainer: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   amountInput: {
-    ...typography.h1,
-    fontSize: 56,
+    fontSize: 64,
+    fontWeight: '800',
     color: colors.textPrimary,
-    minWidth: 100,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+    // Largeur auto : l'input s'elargit selon la saisie
+    minWidth: 80,
+    maxWidth: '100%',
     textAlign: 'center',
-    padding: 0,
+    // Pas de border pour un effet "display" plutot que input
+    borderWidth: 0,
   },
-  amountUnit: {
-    ...typography.h3,
+  amountCurrency: {
+    ...typography.body,
     color: colors.textSecondary,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginTop: 4,
   },
-  amountPreview: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
+  quickAmountsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  quickAmountChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickAmountText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  lockedAmountCard: {
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.errorLight,
+    borderWidth: 1,
+    borderColor: colors.error,
+    alignItems: 'center',
+  },
+  lockedAmountLabel: {
+    ...typography.caption,
+    color: colors.error,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  lockedAmountValue: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: colors.error,
+    marginTop: spacing.xs,
+  },
+  lockedAmountHint: {
+    ...typography.caption,
+    color: '#8a3a1f',
     textAlign: 'center',
+    marginTop: spacing.xs,
+    lineHeight: 18,
   },
   operatorsRow: {
     flexDirection: 'row',
