@@ -44,15 +44,64 @@ function buildHtml(
 ): string {
   const markersJs = markers
     .map((m) => {
+      if (m.icon === 'driver') {
+        // Livreur a moto : SVG anime avec rotation selon la direction
+        // + legere pulsation pour bien le reperer.
+        return `
+          {
+            const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
+              icon: L.divIcon({
+                className: 'driver-marker',
+                html: \`
+                  <div class="driver-marker-outer">
+                    <div class="driver-marker-pulse"></div>
+                    <div class="driver-marker-inner" data-id="${m.id}">
+                      <svg viewBox="0 0 48 48" width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Ombre sous la moto -->
+                        <ellipse cx="24" cy="42" rx="14" ry="3" fill="rgba(0,0,0,0.2)"/>
+                        <!-- Roue arriere -->
+                        <circle cx="13" cy="34" r="5" fill="#1a1a1a"/>
+                        <circle cx="13" cy="34" r="2" fill="#444"/>
+                        <!-- Roue avant -->
+                        <circle cx="35" cy="34" r="5" fill="#1a1a1a"/>
+                        <circle cx="35" cy="34" r="2" fill="#444"/>
+                        <!-- Corps de la moto -->
+                        <path d="M13 34 L19 26 L29 26 L35 34" stroke="${colors.primary}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Reservoir / selle -->
+                        <rect x="18" y="24" width="12" height="4" rx="2" fill="${colors.primary}"/>
+                        <!-- Guidon -->
+                        <path d="M32 26 L34 22" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+                        <!-- Corps du livreur -->
+                        <rect x="20" y="14" width="8" height="12" rx="4" fill="${colors.secondary}"/>
+                        <!-- Tete / casque -->
+                        <circle cx="24" cy="10" r="5" fill="#2a2a2a"/>
+                        <!-- Visiere -->
+                        <path d="M20 9 L28 9" stroke="#4a9eff" stroke-width="2" stroke-linecap="round"/>
+                        <!-- Sac de livraison dans le dos -->
+                        <rect x="17" y="16" width="5" height="7" rx="1" fill="#fff" stroke="${colors.primary}" stroke-width="1"/>
+                      </svg>
+                    </div>
+                  </div>
+                \`,
+                iconSize: [56, 56],
+                iconAnchor: [28, 28],
+              }),
+            }).addTo(map);
+            ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
+            window._markers[${JSON.stringify(m.id)}] = marker;
+            // Memorise la position precedente pour calculer le bearing au prochain update
+            window._prevPositions = window._prevPositions || {};
+            window._prevPositions[${JSON.stringify(m.id)}] = { lat: ${m.coordinate.latitude}, lng: ${m.coordinate.longitude} };
+          }
+        `;
+      }
       const col = m.color || colors.primary;
       const emoji =
         m.icon === 'pickup'
           ? '🟢'
           : m.icon === 'delivery'
             ? '🔴'
-            : m.icon === 'driver'
-              ? '🛵'
-              : '📍';
+            : '📍';
       return `
         {
           const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
@@ -100,6 +149,52 @@ function buildHtml(
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body { background: #F5F5F0; }
     .custom-marker { transition: transform 0.4s linear; }
+
+    /* Livreur motard anime */
+    .driver-marker-outer {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .driver-marker-pulse {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: ${colors.primary};
+      opacity: 0.3;
+      animation: driver-pulse 2s ease-out infinite;
+    }
+    .driver-marker-inner {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      border: 2px solid ${colors.primary};
+      /* Transition douce pour la rotation */
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      /* Rotation initiale neutre */
+      transform: rotate(0deg);
+    }
+    /* Petit bounce quand la moto bouge (simule les vibrations) */
+    .driver-marker-inner.moving {
+      animation: driver-bounce 0.4s ease-in-out;
+    }
+    @keyframes driver-pulse {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    @keyframes driver-bounce {
+      0%, 100% { translate: 0 0; }
+      50% { translate: 0 -2px; }
+    }
   </style>
 </head>
 <body>
@@ -108,6 +203,7 @@ function buildHtml(
   <script>
     window._markers = {};
     window._route = null;
+    window._prevPositions = {};
     const map = L.map('map', {
       zoomControl: ${interactive ? 'true' : 'false'},
       dragging: ${interactive ? 'true' : 'false'},
@@ -121,11 +217,45 @@ function buildHtml(
       maxZoom: 19
     }).addTo(map);
 
+    // Calcule le bearing (angle en degres) entre deux points GPS.
+    // 0 = Nord, 90 = Est, 180 = Sud, 270 = Ouest.
+    function computeBearing(lat1, lng1, lat2, lng2) {
+      var toRad = function(d) { return d * Math.PI / 180; };
+      var toDeg = function(r) { return r * 180 / Math.PI; };
+      var dLng = toRad(lng2 - lng1);
+      var y = Math.sin(dLng) * Math.cos(toRad(lat2));
+      var x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2))
+            - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+      var brng = toDeg(Math.atan2(y, x));
+      return (brng + 360) % 360;
+    }
+
     // API exposee a React Native pour mettre a jour sans rebuild.
     window.updateMarker = function(id, lat, lng) {
       try {
         var m = window._markers[id];
         if (!m) return;
+
+        // Si c'est le livreur, on calcule l'angle de deplacement
+        // et on oriente le SVG dans cette direction
+        var prev = window._prevPositions && window._prevPositions[id];
+        if (prev && (Math.abs(prev.lat - lat) > 1e-6 || Math.abs(prev.lng - lng) > 1e-6)) {
+          var bearing = computeBearing(prev.lat, prev.lng, lat, lng);
+          var el = m.getElement();
+          if (el) {
+            var inner = el.querySelector('.driver-marker-inner');
+            if (inner) {
+              // Le SVG est dessine "vers le haut" par defaut (Nord).
+              // bearing 0 = Nord, 90 = Est. Pour Leaflet, CSS rotate tourne dans le sens des aiguilles.
+              inner.style.transform = 'rotate(' + bearing + 'deg)';
+              // Anime un petit rebond le temps du deplacement
+              inner.classList.add('moving');
+              setTimeout(function() { inner.classList.remove('moving'); }, 400);
+            }
+          }
+          window._prevPositions[id] = { lat: lat, lng: lng };
+        }
+
         m.setLatLng([lat, lng]);
       } catch (e) {}
     };
