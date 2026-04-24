@@ -107,6 +107,18 @@ export default function DriverTracking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Ecoute les clics sur les marqueurs de la carte (iframe) pour synchroniser
+  // la sélection et déclencher le reverse geocoding.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (!e.data || e.data.type !== 'marker-click') return;
+      const log = data?.logs.find((l) => l.id === e.data.id);
+      if (log) setSelectedLog(log);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [data]);
+
   // Reverse geocoding quand un log est sélectionné (si pas déjà en cache)
   useEffect(() => {
     if (!selectedLog) return;
@@ -359,6 +371,12 @@ function buildMapHtml(logs: LocationLog[]): string {
             fillOpacity: 0.9,
           }).addTo(map);
           m.bindPopup(${JSON.stringify(popup)});
+          m.on('click', function() {
+            window.parent && window.parent.postMessage({
+              type: 'marker-click',
+              id: ${JSON.stringify(l.id)},
+            }, '*');
+          });
           window._markers[${JSON.stringify(l.id)}] = m;
         }
       `;
