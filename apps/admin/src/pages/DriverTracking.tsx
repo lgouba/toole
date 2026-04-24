@@ -56,21 +56,19 @@ function addrKey(lat: number, lng: number): string {
 
 /** Reverse geocoding via Nominatim (OpenStreetMap). Rate limit ~1 req/s. */
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=fr`;
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=fr`,
-      {
-        headers: {
-          // Nominatim demande un User-Agent identifiant l'app
-          'User-Agent': 'Tolle-Admin/1.0',
-        },
-      },
-    );
+    // Pas de header custom (notamment pas User-Agent) pour eviter un preflight
+    // CORS - Nominatim accepte les requetes simples depuis navigateur.
+    console.log('[geocode] fetching', url);
+    const res = await fetch(url);
+    console.log('[geocode] status', res.status);
     if (!res.ok) return null;
     const json = await res.json();
-    // Adresse complète la plus précise possible
+    console.log('[geocode] result', json);
     return (json.display_name as string) ?? null;
-  } catch {
+  } catch (err) {
+    console.warn('[geocode] error', err);
     return null;
   }
 }
