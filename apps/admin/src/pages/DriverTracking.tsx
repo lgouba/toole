@@ -49,11 +49,39 @@ function toLocalDateInput(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Cle pour mémoriser une adresse déjà résolue via reverse geocoding */
+function addrKey(lat: number, lng: number): string {
+  return `${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
+
+/** Reverse geocoding via Nominatim (OpenStreetMap). Rate limit ~1 req/s. */
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=fr`,
+      {
+        headers: {
+          // Nominatim demande un User-Agent identifiant l'app
+          'User-Agent': 'Tolle-Admin/1.0',
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    // Adresse complète la plus précise possible
+    return (json.display_name as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function DriverTracking() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<LocationLog | null>(null);
+  // Cache des adresses résolues : clé "lat,lng" → adresse (string) ou 'pending' ou null
+  const [addresses, setAddresses] = useState<Record<string, string | null | 'pending'>>({});
 
   // Filtres date — par defaut : 7 derniers jours
   const today = new Date();
@@ -78,6 +106,21 @@ export default function DriverTracking() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Reverse geocoding quand un log est sélectionné (si pas déjà en cache)
+  useEffect(() => {
+    if (!selectedLog) return;
+    const key = addrKey(selectedLog.latitude, selectedLog.longitude);
+    if (addresses[key] !== undefined) return; // déjà fetché ou en cours
+    setAddresses((prev) => ({ ...prev, [key]: 'pending' }));
+    reverseGeocode(selectedLog.latitude, selectedLog.longitude).then((addr) => {
+      setAddresses((prev) => ({ ...prev, [key]: addr }));
+    });
+  }, [selectedLog, addresses]);
+
+  const selectedAddress = selectedLog
+    ? addresses[addrKey(selectedLog.latitude, selectedLog.longitude)]
+    : undefined;
 
   return (
     <>
@@ -162,7 +205,13 @@ export default function DriverTracking() {
                 <h2>Carte du parcours</h2>
               </div>
               <div style={{ height: 520 }}>
-                <TrackingMap logs={data.logs} selectedLog={selectedLog} />
+                <TrackingMap
+                  logs={data.logs}
+                  selectedLog={selectedLog}
+                  selectedAddress={
+                    typeof selectedAddress === 'string' ? selectedAddress : null
+                  }
+                />
               </div>
             </div>
 
@@ -212,6 +261,27 @@ export default function DriverTracking() {
                           <div className="log-row-coords">
                             {log.latitude.toFixed(5)}, {log.longitude.toFixed(5)}
                           </div>
+                          {isSelected && (
+                            <div
+                              className="log-row-address"
+                              style={{
+                                marginTop: 4,
+                                fontSize: 12,
+                                color: 'var(--text-secondary)',
+                                fontStyle:
+                                  addresses[addrKey(log.latitude, log.longitude)] ===
+                                  'pending'
+                                    ? 'italic'
+                                    : 'normal',
+                              }}
+                            >
+                              {addresses[addrKey(log.latitude, log.longitude)] ===
+                              'pending'
+                                ? 'Recherche de l\'adresse...'
+                                : addresses[addrKey(log.latitude, log.longitude)] ||
+                                  'Adresse introuvable'}
+                            </div>
+                          )}
                         </div>
                       </button>
                     );
@@ -230,9 +300,11 @@ export default function DriverTracking() {
 function TrackingMap({
   logs,
   selectedLog,
+  selectedAddress,
 }: {
   logs: LocationLog[];
   selectedLog: LocationLog | null;
+  selectedAddress: string | null;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -242,10 +314,16 @@ function TrackingMap({
   useEffect(() => {
     if (!selectedLog || !iframeRef.current?.contentWindow) return;
     iframeRef.current.contentWindow.postMessage(
-      { type: 'focus', latitude: selectedLog.latitude, longitude: selectedLog.longitude, id: selectedLog.id },
+      {
+        type: 'focus',
+        latitude: selectedLog.latitude,
+        longitude: selectedLog.longitude,
+        id: selectedLog.id,
+        address: selectedAddress ?? null,
+      },
       '*',
     );
-  }, [selectedLog]);
+  }, [selectedLog, selectedAddress]);
 
   return (
     <iframe
@@ -269,7 +347,7 @@ function buildMapHtml(logs: LocationLog[]): string {
       const time = new Date(l.createdAt).toLocaleString('fr-FR');
       const popup = `<b>${meta.label}</b><br/>${time}${
         l.deliveryReference ? `<br/><span style="color:#64748b">${l.deliveryReference}</span>` : ''
-      }`;
+      }<div data-role="address" style="margin-top:6px;font-size:12px;color:#475569;font-style:italic">Cliquez pour voir l'adresse...</div>`;
       const size = l.event === 'heartbeat' ? 10 : 20;
       return `
         {
@@ -329,10 +407,24 @@ function buildMapHtml(logs: LocationLog[]): string {
     window.addEventListener('message', (e) => {
       if (!e.data || e.data.type !== 'focus') return;
       const m = window._markers[e.data.id];
-      if (m) {
-        map.setView([e.data.latitude, e.data.longitude], 16);
-        m.openPopup();
-      }
+      if (!m) return;
+      map.setView([e.data.latitude, e.data.longitude], 16);
+      m.openPopup();
+
+      // Met a jour le bloc "adresse" dans la popup (rendue apres openPopup)
+      setTimeout(function () {
+        var popupNode = m.getPopup() && m.getPopup().getElement();
+        if (!popupNode) return;
+        var addrBlock = popupNode.querySelector('[data-role="address"]');
+        if (!addrBlock) return;
+        if (e.data.address) {
+          addrBlock.style.fontStyle = 'normal';
+          addrBlock.style.color = '#0f172a';
+          addrBlock.textContent = e.data.address;
+        } else {
+          addrBlock.textContent = 'Recherche de l\\'adresse...';
+        }
+      }, 50);
     });
   </script>
 </body>
