@@ -602,17 +602,22 @@ export async function cancelDelivery(
 
   const isDriverCancel = userId === delivery.driverId;
 
-  // Cooldown : un livreur ne peut pas annuler immediatement apres avoir accepte
-  // (evite les abus : acceptation pour bloquer les autres, puis annulation)
-  if (isDriverCancel && delivery.acceptedAt) {
+  // Fenetre de grace : un livreur a `driverCancelCooldownSeconds` pour annuler
+  // apres avoir accepte. Passee cette fenetre, il est engage et ne peut plus
+  // annuler librement (il doit contacter le support ou finir la course).
+  if (
+    isDriverCancel &&
+    delivery.acceptedAt &&
+    delivery.status !== 'picked_up' &&
+    delivery.status !== 'delivering'
+  ) {
     const cooldownMs = await getDriverCancelCooldownMs();
     const elapsedMs = Date.now() - delivery.acceptedAt.getTime();
-    if (elapsedMs < cooldownMs) {
-      const remainingSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+    if (elapsedMs >= cooldownMs) {
       throw new HttpError(
-        429,
-        'CANCEL_COOLDOWN',
-        `Vous pourrez annuler dans ${remainingSec}s.`,
+        403,
+        'CANCEL_WINDOW_EXPIRED',
+        "Le delai pour annuler cette course est ecoule.",
       );
     }
   }

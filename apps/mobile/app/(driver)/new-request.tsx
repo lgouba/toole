@@ -23,14 +23,14 @@ export default function NewRequestScreen() {
   });
 
   // Redemarre le countdown a chaque nouvelle demande (sinon le timer reste fige
-  // quand l'ecran est deja monte et qu'une nouvelle demande arrive).
+  // quand l'ecran est déjà monte et qu'une nouvelle demande arrive).
   useEffect(() => {
     if (currentRequest) {
       start();
     }
   }, [currentRequest?.id]);
 
-  // Si la demande devient invalide (annulee, expiree, prise par un autre livreur),
+  // Si la demande devient invalide (annulée, expiree, prise par un autre livreur),
   // le store la met a null. On revient au dashboard driver.
   useEffect(() => {
     if (!currentRequest) {
@@ -87,7 +87,7 @@ export default function NewRequestScreen() {
             <View style={styles.addressRow}>
               <Ionicons name="radio-button-on" size={14} color={colors.primary} />
               <View style={styles.addressInfo}>
-                <Text style={styles.addressLabel}>Recuperation</Text>
+                <Text style={styles.addressLabel}>Récupération</Text>
                 <Text style={styles.address}>{currentRequest.pickupAddress}</Text>
                 {currentRequest.pickupDetails && (
                   <Text style={styles.addressDetails}>{currentRequest.pickupDetails}</Text>

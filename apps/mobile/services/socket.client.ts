@@ -18,7 +18,7 @@ export async function connectSocket(): Promise<Socket> {
 
   if (socket?.connected) return socket;
 
-  // Cleanup ancien socket (evite les doublons)
+  // Cleanup ancien socket (évite les doublons)
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
@@ -85,7 +85,7 @@ export async function connectSocket(): Promise<Socket> {
 
 /**
  * Rafraichit l'access token via /auth/refresh.
- * Retourne true si succes, false sinon.
+ * Retourne true si succès, false sinon.
  */
 async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = await tokenStorage.getRefreshToken();

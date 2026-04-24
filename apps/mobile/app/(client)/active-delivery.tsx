@@ -49,7 +49,7 @@ export default function ActiveDeliveryScreen() {
     }
   }, [delivery?.status, router]);
 
-  // Si la livraison est annulee / expiree, on revient a l'accueil proprement.
+  // Si la livraison est annulée / expiree, on revient a l'accueil proprement.
   useEffect(() => {
     if (
       delivery?.status === 'cancelled' ||
@@ -74,7 +74,7 @@ export default function ActiveDeliveryScreen() {
           const fresh = await getDeliveryById(deliveryId);
           if (!fresh) return;
           const current = useDeliveryStore.getState().activeDelivery;
-          // Ne set que si le statut a vraiment change pour eviter des re-renders inutiles
+          // Ne set que si le statut a vraiment change pour éviter des re-renders inutiles
           if (
             !current ||
             current.status !== fresh.status ||
@@ -231,18 +231,21 @@ export default function ActiveDeliveryScreen() {
         )}
 
         {/* Status stepper */}
-        <DeliveryStatusStepper status={delivery.status} />
+        <DeliveryStatusStepper
+          status={delivery.status}
+          thirdPartySenderName={delivery.senderContactName}
+        />
 
         {/* Carte d'info contextuelle selon le statut */}
         {(delivery.status === 'accepted' || delivery.status === 'picking_up') &&
         delivery.pickupValidationCode ? (
           <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>Code de recuperation</Text>
+            <Text style={styles.codeLabel}>Code de récupération</Text>
             <Text style={styles.codeValue}>{delivery.pickupValidationCode}</Text>
             <Text style={styles.codeHint}>
               {delivery.senderContactName
                 ? `Communiquez ce code a ${delivery.senderContactName} pour qu'il le donne au livreur au moment de la recuperation.`
-                : "A donner au livreur au moment de la recuperation du colis."}
+                : "A donner au livreur au moment de la récupération du colis."}
             </Text>
           </View>
         ) : delivery.status === 'picked_up' ||

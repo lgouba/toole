@@ -144,7 +144,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         console.log('[Socket] Connected, user:', user.fullName, '(', user.userType, ')');
 
-        // Detacher d'abord tous les handlers (evite double inscription si reconnection)
+        // Detacher d'abord tous les handlers (évite double inscription si reconnection)
         socket.off('delivery:accepted');
         socket.off('delivery:status_update');
         socket.off('delivery:driver_location');
@@ -175,11 +175,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
           const currentUserId = useAuthStore.getState().user?.id;
 
-          // Cas 1 : la livraison est deja dans le store client -> on met a jour
+          // Cas 1 : la livraison est déjà dans le store client -> on met a jour
           if (activeDelivery && activeDelivery.id === delivery.id) {
             const prevStatus = activeDelivery.status;
             setActiveDelivery(delivery);
-            // Transition scheduled -> pending : la course programmee vient
+            // Transition scheduled -> pending : la course programmée vient
             // d'etre diffusee aux livreurs, on envoie le client sur l'ecran
             // de recherche pour qu'il voie la progression en temps reel.
             if (prevStatus === 'scheduled' && delivery.status === 'pending') {
@@ -232,7 +232,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           if (activeDelivery && activeDelivery.id === delivery.id) {
             setActiveDelivery(delivery);
             haptic.warning();
-            // Retour a l'ecran de recherche (le livreur a ete retire, on recherche un autre)
+            // Retour a l'ecran de recherche (le livreur a été retire, on recherche un autre)
             routerRef.current.replace('/(client)/searching');
           }
         });
@@ -242,7 +242,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
 
-          // Dedup: si on a deja traite cette demande (meme id), ignorer
+          // Dedup: si on a déjà traite cette demande (même id), ignorer
           if (lastHandledRequestIdRef.current === delivery.id) {
             console.log('[Socket] duplicate new_request ignored', delivery.id);
             return;
@@ -250,13 +250,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
           const { activeDelivery, currentRequest } = useDriverStore.getState();
 
-          // 1) Livreur deja en course -> ignore completement
+          // 1) Livreur déjà en course -> ignore completement
           if (activeDelivery) {
             console.log('[Socket] driver busy with active delivery, ignoring', delivery.id);
             return;
           }
 
-          // 2) Livreur deja en train de regarder une autre demande
+          // 2) Livreur déjà en train de regarder une autre demande
           //    -> on NE l'ECRASE PAS. La nouvelle course reste disponible
           //    pour les autres livreurs. Si personne ne la prend, le livreur
           //    pourra la voir une fois qu'il aura repondu a la 1re (via
@@ -280,7 +280,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           lastHandledRequestIdRef.current = delivery.id;
           useDriverStore.getState().receiveRequest(delivery);
           // Alerte forte : vibration longue + haptic repete pour attirer
-          // l'attention meme quand l'app est en arriere-plan / tel en poche.
+          // l'attention même quand l'app est en arriere-plan / tel en poche.
           alertNewRequest();
           routerRef.current.push('/(driver)/new-request');
         });

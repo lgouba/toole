@@ -194,7 +194,7 @@ function buildHtml(
             }).addTo(map);
             ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
             window._markers[${JSON.stringify(m.id)}] = marker;
-            // Memorise la position precedente pour calculer le bearing au prochain update
+            // Memorise la position précédente pour calculer le bearing au prochain update
             window._prevPositions = window._prevPositions || {};
             window._prevPositions[${JSON.stringify(m.id)}] = { lat: ${m.coordinate.latitude}, lng: ${m.coordinate.longitude} };
           }
@@ -434,6 +434,12 @@ export function Map({
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
   const prevRouteRef = useRef<[LatLng, LatLng] | undefined>(undefined);
+  // Le center initial est fige au premier rendu. Les changements ulterieurs
+  // passent par injectJavaScript (setView) pour éviter de reload tout le
+  // WebView (qui provoquait un effet "tremblement" quand center suivait la
+  // position animee du livreur).
+  const initialCenterRef = useRef<LatLng>(center);
+  const prevCenterRef = useRef<LatLng>(center);
 
   // On ne rebuild le HTML que quand la STRUCTURE change (nombre/id/icon des markers,
   // presence ou non d'une route). Les simples changements de coordonnees passent
@@ -446,15 +452,18 @@ export function Map({
   const html = useMemo(
     () =>
       buildHtml(
-        center,
+        initialCenterRef.current,
         zoom,
         markers,
         routeCoordinates || null,
         interactive,
         fitToContent,
       ),
+    // NOTE: on ne met PAS center.latitude/longitude dans les deps pour éviter
+    // les rebuilds intempestifs (tremblement). Le recentrage se fait via JS
+    // injection dans l'useEffect ci-dessous.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [center.latitude, center.longitude, zoom, structureKey, interactive, fitToContent],
+    [zoom, structureKey, interactive, fitToContent],
   );
 
   // Detecte les changements de coordonnees de markers et injecte des updates.
@@ -477,7 +486,7 @@ export function Map({
       }
     }
 
-    // Met a jour la route si son trace a change (mais qu'elle existait deja)
+    // Met a jour la route si son trace a change (mais qu'elle existait déjà)
     if (
       routeCoordinates &&
       prevRouteRef.current &&

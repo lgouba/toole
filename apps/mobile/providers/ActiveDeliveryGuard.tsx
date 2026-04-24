@@ -8,7 +8,7 @@ import { getActiveDelivery } from '@/services/delivery.service';
 
 /**
  * Garde de navigation : au lancement de l'app, au retour en foreground ou
- * apres login, verifie s'il y a une livraison active et ramene l'utilisateur
+ * apres login, vérifié s'il y a une livraison active et ramene l'utilisateur
  * sur l'ecran approprie s'il s'est retrouve ailleurs par inadvertance.
  *
  * Regles :
@@ -20,7 +20,7 @@ import { getActiveDelivery } from '@/services/delivery.service';
  *
  * La garde n'interrompt JAMAIS une saisie normale — elle n'agit qu'au demarrage
  * ou au retour d'un state background. Elle laisse passer si l'utilisateur est
- * deja dans le bon sous-arbre de l'app.
+ * déjà dans le bon sous-arbre de l'app.
  */
 export function ActiveDeliveryGuard() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export function ActiveDeliveryGuard() {
       );
       if (!active) return;
 
-      // Met a jour les stores pour que les ecrans cibles trouvent leurs donnees
+      // Met a jour les stores pour que les ecrans cibles trouvent leurs données
       if (role === 'client') {
         useDeliveryStore.getState().setActiveDelivery(active);
       } else {
@@ -71,7 +71,7 @@ export function ActiveDeliveryGuard() {
         return;
       }
 
-      // Ecrans ou il ne faut PAS rediriger meme si le statut ne correspond pas
+      // Ecrans ou il ne faut PAS rediriger même si le statut ne correspond pas
       // strictement (l'utilisateur est en train d'interagir avec un flow actif).
       const protectedFlows = [
         'new-delivery',
@@ -79,10 +79,12 @@ export function ActiveDeliveryGuard() {
         'settings',
         'kyc',
         'address-picker',
-        // Ecrans de confirmation / validation cote livreur - il est dans l'etape
-        // "je suis arrive / je prends la photo / je valide le code", meme si le
+        // Ecrans de confirmation / validation cote livreur - il est dans l'étape
+        // "je suis arrive / je prends la photo / je valide le code", même si le
         // statut DB est encore "accepted" / "picked_up"
+        'pickup-navigation',
         'pickup-confirm',
+        'delivery-navigation',
         'delivery-confirm',
         'code-validation',
         // Ecran nouvelle demande : la course n'est pas encore accepted en DB,

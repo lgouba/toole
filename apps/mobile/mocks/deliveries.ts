@@ -7,7 +7,7 @@ export const mockDeliveries: Delivery[] = [
     senderId: 'client-1',
     driverId: 'driver-1',
     packageType: 'small',
-    packageDescription: 'Telephone portable',
+    packageDescription: 'Téléphone portable',
     recipientName: 'Rasmane Kindo',
     recipientPhone: '22670223344',
     pickupAddress: 'Avenue Kwame Nkrumah, Ouagadougou',

@@ -79,7 +79,7 @@ export default function AddressPickerScreen() {
 
   // Recherche autocomplete
   useEffect(() => {
-    // Si on vient de choisir une valeur programmee, on ne relance pas une search
+    // Si on vient de choisir une valeur programmée, on ne relance pas une search
     if (skipNextSearchRef.current) {
       skipNextSearchRef.current = false;
       setSuggestions([]);

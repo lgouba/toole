@@ -123,7 +123,7 @@ export function CancelReasonDialog({
             <View style={styles.commentWrap}>
               <Input
                 label="Commentaire (optionnel)"
-                placeholder="Ajoutez un detail pour le client"
+                placeholder="Ajoutez un détail pour le client"
                 value={comment}
                 onChangeText={setComment}
                 multiline

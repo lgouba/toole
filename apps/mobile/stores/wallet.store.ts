@@ -14,7 +14,7 @@ interface WalletState {
 }
 
 /**
- * Version simplifiee : balance recuperee via /users/me (driverProfile.walletBalance).
+ * Version simplifiee : balance récupérée via /users/me (driverProfile.walletBalance).
  * Pas d'endpoints wallet dedies dans le MVP backend.
  * Les transactions sont fictives pour le moment.
  */

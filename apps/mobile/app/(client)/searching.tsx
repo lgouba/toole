@@ -11,7 +11,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Button } from '@/components/ui';
-import { colors, typography, spacing } from '@/theme';
+import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useSettingsStore } from '@/stores/settings.store';
 
@@ -182,7 +182,7 @@ export default function SearchingScreen() {
 
         <Text style={styles.title}>Recherche d'un livreur...</Text>
         <Text style={styles.subtitle}>
-          Nous alertons les livreurs proches de votre point de recuperation.
+          Nous alertons les livreurs proches de votre point de récupération.
         </Text>
 
         <View style={styles.timerBox}>
@@ -192,10 +192,32 @@ export default function SearchingScreen() {
 
         {activeDelivery && (
           <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>Reference</Text>
+            <Text style={styles.infoLabel}>Référence</Text>
             <Text style={styles.infoValue}>{activeDelivery.reference}</Text>
           </View>
         )}
+
+        {/* Code pickup pour livraison tierce: affiche des la creation pour
+            que le client puisse le transmettre a l'expéditeur en amont. */}
+        {activeDelivery?.pickupValidationCode &&
+          activeDelivery.senderContactName && (
+            <View style={styles.pickupCodeCard}>
+              <Text style={styles.pickupCodeLabel}>
+                Code de recuperation
+              </Text>
+              <Text style={styles.pickupCodeValue}>
+                {activeDelivery.pickupValidationCode}
+              </Text>
+              <Text style={styles.pickupCodeHint}>
+                Transmettez ce code a{' '}
+                <Text style={styles.pickupCodeBold}>
+                  {activeDelivery.senderContactName}
+                </Text>{' '}
+                (par SMS/WhatsApp). Il le donnera au livreur au moment de la
+                recuperation du colis.
+              </Text>
+            </View>
+          )}
       </View>
 
       <View style={styles.footer}>
@@ -295,5 +317,32 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  pickupCodeCard: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.md,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  pickupCodeLabel: {
+    ...typography.captionMedium,
+    color: colors.primaryDark,
+  },
+  pickupCodeValue: {
+    ...typography.h1,
+    color: colors.primaryDark,
+    letterSpacing: 8,
+    marginVertical: spacing.xs,
+  },
+  pickupCodeHint: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    textAlign: 'center',
+  },
+  pickupCodeBold: {
+    fontWeight: '700',
   },
 });

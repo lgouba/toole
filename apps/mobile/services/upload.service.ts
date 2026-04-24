@@ -14,8 +14,8 @@ export interface UploadResult {
 
 /**
  * Compresse et redimensionne l'image a max 1280px de large avec qualite ~0.6.
- * Objectif : chaque photo passe sous 500 Ko pour eviter les 413 (request too
- * large) et accelerer l'upload sur reseau mobile BF.
+ * Objectif : chaque photo passe sous 500 Ko pour éviter les 413 (request too
+ * large) et accelerer l'upload sur réseau mobile BF.
  */
 async function compressImage(localUri: string): Promise<string> {
   try {
@@ -42,7 +42,7 @@ export async function uploadImage(
   try {
     const token = await tokenStorage.getAccessToken();
     // Compression prealable : resize + qualite reduite pour passer sous la
-    // limite nginx et accelerer l'upload sur reseau mobile.
+    // limite nginx et accelerer l'upload sur réseau mobile.
     const compressedUri = await compressImage(localUri);
     const form = new FormData();
 

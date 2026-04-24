@@ -1,11 +1,11 @@
 /**
  * Palette de couleurs mutable (pas `as const`) : les valeurs primary /
  * secondary peuvent etre ecrasees au runtime par applyDynamicColors()
- * quand l'admin modifie les parametres via la page Parametres.
+ * quand l'admin modifie les paramètres via la page Paramètres.
  *
  * Les composants qui importent directement `colors` (StyleSheet.create
  * au top-level) verront les nouvelles valeurs au prochain rendu, car
- * l'objet est partage par reference.
+ * l'objet est partage par référence.
  *
  * MAIS attention : les styles produits par StyleSheet.create sont
  * figes a l'import du composant. Pour que les changements soient
@@ -39,7 +39,7 @@ export const colors = {
 export type ColorName = keyof typeof colors;
 
 /**
- * Palette par defaut, gardee en reference pour pouvoir reset les
+ * Palette par defaut, gardee en référence pour pouvoir reset les
  * couleurs derivees (light/dark) quand l'admin remet les defauts.
  */
 const DEFAULT_PRIMARY = '#1D9E75';

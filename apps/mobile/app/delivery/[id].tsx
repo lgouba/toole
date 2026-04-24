@@ -22,7 +22,7 @@ import { resolveUploadUrl } from '@/services/upload.service';
 import { formatCFA, formatDateTime, formatDistance } from '@/utils/format';
 import { openPhone } from '@/utils/linking';
 
-/** Livraison encore en cours : on peut afficher les numeros de telephone. */
+/** Livraison encore en cours : on peut afficher les numéros de téléphone. */
 function isActiveDelivery(status: string): boolean {
   return ['pending', 'accepted', 'picking_up', 'picked_up', 'delivering'].includes(
     status,
@@ -63,7 +63,7 @@ export default function DeliveryDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Detail</Text>
+          <Text style={styles.title}>Détail</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.loader}>
@@ -151,7 +151,7 @@ export default function DeliveryDetailScreen() {
           <View style={styles.addressBlock}>
             <View style={styles.dotPickup} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.addressLabel}>Recuperation</Text>
+              <Text style={styles.addressLabel}>Récupération</Text>
               <Text style={styles.addressValue}>{delivery.pickupAddress}</Text>
               {delivery.pickupDetails ? (
                 <Text style={styles.addressDetails}>{delivery.pickupDetails}</Text>
@@ -171,8 +171,8 @@ export default function DeliveryDetailScreen() {
           </View>
         </Card>
 
-        {/* Destinataire : numero et bouton appel masques une fois la livraison
-            terminee / annulee / expiree (confidentialite) */}
+        {/* Destinataire : numéro et bouton appel masques une fois la livraison
+            terminee / annulée / expiree (confidentialite) */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Destinataire</Text>
           <View style={styles.recipientRow}>
@@ -211,7 +211,7 @@ export default function DeliveryDetailScreen() {
             <View style={styles.photosRow}>
               {delivery.packagePhotoPickupUrl ? (
                 <View style={styles.photoWrap}>
-                  <Text style={styles.photoLabel}>Recuperation</Text>
+                  <Text style={styles.photoLabel}>Récupération</Text>
                   <Image
                     source={{ uri: resolveUploadUrl(delivery.packagePhotoPickupUrl) ?? '' }}
                     style={styles.photo}
@@ -234,18 +234,18 @@ export default function DeliveryDetailScreen() {
         {/* Dates cles */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Chronologie</Text>
-          <Row label="Creee" value={formatDateTime(delivery.createdAt)} />
+          <Row label="Créée" value={formatDateTime(delivery.createdAt)} />
           {delivery.acceptedAt ? (
-            <Row label="Acceptee" value={formatDateTime(delivery.acceptedAt)} />
+            <Row label="Acceptée" value={formatDateTime(delivery.acceptedAt)} />
           ) : null}
           {delivery.pickedUpAt ? (
-            <Row label="Recuperee" value={formatDateTime(delivery.pickedUpAt)} />
+            <Row label="Récupérée" value={formatDateTime(delivery.pickedUpAt)} />
           ) : null}
           {delivery.deliveredAt ? (
-            <Row label="Livree" value={formatDateTime(delivery.deliveredAt)} />
+            <Row label="Livrée" value={formatDateTime(delivery.deliveredAt)} />
           ) : null}
           {delivery.cancelledAt ? (
-            <Row label="Annulee" value={formatDateTime(delivery.cancelledAt)} />
+            <Row label="Annulée" value={formatDateTime(delivery.cancelledAt)} />
           ) : null}
         </Card>
 

@@ -20,7 +20,7 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
     throw new Error('Informations manquantes');
   }
 
-  // Normalise le numero de telephone: garde uniquement les chiffres et prefixe "+" optionnel
+  // Normalise le numéro de téléphone: garde uniquement les chiffres et prefixe "+" optionnel
   const cleanPhone = (raw: string): string => {
     const cleaned = raw.replace(/\D/g, '');
     // Si l'utilisateur n'a saisi que 8 chiffres (local), on prefixe 226 (Burkina)
@@ -121,7 +121,7 @@ const DRIVER_ACTIVE_STATUSES: DeliveryStatus[] = [
 ];
 
 /**
- * Recupere la livraison active courante de l'utilisateur. Utilise pour la
+ * Récupéré la livraison active courante de l'utilisateur. Utilise pour la
  * navigation guard : si une livraison est en cours et que l'utilisateur est
  * perdu sur un autre ecran, on le ramene automatiquement.
  */

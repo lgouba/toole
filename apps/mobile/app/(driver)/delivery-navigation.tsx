@@ -98,7 +98,7 @@ export default function DeliveryNavigationScreen() {
       <CancelReasonDialog
         visible={showCancel}
         title="Annuler la course"
-        subtitle="Si vous n'avez pas encore recupere le colis, la course sera remise en file."
+        subtitle="Si vous n'avez pas encore récupéré le colis, la course sera remise en file."
         onClose={() => setShowCancel(false)}
         onConfirm={handleCancelConfirm}
       />

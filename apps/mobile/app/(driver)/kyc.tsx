@@ -125,7 +125,7 @@ export default function DriverKycScreen() {
       setKyc(updated);
       Alert.alert(
         'Dossier envoye',
-        'Vos informations ont ete envoyees pour verification. Vous pouvez commencer a recevoir des courses des que votre dossier sera approuve.',
+        'Vos informations ont été envoyees pour vérification. Vous pouvez commencer a recevoir des courses des que votre dossier sera approuve.',
         [
           {
             text: 'Continuer',
@@ -134,7 +134,7 @@ export default function DriverKycScreen() {
         ],
       );
     } else {
-      Alert.alert('Erreur', 'Echec de l\'enregistrement.');
+      Alert.alert('Erreur', 'Échec de l\'enregistrement.');
     }
   };
 
@@ -166,7 +166,7 @@ export default function DriverKycScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {kyc && (
           <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Statut de verification</Text>
+            <Text style={styles.statusTitle}>Statut de vérification</Text>
             <View style={styles.statusRow}>
               {kyc.verificationStatus === 'verified' ? (
                 <View style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
@@ -178,7 +178,7 @@ export default function DriverKycScreen() {
               ) : kyc.verificationStatus === 'rejected' ? (
                 <View style={[styles.badge, { backgroundColor: colors.errorLight }]}>
                   <Ionicons name="close-circle" size={16} color={colors.error} />
-                  <Text style={[styles.badgeText, { color: colors.error }]}>Refuse</Text>
+                  <Text style={[styles.badgeText, { color: colors.error }]}>Refusé</Text>
                 </View>
               ) : (
                 <View style={[styles.badge, { backgroundColor: colors.warningLight }]}>
@@ -239,7 +239,7 @@ export default function DriverKycScreen() {
         {/* CNIB */}
         <Text style={styles.sectionTitle}>Carte nationale (CNIB)</Text>
         <Input
-          label="Numero CNIB"
+          label="Numéro CNIB"
           placeholder="B1234567"
           value={cnibNumber}
           onChangeText={setCnibNumber}
@@ -255,7 +255,7 @@ export default function DriverKycScreen() {
         {/* Permis */}
         <Text style={styles.sectionTitle}>Permis de conduire</Text>
         <Input
-          label="Numero du permis"
+          label="Numéro du permis"
           placeholder="Ex: 123456789"
           value={licenseNumber}
           onChangeText={setLicenseNumber}
@@ -269,7 +269,7 @@ export default function DriverKycScreen() {
 
         <View style={{ height: spacing.lg }} />
         <Button
-          title="Envoyer pour verification"
+          title="Envoyer pour vérification"
           onPress={handleSave}
           loading={saving}
         />

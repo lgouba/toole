@@ -49,7 +49,7 @@ export default function RootLayout() {
   }, [refreshSettings]);
 
   // Quand le refresh token echoue, on force un logout propre.
-  // Evite les etats zombie ou l'utilisateur est "loggue" cote cache
+  // Évite les états zombie ou l'utilisateur est "loggue" cote cache
   // mais plus aucun appel ne passe (typique apres un wipe DB).
   useEffect(() => {
     setAuthExpiredHandler(() => {
@@ -66,10 +66,10 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   // Au demarrage et a chaque transition auth->logged, rafraichir le user depuis le backend
-  // pour eviter d'utiliser un userType obsolete du cache AsyncStorage.
+  // pour éviter d'utiliser un userType obsolete du cache AsyncStorage.
   useEffect(() => {
     if (isAuthenticated && fontsLoaded) {
-      // Catch explicite pour eviter "unhandled promise rejection"
+      // Catch explicite pour éviter "unhandled promise rejection"
       refreshUser().catch(() => {});
     }
   }, [fontsLoaded, isAuthenticated, refreshUser]);
@@ -93,7 +93,7 @@ export default function RootLayout() {
       return;
     }
 
-    // Authentifie : verifier que l'utilisateur est dans le bon groupe
+    // Authentifie : vérifier que l'utilisateur est dans le bon groupe
     const expected = user?.userType === 'driver' ? '(driver)' : '(client)';
     const wrongGroup =
       inAuth ||
@@ -107,7 +107,7 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Si authentifie mais user pas encore charge, afficher un loader (evite flash sur mauvais ecran)
+  // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais ecran)
   if (isAuthenticated && !user) {
     return (
       <View style={styles.loader}>

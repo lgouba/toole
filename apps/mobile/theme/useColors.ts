@@ -3,7 +3,7 @@ import { colors } from './colors';
 
 /**
  * Hook qui retourne la palette de couleurs courante. Re-render automatique
- * quand l'admin change les couleurs dans les parametres.
+ * quand l'admin change les couleurs dans les paramètres.
  *
  * En pratique retourne l'objet `colors` global (qui est mute par
  * `applyDynamicColors` dans ThemeGate), mais en souscrivant au store

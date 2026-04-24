@@ -30,7 +30,7 @@ export function openMaps(latitude: number, longitude: number, label?: string): v
 }
 
 /**
- * Ouvre l'itineraire turn-by-turn vers une destination GPS dans l'app de
+ * Ouvre l'itinéraire turn-by-turn vers une destination GPS dans l'app de
  * navigation de l'utilisateur. Propose un choix entre Google Maps et Waze
  * s'ils sont installes, sinon fallback Google Maps web.
  */
@@ -50,7 +50,7 @@ export async function openNavigation(
   // Fallback cross-platform (ouvre dans le navigateur ou l'app par defaut du systeme)
   const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving&destination_name=${labelEncoded}`;
 
-  // Verifie quelles apps sont installees
+  // Vérifié quelles apps sont installees
   const [hasGoogle, hasWaze] = await Promise.all([
     Linking.canOpenURL(googleMapsUrl).catch(() => false),
     Linking.canOpenURL(wazeUrl).catch(() => false),

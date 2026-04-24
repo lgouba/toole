@@ -14,7 +14,7 @@ export interface PricingSettings {
 export interface OperationSettings {
   /** Duree de recherche d'un livreur avant expiration cote client (en minutes) */
   deliveryExpiryMinutes: number;
-  /** Delai avant que le livreur puisse annuler apres acceptation (en secondes) */
+  /** Délai avant que le livreur puisse annuler apres acceptation (en secondes) */
   driverCancelCooldownSeconds: number;
   /** Rayon de diffusion aux livreurs (km) — informatif pour le mobile */
   nearbyRadiusKm: number;

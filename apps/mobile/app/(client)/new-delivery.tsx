@@ -39,7 +39,7 @@ export default function NewDeliveryScreen() {
   );
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
-  // Flag qui indique si on a deja initialise le wizard pour cette session.
+  // Flag qui indique si on a déjà initialise le wizard pour cette session.
   // On veut reset SEULEMENT la premiere fois qu'on entre (depuis l'accueil),
   // pas quand on revient d'un sous-ecran comme address-picker.
   const initializedRef = useRef(false);
@@ -88,8 +88,8 @@ export default function NewDeliveryScreen() {
     // Guard: il faut au moins une position GPS sur chaque point
     if (!draft.pickupLocation) {
       Alert.alert(
-        'Position de recuperation manquante',
-        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de recuperation.',
+        'Position de récupération manquante',
+        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de récupération.',
       );
       return;
     }
@@ -101,7 +101,7 @@ export default function NewDeliveryScreen() {
       return;
     }
     if (!draft.recipientName?.trim() || !draft.recipientPhone?.trim()) {
-      Alert.alert('Destinataire manquant', 'Renseignez le nom et le telephone du destinataire.');
+      Alert.alert('Destinataire manquant', 'Renseignez le nom et le téléphone du destinataire.');
       return;
     }
 
@@ -115,7 +115,7 @@ export default function NewDeliveryScreen() {
             })
           : 'plus tard';
         Alert.alert(
-          'Livraison programmee',
+          'Livraison programmée',
           `Votre course sera diffusee aux livreurs le ${when}. Vous recevrez une notification.`,
           [{ text: 'OK', onPress: () => router.replace('/(client)') }],
         );
@@ -129,13 +129,13 @@ export default function NewDeliveryScreen() {
       if (isTimeout) {
         Alert.alert(
           'Connexion lente',
-          'La demande met du temps a etre envoyee. Verifiez votre reseau et reessayez.',
+          'La demande met du temps a etre envoyee. Vérifiez votre réseau et réessayez.',
         );
       } else {
         const msg =
           e?.response?.data?.error?.message ||
           e?.message ||
-          'Impossible de creer la livraison. Verifiez les informations saisies.';
+          'Impossible de créer la livraison. Vérifiez les informations saisies.';
         Alert.alert('Erreur', msg);
       }
     }
@@ -174,7 +174,7 @@ export default function NewDeliveryScreen() {
       </View>
       <Input
         label="Description (optionnel)"
-        placeholder="Ex: Telephone portable"
+        placeholder="Ex: Téléphone portable"
         value={draft.packageDescription || ''}
         onChangeText={(v) => setDraftField('packageDescription', v)}
         containerStyle={styles.inputMargin}
@@ -214,7 +214,7 @@ export default function NewDeliveryScreen() {
         containerStyle={styles.inputMargin}
       />
       <Input
-        label="Telephone du destinataire"
+        label="Téléphone du destinataire"
         placeholder="70 12 34 56"
         value={draft.recipientPhone || ''}
         onChangeText={(v) => setDraftField('recipientPhone', v)}
@@ -222,7 +222,7 @@ export default function NewDeliveryScreen() {
         containerStyle={styles.inputMargin}
       />
 
-      {/* Toggle expediteur tiers */}
+      {/* Toggle expéditeur tiers */}
       <TouchableOpacity
         style={styles.toggleRow}
         onPress={() => {
@@ -250,7 +250,7 @@ export default function NewDeliveryScreen() {
             Le colis est chez quelqu'un d'autre
           </Text>
           <Text style={styles.toggleHint}>
-            Le livreur appellera cette personne pour recuperer le colis.
+            Le livreur appellera cette personne pour récupérer le colis.
           </Text>
         </View>
       </TouchableOpacity>
@@ -266,7 +266,7 @@ export default function NewDeliveryScreen() {
             containerStyle={styles.inputMargin}
           />
           <Input
-            label="Telephone de l'expediteur"
+            label="Telephone de l'expéditeur"
             placeholder="70 12 34 56"
             value={draft.senderContactPhone || ''}
             onChangeText={(v) => setDraftField('senderContactPhone', v)}
@@ -289,7 +289,7 @@ export default function NewDeliveryScreen() {
           </Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Recuperation</Text>
+          <Text style={styles.summaryLabel}>Récupération</Text>
           <Text style={styles.summaryValue} numberOfLines={1}>
             {draft.pickupAddress || '-'}
           </Text>
@@ -306,7 +306,7 @@ export default function NewDeliveryScreen() {
         </View>
         {thirdPartyPickup && draft.senderContactName && (
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Expediteur</Text>
+            <Text style={styles.summaryLabel}>Expéditeur</Text>
             <Text style={styles.summaryValue}>{draft.senderContactName}</Text>
           </View>
         )}
@@ -355,7 +355,7 @@ export default function NewDeliveryScreen() {
             <Button
               title="Continuer"
               onPress={() => {
-                // Validation par etape
+                // Validation par étape
                 if (step === 0 && !draft.packageType) {
                   Alert.alert('Type de colis manquant', 'Choisissez un type de colis.');
                   return;
@@ -388,7 +388,7 @@ export default function NewDeliveryScreen() {
                   ) {
                     Alert.alert(
                       'Expediteur incomplet',
-                      "Renseignez le nom et le telephone de la personne qui detient le colis.",
+                      "Renseignez le nom et le téléphone de la personne qui detient le colis.",
                     );
                     return;
                   }

@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   onlineWrap: {
-    // OnlineToggle a deja son propre style
+    // OnlineToggle a déjà son propre style
   },
   pendingCard: {
     flexDirection: 'row',

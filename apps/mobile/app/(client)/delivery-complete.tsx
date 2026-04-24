@@ -46,7 +46,7 @@ export default function DeliveryCompleteScreen() {
     null,
   );
 
-  // Le driver peut avoir ete perdu (app relancee, refetch). On le recupere via API.
+  // Le driver peut avoir été perdu (app relancee, refetch). On le récupéré via API.
   useEffect(() => {
     if (activeDriverFromStore) return;
     if (!activeDelivery?.driverId) return;
@@ -76,7 +76,7 @@ export default function DeliveryCompleteScreen() {
       withSpring(1.2, { damping: 5, stiffness: 130 }),
       withSpring(1, { damping: 10, stiffness: 140 }),
     );
-    // Haptic succes a l'ouverture
+    // Haptic succès a l'ouverture
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
         () => {},
@@ -111,7 +111,7 @@ export default function DeliveryCompleteScreen() {
       Alert.alert(
         'Erreur',
         err?.response?.data?.error?.message ??
-          'Impossible d\'envoyer la note. Reessayez.',
+          'Impossible d\'envoyer la note. Réessayez.',
       );
     } finally {
       setSubmitting(false);
@@ -189,7 +189,7 @@ export default function DeliveryCompleteScreen() {
         {activeDelivery ? (
           <Card style={styles.summary}>
             <View style={styles.row}>
-              <Text style={styles.label}>Reference</Text>
+              <Text style={styles.label}>Référence</Text>
               <Text style={styles.value}>{activeDelivery.reference}</Text>
             </View>
             <View style={styles.row}>

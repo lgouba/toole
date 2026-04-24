@@ -33,7 +33,7 @@ const slides = [
     id: '3',
     icon: 'checkmark-circle' as const,
     title: 'Recevez',
-    subtitle: 'Confirmez la livraison avec un code securise a 4 chiffres',
+    subtitle: 'Confirmez la livraison avec un code sécurisé a 4 chiffres',
     color: colors.warning,
   },
 ];

@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user: fresh });
         } catch (err: any) {
           // Si 401 (token invalide) -> logout propre.
-          // Sinon (timeout, reseau, 5xx...) on ne fait rien, le user en cache reste utilisable.
+          // Sinon (timeout, réseau, 5xx...) on ne fait rien, le user en cache reste utilisable.
           if (err?.response?.status === 401) {
             try {
               disconnectSocket();

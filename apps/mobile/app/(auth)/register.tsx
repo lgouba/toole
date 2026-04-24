@@ -181,7 +181,7 @@ export default function RegisterScreen() {
       vehiclePlate: vehiclePlate.trim() || undefined,
     });
     if (!ok) {
-      setError('Impossible de creer le compte. Verifiez votre connexion.');
+      setError('Impossible de créer le compte. Vérifiez votre connexion.');
       return;
     }
     // Redirection selon le role
@@ -449,7 +449,7 @@ export default function RegisterScreen() {
           )}
           {step === 'vehicle' && (
             <Button
-              title="Creer mon compte"
+              title="Créer mon compte"
               onPress={handleVehicleConfirm}
               loading={isLoading}
               disabled={!vehicleType}

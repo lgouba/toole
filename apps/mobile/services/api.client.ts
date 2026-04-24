@@ -25,7 +25,7 @@ export const tokenStorage = {
 
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 15000, // 15s - reseau lent au BF, mais 30s etait excessif
+  timeout: 15000, // 15s - réseau lent au BF, mais 30s etait excessif
   headers: { 'Content-Type': 'application/json' },
 });
 

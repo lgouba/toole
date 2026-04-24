@@ -44,7 +44,7 @@ export default function DeliveryConfirmScreen() {
         {activeDelivery && (
           <Card style={styles.summary}>
             <View style={styles.row}>
-              <Text style={styles.label}>Reference</Text>
+              <Text style={styles.label}>Référence</Text>
               <Text style={styles.value}>{activeDelivery.reference}</Text>
             </View>
             <View style={styles.row}>

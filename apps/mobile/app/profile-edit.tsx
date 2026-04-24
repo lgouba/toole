@@ -71,7 +71,7 @@ export default function ProfileEditScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      const msg = err?.response?.data?.error?.message ?? 'Echec de l\'enregistrement.';
+      const msg = err?.response?.data?.error?.message ?? 'Échec de l\'enregistrement.';
       Alert.alert('Erreur', msg);
     } finally {
       setSaving(false);
@@ -105,7 +105,7 @@ export default function ProfileEditScreen() {
         </TouchableOpacity>
 
         <Text style={styles.phoneDisplay}>{formatPhone(user.phone)}</Text>
-        <Text style={styles.phoneHint}>Le numero de telephone ne peut pas etre modifie</Text>
+        <Text style={styles.phoneHint}>Le numéro de téléphone ne peut pas etre modifie</Text>
 
         <View style={{ height: spacing.lg }} />
 

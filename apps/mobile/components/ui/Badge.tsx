@@ -15,14 +15,14 @@ export function Badge({ status, style }: BadgeProps) {
     DeliveryStatus,
     { bg: string; text: string; label: string }
   > = {
-    scheduled: { bg: '#E8F0FE', text: '#1967D2', label: 'Programmee' },
+    scheduled: { bg: '#E8F0FE', text: '#1967D2', label: 'Programmée' },
     pending: { bg: colors.warningLight, text: '#B07A1A', label: 'En attente' },
-    accepted: { bg: colors.primaryLight, text: colors.primaryDark, label: 'Acceptee' },
-    picking_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recuperation' },
-    picked_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Recupere' },
+    accepted: { bg: colors.primaryLight, text: colors.primaryDark, label: 'Acceptée' },
+    picking_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Récupération' },
+    picked_up: { bg: '#E8F0FE', text: '#1967D2', label: 'Récupéré' },
     delivering: { bg: colors.secondaryLight, text: colors.secondary, label: 'En livraison' },
-    delivered: { bg: colors.successLight, text: colors.primaryDark, label: 'Livree' },
-    cancelled: { bg: colors.errorLight, text: colors.error, label: 'Annulee' },
+    delivered: { bg: colors.successLight, text: colors.primaryDark, label: 'Livrée' },
+    cancelled: { bg: colors.errorLight, text: colors.error, label: 'Annulée' },
     expired: { bg: colors.surface, text: colors.textSecondary, label: 'Expiree' },
   };
 

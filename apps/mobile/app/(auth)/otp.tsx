@@ -48,7 +48,7 @@ export default function OtpScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Verification</Text>
+          <Text style={styles.title}>Vérification</Text>
           <Text style={styles.subtitle}>
             Entrez le code a 4 chiffres envoye au{'\n'}
             <Text style={styles.phone}>{formatPhone(phoneNumber)}</Text>

@@ -5,18 +5,39 @@ import { colors, typography, spacing } from '@/theme';
 import { DeliveryStatus } from '@/types';
 
 /**
- * Etapes affichees au client. On a volontairement simplifie le parcours
+ * Étapes affichees au client. On a volontairement simplifie le parcours
  * pour coller aux statuts reellement produits par le backend :
- *   - accepted   : le livreur a accepte, il est en route pour recuperer
- *   - picked_up  : le colis est recupere, il est en route pour livrer
+ *   - accepted   : le livreur a accepte, il est en route pour récupérer
+ *   - picked_up  : le colis est récupéré, il est en route pour livrer
  *   - delivered  : colis livre
  * (les statuts intermediaires picking_up / delivering ne sont plus utilises)
  */
-const STEPS: { key: 'accepted' | 'picked_up' | 'delivered'; label: string; icon: string }[] = [
-  { key: 'accepted', label: 'Livreur en route vers vous', icon: 'bicycle' },
-  { key: 'picked_up', label: 'Colis recupere, en livraison', icon: 'cube' },
-  { key: 'delivered', label: 'Livre', icon: 'checkmark-done-circle' },
-];
+type StepKey = 'accepted' | 'picked_up' | 'delivered';
+type Step = { key: StepKey; label: string; icon: string };
+
+function buildSteps(args: { thirdPartySenderName?: string | null }): Step[] {
+  const senderName = args.thirdPartySenderName?.trim();
+  if (senderName) {
+    return [
+      {
+        key: 'accepted',
+        label: `Livreur en route chez ${senderName}`,
+        icon: 'bicycle',
+      },
+      {
+        key: 'picked_up',
+        label: 'Colis récupéré, en route vers vous',
+        icon: 'cube',
+      },
+      { key: 'delivered', label: 'Livré', icon: 'checkmark-done-circle' },
+    ];
+  }
+  return [
+    { key: 'accepted', label: 'Livreur en route vers vous', icon: 'bicycle' },
+    { key: 'picked_up', label: 'Colis récupéré, en livraison', icon: 'cube' },
+    { key: 'delivered', label: 'Livré', icon: 'checkmark-done-circle' },
+  ];
+}
 
 // Ordre logique des statuts pour calculer l'avancement
 const STATUS_RANK: Record<DeliveryStatus, number> = {
@@ -33,21 +54,27 @@ const STATUS_RANK: Record<DeliveryStatus, number> = {
 
 interface DeliveryStatusStepperProps {
   status: DeliveryStatus;
+  /** Si renseigne, affiche le nom de l'expéditeur tiers dans la 1re étape. */
+  thirdPartySenderName?: string | null;
 }
 
-export function DeliveryStatusStepper({ status }: DeliveryStatusStepperProps) {
+export function DeliveryStatusStepper({
+  status,
+  thirdPartySenderName,
+}: DeliveryStatusStepperProps) {
   const currentRank = STATUS_RANK[status] ?? 0;
+  const steps = buildSteps({ thirdPartySenderName });
 
   return (
     <View style={styles.container}>
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const stepRank = STATUS_RANK[step.key];
         const isCompleted = currentRank >= stepRank;
         const isCurrent =
           (step.key === 'accepted' && (status === 'accepted' || status === 'picking_up')) ||
           (step.key === 'picked_up' && (status === 'picked_up' || status === 'delivering')) ||
           (step.key === 'delivered' && status === 'delivered');
-        const isLast = i === STEPS.length - 1;
+        const isLast = i === steps.length - 1;
 
         return (
           <View key={step.key}>

@@ -74,7 +74,7 @@ export function parseLocationUrl(input: string): LatLng | null {
 
 /**
  * Indique si une URL courte (goo.gl, maps.app.goo.gl) doit etre resolue.
- * Les liens courts necessitent une resolution reseau - retourne true pour afficher un message.
+ * Les liens courts necessitent une resolution réseau - retourne true pour afficher un message.
  */
 export function isShortLocationUrl(input: string): boolean {
   const trimmed = input.trim();

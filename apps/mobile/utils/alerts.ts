@@ -4,7 +4,7 @@ import { useSettingsStore } from '@/stores/settings.store';
 
 /**
  * Alerte forte pour attirer l'attention du livreur quand une course tombe,
- * meme telephone en poche / silencieux :
+ * même téléphone en poche / silencieux :
  *  - Vibration longue et rythmee (~2s sur Android avec pattern natif)
  *  - Haptic repete (iOS)
  *  - Le SON est gere par expo-notifications (son systeme par defaut)
@@ -33,7 +33,7 @@ export function alertNewRequest() {
 
 /**
  * Feedback "action critique reussie" (accepter course, valider code...).
- * Double tap tactile court qui se ressent bien meme sans regarder l'ecran.
+ * Double tap tactile court qui se ressent bien même sans regarder l'ecran.
  */
 export function alertConfirmSuccess() {
   haptic.success();

@@ -61,7 +61,7 @@ export default function PickupNavigationScreen() {
 
       <View style={styles.bottomSheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>Recuperation du colis</Text>
+        <Text style={styles.title}>Récupération du colis</Text>
         <Text style={styles.address}>{activeDelivery.pickupAddress}</Text>
         {activeDelivery.pickupDetails && (
           <Text style={styles.details}>{activeDelivery.pickupDetails}</Text>
@@ -71,7 +71,7 @@ export default function PickupNavigationScreen() {
           <View style={styles.senderBanner}>
             <Ionicons name="person" size={18} color={colors.primaryDark} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.senderBannerLabel}>Expediteur sur place</Text>
+              <Text style={styles.senderBannerLabel}>Expéditeur sur place</Text>
               <Text style={styles.senderBannerValue}>
                 {activeDelivery.senderContactName}
               </Text>
@@ -130,12 +130,12 @@ export default function PickupNavigationScreen() {
         <Button
           title={
             cooldownRemaining > 0
-              ? `Annuler dans ${cooldownRemaining}s`
-              : 'Annuler la course'
+              ? `Annuler la course (${cooldownRemaining}s)`
+              : 'Delai d\'annulation écoulé'
           }
           variant="outline"
           onPress={() => setShowCancel(true)}
-          disabled={cooldownRemaining > 0}
+          disabled={cooldownRemaining === 0}
         />
       </View>
 

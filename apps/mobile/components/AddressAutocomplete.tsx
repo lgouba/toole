@@ -23,7 +23,7 @@ interface AddressAutocompleteProps {
   iconColor?: string;
   biasLocation?: LatLng;
   autoFocus?: boolean;
-  /** Passer true quand la position est deja resolue (via GPS / WhatsApp / carte)
+  /** Passer true quand la position est déjà resolue (via GPS / WhatsApp / carte)
    *  pour ne pas re-chercher cette adresse comme une requete texte. */
   hasConfirmedLocation?: boolean;
 }
@@ -31,7 +31,7 @@ interface AddressAutocompleteProps {
 const DEBOUNCE_MS = 250;
 const MIN_CHARS = 2; // on cherche des 2 caracteres
 
-// Cache en memoire des recherches deja effectuees, limite a 30 entrees.
+// Cache en memoire des recherches déjà effectuees, limite a 30 entrees.
 const searchCache = new Map<string, GeocodeSuggestion[]>();
 const MAX_CACHE_SIZE = 30;
 
@@ -76,7 +76,7 @@ export function AddressAutocomplete({
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   // Indique que l'utilisateur vient de selectionner / effacer -> on cache la dropdown
-  // meme si le champ reste focus.
+  // même si le champ reste focus.
   const [dismissedDropdown, setDismissedDropdown] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,14 +86,14 @@ export function AddressAutocomplete({
     const q = value.trim();
 
     // Des que l'utilisateur tape, on reactive la dropdown
-    // (sauf s'il vient juste de selectionner exactement la meme valeur)
+    // (sauf s'il vient juste de selectionner exactement la même valeur)
     if (q.length < MIN_CHARS) {
       setSuggestions([]);
       setLoading(false);
       return;
     }
 
-    // Si la position est deja confirmee (GPS, WhatsApp, carte, ou suggestion
+    // Si la position est déjà confirmée (GPS, WhatsApp, carte, ou suggestion
     // selectionnee), on ne re-cherche pas cette adresse.
     if (hasConfirmedLocation) {
       setSuggestions([]);

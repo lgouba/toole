@@ -42,12 +42,12 @@ export default function WalletFlowScreen() {
   const mode: Mode = params.mode === 'topup' ? 'topup' : 'withdraw';
   const initialAmount = params.amount ? String(params.amount) : '';
   // Pour un règlement de dette, le montant est impose (= dette totale).
-  // Le livreur ne peut pas payer partiellement : il a deja encaisse le cash.
+  // Le livreur ne peut pas payer partiellement : il a déjà encaisse le cash.
   const amountLocked = mode === 'topup' && !!initialAmount;
 
   const user = useAuthStore((s) => s.user);
 
-  // Si montant verrouille, on saute directement a l'etape 2 (phone)
+  // Si montant verrouille, on saute directement a l'étape 2 (phone)
   const [step, setStep] = useState<Step>(amountLocked ? 'phone' : 'amount');
   const [amount, setAmount] = useState(initialAmount);
   const [operator, setOperator] = useState<'orange_money' | 'moov_money' | null>(

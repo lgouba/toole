@@ -13,8 +13,8 @@ import { DeliveryStatus } from '@/types';
 const filters: { label: string; value: DeliveryStatus | 'all' }[] = [
   { label: 'Tous', value: 'all' },
   { label: 'En cours', value: 'delivering' },
-  { label: 'Livrees', value: 'delivered' },
-  { label: 'Annulees', value: 'cancelled' },
+  { label: 'Livrées', value: 'delivered' },
+  { label: 'Annulées', value: 'cancelled' },
 ];
 
 export default function ShipmentsScreen() {
@@ -65,7 +65,7 @@ export default function ShipmentsScreen() {
           <DeliveryCard
             delivery={item}
             onPress={() => {
-              // Si la livraison est en cours, on va sur le suivi live; sinon sur le detail.
+              // Si la livraison est en cours, on va sur le suivi live; sinon sur le détail.
               const inProgress = [
                 'pending',
                 'accepted',

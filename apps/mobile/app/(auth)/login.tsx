@@ -20,7 +20,7 @@ export default function LoginScreen() {
     // Validate Burkina phone number: 8 digits
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length !== 8) {
-      setError('Entrez un numero a 8 chiffres');
+      setError('Entrez un numéro a 8 chiffres');
       return;
     }
 
@@ -41,7 +41,7 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.logo}>{appName}</Text>
-          <Text style={styles.title}>Entrez votre numero</Text>
+          <Text style={styles.title}>Entrez votre numéro</Text>
           <Text style={styles.subtitle}>
             Nous vous enverrons un code de verification par SMS
           </Text>

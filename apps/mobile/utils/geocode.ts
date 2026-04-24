@@ -5,7 +5,7 @@ export interface GeocodeSuggestion {
   displayName: string;
   shortName: string;
   /**
-   * true si la suggestion pointe vers une adresse precise (rue, numero,
+   * true si la suggestion pointe vers une adresse precise (rue, numéro,
    * batiment) plutot qu'une zone large (ville, departement). Utilise pour
    * avertir le livreur si l'adresse est trop floue.
    */
@@ -83,7 +83,7 @@ export async function searchAddresses(
 
 /**
  * Une suggestion est consideree "precise" si Nominatim a identifie
- * un numero de maison, une rue, un batiment / commerce / amenity.
+ * un numéro de maison, une rue, un batiment / commerce / amenity.
  * Un resultat qui ne contient que city/state/country est imprecis.
  */
 function isPreciseAddress(d: {
@@ -131,7 +131,7 @@ export async function reverseGeocode(location: LatLng): Promise<string | null> {
 
   if (!data) return null;
   // Pour un reverse-geocode (ex. "Ma position actuelle"), on veut une adresse
-  // la plus complete possible : numero + rue + quartier + ville.
+  // la plus complète possible : numéro + rue + quartier + ville.
   return buildFullAddress(data) || buildShortName(data) || data.display_name || null;
 }
 
@@ -146,7 +146,7 @@ function buildFullAddress(d: {
   const a = d.address ?? {};
   const parts: string[] = [];
 
-  // Numero de maison + rue si disponibles
+  // Numéro de maison + rue si disponibles
   const street = a.road || a.pedestrian || a.footway || a.residential;
   if (street) {
     if (a.house_number) {

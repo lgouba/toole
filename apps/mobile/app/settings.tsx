@@ -27,7 +27,7 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
-      'Cette action est definitive. Toutes vos donnees seront effacees.',
+      'Cette action est definitive. Toutes vos données seront effacees.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -59,7 +59,7 @@ export default function SettingsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Parametres</Text>
+        <Text style={styles.headerTitle}>Paramètres</Text>
         <View style={{ width: 24 }} />
       </View>
 

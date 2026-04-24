@@ -12,7 +12,7 @@ import { resolveUploadUrl } from '@/services/upload.service';
 const menuItems = [
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'document-outline', label: 'Mes documents', route: '/(driver)/kyc' },
-  { icon: 'settings-outline', label: 'Parametres', route: '/settings' },
+  { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
   { icon: 'information-circle-outline', label: 'A propos', route: null },
 ] as const;
 

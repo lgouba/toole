@@ -73,7 +73,7 @@ export async function requestTopup(args: {
   return unwrap<Transaction>(res);
 }
 
-/** Formate un numero 226XXXXXXXX en "XX XX XX XX" */
+/** Formate un numéro 226XXXXXXXX en "XX XX XX XX" */
 export function formatPhoneForDisplay(phone: string | null | undefined): string {
   if (!phone) return '';
   const digits = phone.replace(/\D/g, '');

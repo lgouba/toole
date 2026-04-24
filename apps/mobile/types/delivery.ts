@@ -35,7 +35,7 @@ export interface Delivery {
   recipientName: string;
   recipientPhone: string;
 
-  // Expediteur tiers (optionnel : si le colis est detenu par une autre
+  // Expéditeur tiers (optionnel : si le colis est détenu par une autre
   // personne que le client qui a passe la commande)
   senderContactName?: string;
   senderContactPhone?: string;
@@ -60,8 +60,8 @@ export interface Delivery {
   validationCode: string;
   /**
    * Code que la personne qui detient physiquement le colis au pickup donne au
-   * livreur pour valider la recuperation. Visible uniquement par le client
-   * (l'expediteur) pour qu'il le transmette a l'expediteur tiers si besoin.
+   * livreur pour valider la récupération. Visible uniquement par le client
+   * (l'expéditeur) pour qu'il le transmette a l'expéditeur tiers si besoin.
    */
   pickupValidationCode?: string | null;
 
@@ -93,7 +93,7 @@ export interface DeliveryDraft {
   /** Contact de la personne qui detient le colis au pickup (si different du client). */
   senderContactName?: string;
   senderContactPhone?: string;
-  /** Si defini, la livraison sera programmee pour cette date/heure. */
+  /** Si defini, la livraison sera programmée pour cette date/heure. */
   scheduledFor?: string; // ISO datetime
 }
 

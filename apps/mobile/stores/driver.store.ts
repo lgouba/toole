@@ -96,7 +96,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         set({ isOnline: true });
         startLocationTracking((loc) => set({ currentLocation: loc }));
       } catch {
-        Alert.alert('Erreur', 'Impossible de passer en ligne. Reessayez.');
+        Alert.alert('Erreur', 'Impossible de passer en ligne. Réessayez.');
       }
     } else {
       // Passer HORS LIGNE: stopper le tracking
@@ -104,10 +104,10 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       try {
         await driverService.setOnlineStatus(false);
       } catch {
-        // ok on passe quand meme offline cote UI
+        // ok on passe quand même offline cote UI
       }
       // On garde la derniere currentLocation connue pour centrer la carte
-      // meme quand le livreur est hors ligne (recuperation GPS hors-line
+      // même quand le livreur est hors ligne (récupération GPS hors-line
       // via expo-location au besoin).
       set({ isOnline: false });
     }
@@ -138,7 +138,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       photoUri,
       pickupCode,
     );
-    if (!updated) throw new Error('Echec de la confirmation de recuperation');
+    if (!updated) throw new Error('Échec de la confirmation de récupération');
     set({ activeDelivery: updated });
   },
 
@@ -176,10 +176,10 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         return true;
       }
     } catch (err: any) {
-      // Backend peut renvoyer 429 avec un message (cooldown non ecoule)
+      // Backend peut renvoyer 429 avec un message (cooldown non écoulé)
       const msg =
         err?.response?.data?.error?.message ??
-        'Impossible d\'annuler la course. Reessayez.';
+        'Impossible d\'annuler la course. Réessayez.';
       Alert.alert('Annulation impossible', msg);
       return false;
     }

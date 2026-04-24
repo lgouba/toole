@@ -6,7 +6,7 @@ export async function setOnlineStatus(isOnline: boolean): Promise<void> {
 }
 
 /**
- * Recupere un livreur public (pour refresh client quand on a perdu un event).
+ * Récupéré un livreur public (pour refresh client quand on a perdu un event).
  * Le backend renvoie { ...user, driverProfile: { currentLat, currentLng, ... } }.
  */
 export async function getDriverById(
