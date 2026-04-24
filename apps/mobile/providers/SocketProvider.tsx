@@ -173,9 +173,32 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
           const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
+          const currentUserId = useAuthStore.getState().user?.id;
+
+          // Cas 1 : la livraison est deja dans le store client -> on met a jour
           if (activeDelivery && activeDelivery.id === delivery.id) {
+            const prevStatus = activeDelivery.status;
             setActiveDelivery(delivery);
+            // Transition scheduled -> pending : la course programmee vient
+            // d'etre diffusee aux livreurs, on envoie le client sur l'ecran
+            // de recherche pour qu'il voie la progression en temps reel.
+            if (prevStatus === 'scheduled' && delivery.status === 'pending') {
+              console.log('[Socket] scheduled delivery activated -> searching screen');
+              routerRef.current.replace('/(client)/searching');
+            }
+          } else if (
+            // Cas 2 : store vide (app relancee entre-temps) mais l'event nous
+            // concerne car le backend a emit specifiquement a ce user.
+            // On reinjecte la livraison et on redirige vers searching si pending.
+            currentUserId &&
+            delivery.senderId === currentUserId &&
+            delivery.status === 'pending'
+          ) {
+            console.log('[Socket] status_update for scheduled delivery (store was empty)');
+            setActiveDelivery(delivery);
+            routerRef.current.replace('/(client)/searching');
           }
+
           const { activeDelivery: driverActive } = useDriverStore.getState();
           if (driverActive && driverActive.id === delivery.id) {
             useDriverStore.setState({ activeDelivery: delivery });
