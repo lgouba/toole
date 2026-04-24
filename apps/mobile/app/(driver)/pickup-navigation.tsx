@@ -67,6 +67,18 @@ export default function PickupNavigationScreen() {
           <Text style={styles.details}>{activeDelivery.pickupDetails}</Text>
         )}
 
+        {activeDelivery.senderContactName && (
+          <View style={styles.senderBanner}>
+            <Ionicons name="person" size={18} color={colors.primaryDark} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.senderBannerLabel}>Expediteur sur place</Text>
+              <Text style={styles.senderBannerValue}>
+                {activeDelivery.senderContactName}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.actionBtn}
@@ -83,7 +95,12 @@ export default function PickupNavigationScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
-            onPress={() => openPhone(activeDelivery.recipientPhone)}
+            onPress={() =>
+              openPhone(
+                activeDelivery.senderContactPhone ||
+                  activeDelivery.recipientPhone,
+              )
+            }
           >
             <Ionicons name="call" size={22} color={colors.primary} />
             <Text style={styles.actionLabel}>Appeler</Text>
@@ -92,7 +109,8 @@ export default function PickupNavigationScreen() {
             style={styles.actionBtn}
             onPress={() =>
               shareLocationWhatsApp(
-                activeDelivery.recipientPhone,
+                activeDelivery.senderContactPhone ||
+                  activeDelivery.recipientPhone,
                 activeDelivery.reference,
                 activeDelivery.pickupLocation.latitude,
                 activeDelivery.pickupLocation.longitude,
@@ -214,5 +232,22 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.bodySmall,
     color: colors.textPrimary,
+  },
+  senderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+    marginTop: spacing.sm,
+  },
+  senderBannerLabel: {
+    ...typography.caption,
+    color: colors.primaryDark,
+  },
+  senderBannerValue: {
+    ...typography.bodyMedium,
+    color: colors.primaryDark,
   },
 });

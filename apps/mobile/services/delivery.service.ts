@@ -42,6 +42,12 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
     ...(draft.packageDescription ? { packageDescription: draft.packageDescription } : {}),
     recipientName: draft.recipientName.trim(),
     recipientPhone: cleanPhone(draft.recipientPhone),
+    ...(draft.senderContactName?.trim()
+      ? { senderContactName: draft.senderContactName.trim() }
+      : {}),
+    ...(draft.senderContactPhone?.trim()
+      ? { senderContactPhone: cleanPhone(draft.senderContactPhone) }
+      : {}),
     pickupAddress: fallbackAddress(draft.pickupAddress, draft.pickupLocation),
     ...(draft.pickupDetails ? { pickupDetails: draft.pickupDetails } : {}),
     pickupLat: draft.pickupLocation.latitude,
@@ -199,11 +205,15 @@ export async function cancelDelivery(
 
 export async function confirmPickup(
   deliveryId: string,
-  photoUrl: string
+  photoUrl: string,
+  pickupCode: string,
 ): Promise<Delivery | null> {
   try {
     console.log('[confirmPickup] PUT pickup-confirm for', deliveryId);
-    const res = await api.put(`/deliveries/${deliveryId}/pickup-confirm`, { photoUrl });
+    const res = await api.put(`/deliveries/${deliveryId}/pickup-confirm`, {
+      photoUrl,
+      pickupCode,
+    });
     const delivery = normalizeDelivery(unwrap<any>(res));
     console.log('[confirmPickup] OK, new status =', delivery.status);
     return delivery;
@@ -281,6 +291,8 @@ function normalizeDelivery(raw: any): Delivery {
     packagePhotoDeliveryUrl: raw.packagePhotoDeliveryUrl ?? undefined,
     recipientName: raw.recipientName,
     recipientPhone: raw.recipientPhone,
+    senderContactName: raw.senderContactName ?? undefined,
+    senderContactPhone: raw.senderContactPhone ?? undefined,
     pickupAddress: raw.pickupAddress,
     pickupDetails: raw.pickupDetails ?? undefined,
     pickupLocation: { latitude: Number(raw.pickupLat), longitude: Number(raw.pickupLng) },
@@ -296,6 +308,7 @@ function normalizeDelivery(raw: any): Delivery {
     platformFee: raw.platformFee ?? undefined,
     tip: raw.tip ?? 0,
     validationCode: raw.validationCode,
+    pickupValidationCode: raw.pickupValidationCode ?? null,
     status: raw.status,
     acceptedAt: raw.acceptedAt ?? undefined,
     pickedUpAt: raw.pickedUpAt ?? undefined,

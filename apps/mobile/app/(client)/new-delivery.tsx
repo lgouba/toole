@@ -34,6 +34,9 @@ export default function NewDeliveryScreen() {
   const user = useAuthStore((s) => s.user);
   const { draft, setDraftField, createDelivery, resetDraft, isLoading } = useDeliveryStore();
   const [step, setStep] = useState(0);
+  const [thirdPartyPickup, setThirdPartyPickup] = useState(
+    !!(draft.senderContactName || draft.senderContactPhone),
+  );
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
   // Flag qui indique si on a deja initialise le wizard pour cette session.
@@ -218,6 +221,60 @@ export default function NewDeliveryScreen() {
         keyboardType="phone-pad"
         containerStyle={styles.inputMargin}
       />
+
+      {/* Toggle expediteur tiers */}
+      <TouchableOpacity
+        style={styles.toggleRow}
+        onPress={() => {
+          const next = !thirdPartyPickup;
+          setThirdPartyPickup(next);
+          if (!next) {
+            setDraftField('senderContactName', undefined);
+            setDraftField('senderContactPhone', undefined);
+          }
+        }}
+        activeOpacity={0.7}
+      >
+        <View
+          style={[
+            styles.checkbox,
+            thirdPartyPickup && styles.checkboxChecked,
+          ]}
+        >
+          {thirdPartyPickup && (
+            <Ionicons name="checkmark" size={16} color={colors.white} />
+          )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleLabel}>
+            Le colis est chez quelqu'un d'autre
+          </Text>
+          <Text style={styles.toggleHint}>
+            Le livreur appellera cette personne pour recuperer le colis.
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {thirdPartyPickup && (
+        <View style={styles.thirdPartyBlock}>
+          <Input
+            label="Nom de l'expediteur"
+            placeholder="Ex: Awa Sawadogo"
+            value={draft.senderContactName || ''}
+            onChangeText={(v) => setDraftField('senderContactName', v)}
+            autoCapitalize="words"
+            containerStyle={styles.inputMargin}
+          />
+          <Input
+            label="Telephone de l'expediteur"
+            placeholder="70 12 34 56"
+            value={draft.senderContactPhone || ''}
+            onChangeText={(v) => setDraftField('senderContactPhone', v)}
+            keyboardType="phone-pad"
+            containerStyle={styles.inputMargin}
+          />
+        </View>
+      )}
     </View>,
 
     // Step 3: Summary
@@ -247,6 +304,12 @@ export default function NewDeliveryScreen() {
           <Text style={styles.summaryLabel}>Destinataire</Text>
           <Text style={styles.summaryValue}>{draft.recipientName || '-'}</Text>
         </View>
+        {thirdPartyPickup && draft.senderContactName && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Expediteur</Text>
+            <Text style={styles.summaryValue}>{draft.senderContactName}</Text>
+          </View>
+        )}
       </Card>
 
       {/* Programmer la livraison */}
@@ -316,6 +379,17 @@ export default function NewDeliveryScreen() {
                 if (step === 2) {
                   if (!draft.recipientName?.trim() || !draft.recipientPhone?.trim()) {
                     Alert.alert('Destinataire incomplet', 'Renseignez le nom et le telephone.');
+                    return;
+                  }
+                  if (
+                    thirdPartyPickup &&
+                    (!draft.senderContactName?.trim() ||
+                      !draft.senderContactPhone?.trim())
+                  ) {
+                    Alert.alert(
+                      'Expediteur incomplet',
+                      "Renseignez le nom et le telephone de la personne qui detient le colis.",
+                    );
                     return;
                   }
                 }
@@ -475,5 +549,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    marginTop: spacing.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  toggleLabel: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  toggleHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  thirdPartyBlock: {
+    marginTop: spacing.md,
   },
 });

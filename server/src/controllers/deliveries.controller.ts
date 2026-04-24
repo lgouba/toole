@@ -21,6 +21,12 @@ const createDeliverySchema = z.object({
   packageDescription: z.string().max(500).optional(),
   recipientName: z.string().min(1).max(100),
   recipientPhone: z.string().regex(/^\+?[0-9]{8,15}$/),
+  senderContactName: z.string().trim().min(1).max(100).optional(),
+  senderContactPhone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{8,15}$/)
+    .optional(),
   pickupAddress: z.string().min(1),
   pickupDetails: z.string().optional(),
   pickupLat: z.number().min(-90).max(90),
@@ -128,6 +134,7 @@ export async function rejectCtrl(
 // que l'app peut generer via /api/uploads/:category
 const pickupSchema = z.object({
   photoUrl: z.string().min(1).max(500),
+  pickupCode: z.string().length(4),
 });
 
 export async function pickupCtrl(
@@ -136,8 +143,13 @@ export async function pickupCtrl(
   next: NextFunction,
 ) {
   try {
-    const { photoUrl } = pickupSchema.parse(req.body);
-    const delivery = await confirmPickup(req.params.id, req.user!.id, photoUrl);
+    const { photoUrl, pickupCode } = pickupSchema.parse(req.body);
+    const delivery = await confirmPickup(
+      req.params.id,
+      req.user!.id,
+      photoUrl,
+      pickupCode,
+    );
     return success(res, delivery);
   } catch (err) {
     next(err);

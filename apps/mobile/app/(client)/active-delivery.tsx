@@ -234,18 +234,21 @@ export default function ActiveDeliveryScreen() {
         <DeliveryStatusStepper status={delivery.status} />
 
         {/* Carte d'info contextuelle selon le statut */}
-        {delivery.status === 'accepted' || delivery.status === 'picking_up' ? (
-          <View style={styles.infoCard}>
-            <Ionicons name="time-outline" size={20} color={colors.primary} />
-            <Text style={styles.infoText}>
-              Le livreur arrive pour recuperer votre colis. Le code sera
-              utilisable des qu'il aura le colis en main.
+        {(delivery.status === 'accepted' || delivery.status === 'picking_up') &&
+        delivery.pickupValidationCode ? (
+          <View style={styles.codeCard}>
+            <Text style={styles.codeLabel}>Code de recuperation</Text>
+            <Text style={styles.codeValue}>{delivery.pickupValidationCode}</Text>
+            <Text style={styles.codeHint}>
+              {delivery.senderContactName
+                ? `Communiquez ce code a ${delivery.senderContactName} pour qu'il le donne au livreur au moment de la recuperation.`
+                : "A donner au livreur au moment de la recuperation du colis."}
             </Text>
           </View>
         ) : delivery.status === 'picked_up' ||
           delivery.status === 'delivering' ? (
           <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>Code de validation</Text>
+            <Text style={styles.codeLabel}>Code de livraison</Text>
             <Text style={styles.codeValue}>{delivery.validationCode}</Text>
             <Text style={styles.codeHint}>
               Communiquez ce code au destinataire pour qu'il le remette au livreur

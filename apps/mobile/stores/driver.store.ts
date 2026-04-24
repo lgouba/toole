@@ -22,7 +22,7 @@ interface DriverState {
   acceptRequest: () => Promise<void>;
   rejectRequest: () => void;
   setActiveDelivery: (delivery: Delivery | null) => void;
-  confirmPickup: (photoUri: string) => Promise<void>;
+  confirmPickup: (photoUri: string, pickupCode: string) => Promise<void>;
   validateCode: (code: string) => Promise<boolean>;
   confirmDelivery: (photoUri: string) => Promise<void>;
   cancelActiveDelivery: (reason: string, comment?: string) => Promise<boolean>;
@@ -129,11 +129,15 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   setActiveDelivery: (delivery) => set({ activeDelivery: delivery }),
 
-  confirmPickup: async (photoUri) => {
+  confirmPickup: async (photoUri, pickupCode) => {
     const { activeDelivery } = get();
     if (!activeDelivery) throw new Error('Pas de course active');
 
-    const updated = await deliveryService.confirmPickup(activeDelivery.id, photoUri);
+    const updated = await deliveryService.confirmPickup(
+      activeDelivery.id,
+      photoUri,
+      pickupCode,
+    );
     if (!updated) throw new Error('Echec de la confirmation de recuperation');
     set({ activeDelivery: updated });
   },

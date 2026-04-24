@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui';
+import { Button, OtpInput } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { uploadImage } from '@/services/upload.service';
@@ -12,9 +12,10 @@ import { alertConfirmSuccess } from '@/utils/alerts';
 
 export default function PickupConfirmScreen() {
   const router = useRouter();
-  const { confirmPickup } = useDriverStore();
+  const { confirmPickup, activeDelivery } = useDriverStore();
   const [photo, setPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pickupCode, setPickupCode] = useState('');
 
   const takePhoto = async () => {
     try {
@@ -46,6 +47,10 @@ export default function PickupConfirmScreen() {
 
   const handleConfirm = async () => {
     if (!photo) return;
+    if (pickupCode.length !== 4) {
+      Alert.alert('Code manquant', 'Demandez a l\'expediteur son code de recuperation a 4 chiffres.');
+      return;
+    }
     setUploading(true);
     try {
       console.log('[pickup-confirm] uploading photo...');
@@ -55,7 +60,7 @@ export default function PickupConfirmScreen() {
         return;
       }
       console.log('[pickup-confirm] photo uploaded, calling backend...');
-      await confirmPickup(uploaded.url);
+      await confirmPickup(uploaded.url, pickupCode);
       console.log('[pickup-confirm] backend OK, navigating');
       alertConfirmSuccess();
       router.replace('/(driver)/delivery-navigation');
@@ -86,6 +91,22 @@ export default function PickupConfirmScreen() {
           Prenez une photo du colis avant de partir
         </Text>
 
+        {activeDelivery?.senderContactName && (
+          <View style={styles.senderBox}>
+            <Ionicons
+              name="person-outline"
+              size={18}
+              color={colors.primaryDark}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.senderBoxLabel}>Expediteur du colis</Text>
+              <Text style={styles.senderBoxValue}>
+                {activeDelivery.senderContactName}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {photo ? (
           <View style={styles.photoContainer}>
             <Image source={{ uri: photo }} style={styles.photo} />
@@ -100,13 +121,27 @@ export default function PickupConfirmScreen() {
             <Text style={styles.cameraText}>Appuyez pour prendre une photo</Text>
           </TouchableOpacity>
         )}
+
+        <View style={styles.codeBlock}>
+          <Text style={styles.codeTitle}>Code de recuperation</Text>
+          <Text style={styles.codeSubtitle}>
+            Demandez a l'expediteur son code a 4 chiffres.
+          </Text>
+          <View style={styles.otpWrap}>
+            <OtpInput
+              length={4}
+              value={pickupCode}
+              onChange={setPickupCode}
+            />
+          </View>
+        </View>
       </View>
 
       <View style={styles.footer}>
         <Button
           title="Confirmer la recuperation"
           onPress={handleConfirm}
-          disabled={!photo}
+          disabled={!photo || pickupCode.length !== 4}
           loading={uploading}
         />
       </View>
@@ -182,5 +217,40 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  senderBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+    marginBottom: spacing.md,
+  },
+  senderBoxLabel: {
+    ...typography.caption,
+    color: colors.primaryDark,
+  },
+  senderBoxValue: {
+    ...typography.bodyMedium,
+    color: colors.primaryDark,
+  },
+  codeBlock: {
+    marginTop: spacing.lg,
+  },
+  codeTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  codeSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  otpWrap: {
+    alignItems: 'center',
   },
 });

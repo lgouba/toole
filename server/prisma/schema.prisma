@@ -166,6 +166,10 @@ model Delivery {
   packagePhotoDeliveryUrl  String?
   recipientName            String
   recipientPhone           String
+  /// Contact de la personne qui detient physiquement le colis au point de
+  /// recuperation. Si null, l'expediteur = le client qui a passe la commande.
+  senderContactName        String?
+  senderContactPhone       String?
   pickupAddress            String
   pickupDetails            String?
   pickupLat                Float
@@ -179,6 +183,9 @@ model Delivery {
   driverCommission         Int?
   platformFee              Int?
   tip                      Int            @default(0)
+  /// Code a 4 chiffres donne par l'expediteur au livreur pour valider la recuperation
+  pickupValidationCode     String         @default("0000") @db.VarChar(4)
+  /// Code a 4 chiffres donne par le destinataire au livreur pour valider la livraison
   validationCode           String         @db.VarChar(4)
   status                   DeliveryStatus @default(pending)
   acceptedAt               DateTime?

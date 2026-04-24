@@ -48,6 +48,9 @@ export interface CreateDeliveryInput {
   packageDescription?: string;
   recipientName: string;
   recipientPhone: string;
+  /** Si le colis est detenu par une autre personne que le client qui commande */
+  senderContactName?: string;
+  senderContactPhone?: string;
   pickupAddress: string;
   pickupDetails?: string;
   pickupLat: number;
@@ -84,6 +87,8 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       packageDescription: input.packageDescription,
       recipientName: input.recipientName,
       recipientPhone: input.recipientPhone,
+      senderContactName: input.senderContactName ?? null,
+      senderContactPhone: input.senderContactPhone ?? null,
       pickupAddress: input.pickupAddress,
       pickupDetails: input.pickupDetails,
       pickupLat: input.pickupLat,
@@ -97,6 +102,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       driverCommission: pricing.driverCommission,
       platformFee: pricing.platformFee,
       validationCode: generateValidationCode(),
+      pickupValidationCode: generateValidationCode(),
       status: isScheduled ? 'scheduled' : 'pending',
       scheduledFor: input.scheduledFor ?? null,
       expiresAt: isScheduled
@@ -189,8 +195,13 @@ async function notifyNearbyDrivers(delivery: Delivery) {
 }
 
 function sanitizeForDriver(delivery: Delivery) {
-  // Do not leak validation code to drivers before they deliver.
-  const { validationCode: _vc, ...rest } = delivery;
+  // Do not leak validation codes to drivers — they must be given them
+  // by the sender / recipient to validate each step.
+  const {
+    validationCode: _vc,
+    pickupValidationCode: _pvc,
+    ...rest
+  } = delivery;
   return rest;
 }
 
@@ -243,9 +254,9 @@ export async function getDeliveryForUser(deliveryId: string, userId: string) {
   if (delivery.senderId !== userId && delivery.driverId !== userId) {
     throw new HttpError(403, 'FORBIDDEN', 'Access denied');
   }
-  // Only sender should see validation code
+  // Only sender should see validation codes (delivery + pickup)
   if (delivery.senderId !== userId) {
-    return { ...delivery, validationCode: null };
+    return { ...delivery, validationCode: null, pickupValidationCode: null };
   }
   return delivery;
 }
@@ -414,6 +425,7 @@ export async function confirmPickup(
   deliveryId: string,
   driverId: string,
   photoUrl: string,
+  pickupCode: string,
 ) {
   const delivery = await prisma.delivery.findUnique({ where: { id: deliveryId } });
   if (!delivery) throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
@@ -422,6 +434,13 @@ export async function confirmPickup(
   }
   if (!['accepted', 'picking_up'].includes(delivery.status)) {
     throw new HttpError(400, 'INVALID_STATE', 'Delivery cannot be picked up');
+  }
+  if (delivery.pickupValidationCode !== pickupCode) {
+    throw new HttpError(
+      400,
+      'INVALID_PICKUP_CODE',
+      'Code de recuperation incorrect',
+    );
   }
   const updated = await prisma.delivery.update({
     where: { id: deliveryId },
