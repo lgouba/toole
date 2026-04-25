@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,11 +9,40 @@ import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
+import { getDeliveryById } from '@/services/delivery.service';
 
 export default function DeliveryNavigationScreen() {
   const router = useRouter();
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
   const [showCancel, setShowCancel] = useState(false);
+
+  // Verifie au mount et toutes les 10s que la livraison existe toujours
+  // cote backend. Si elle a ete supprimee/annulee/expiree, on degage.
+  useEffect(() => {
+    if (!activeDelivery?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      const fresh = await getDeliveryById(activeDelivery.id);
+      if (cancelled) return;
+      if (!fresh) {
+        useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+        router.replace('/(driver)');
+        return;
+      }
+      if (['cancelled', 'expired', 'delivered'].includes(fresh.status)) {
+        useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+        router.replace('/(driver)');
+      } else {
+        useDriverStore.setState({ activeDelivery: fresh });
+      }
+    };
+    check();
+    const id = setInterval(check, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeDelivery?.id, router]);
 
   if (!activeDelivery) return null;
 

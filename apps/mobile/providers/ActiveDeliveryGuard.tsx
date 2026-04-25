@@ -50,7 +50,37 @@ export function ActiveDeliveryGuard() {
         '[Guard] active delivery =',
         active ? `${active.id} (${active.status})` : 'none',
       );
-      if (!active) return;
+
+      const topSegment0 = segments[0] as string | undefined;
+      const currentPath0 = '/' + segments.join('/');
+
+      // Si aucune livraison active cote backend mais qu'on est encore sur un
+      // ecran lie a une livraison (store en cache stale), on force le retour
+      // a l'accueil. Sinon le livreur reste bloque sur pickup-navigation
+      // alors que la course a ete annulee/expiree/supprimee.
+      if (!active) {
+        const stalePaths = [
+          'pickup-navigation',
+          'pickup-confirm',
+          'delivery-navigation',
+          'delivery-confirm',
+          'code-validation',
+          'searching',
+          'active-delivery',
+          'delivery-complete',
+        ];
+        if (stalePaths.some((p) => currentPath0.includes(p))) {
+          console.log('[Guard] no active delivery but stuck on', currentPath0, '-> reset');
+          if (role === 'client') {
+            useDeliveryStore.getState().clear();
+            router.replace('/(client)');
+          } else {
+            useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+            router.replace('/(driver)');
+          }
+        }
+        return;
+      }
 
       // Met a jour les stores pour que les ecrans cibles trouvent leurs données
       if (role === 'client') {

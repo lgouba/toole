@@ -10,6 +10,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
+import { getDeliveryById } from '@/services/delivery.service';
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
@@ -19,6 +20,38 @@ export default function PickupNavigationScreen() {
   );
   const [showCancel, setShowCancel] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  // Au mount + toutes les 10s, on verifie que la livraison existe encore
+  // cote backend. Si elle a ete annulee/supprimee/expiree, on degage le
+  // livreur de cet ecran (sinon il reste bloque sur une course fantome).
+  useEffect(() => {
+    if (!activeDelivery?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      const fresh = await getDeliveryById(activeDelivery.id);
+      if (cancelled) return;
+      if (!fresh) {
+        // 404 -> livraison disparue
+        useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+        router.replace('/(driver)');
+        return;
+      }
+      const stale = ['cancelled', 'expired', 'pending'].includes(fresh.status);
+      if (stale) {
+        useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+        router.replace('/(driver)');
+      } else {
+        // Synchronise avec le backend (au cas ou une autre etape a avance)
+        useDriverStore.setState({ activeDelivery: fresh });
+      }
+    };
+    check();
+    const id = setInterval(check, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeDelivery?.id, router]);
 
   // Calcule et decremente le cooldown d'annulation base sur `acceptedAt`
   useEffect(() => {
