@@ -49,20 +49,23 @@ export default function NewDeliveryScreen() {
       // Toujours rafraichir les settings (tarifs eventuellement modifies)
       refreshSettings();
 
-      if (!initializedRef.current) {
-        // Premiere entree : wizard propre
+      // Si le draft est totalement vide (entre fresh depuis l'accueil, ou
+      // retour apres une livraison reussie/annulee qui a vide le draft),
+      // on remet le wizard a l'etape 0. Sinon, on garde l'etat (utile si
+      // on revient d'address-picker avec une position deja saisie).
+      const currentDraft = useDeliveryStore.getState().draft;
+      const draftIsEmpty =
+        !currentDraft.packageType &&
+        !currentDraft.pickupLocation &&
+        !currentDraft.deliveryLocation &&
+        !currentDraft.recipientName &&
+        !currentDraft.recipientPhone;
+
+      if (!initializedRef.current || draftIsEmpty) {
         setStep(0);
-        resetDraft();
+        if (!draftIsEmpty) resetDraft();
         initializedRef.current = true;
       }
-
-      // Quand on quitte l'ecran completement (pas juste pousser un sous-ecran),
-      // on reset le flag pour que la prochaine entree reparte a zero.
-      return () => {
-        // Note : useFocusEffect est appele aussi quand on push address-picker,
-        // mais on ne reset PAS dans le cleanup. Le reset se fera si l'ecran
-        // est unmounte (ex: navigation vers searching / accueil).
-      };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
