@@ -15,11 +15,17 @@ interface ExpoPushMessage {
 }
 
 export async function registerPushToken(userId: string, token: string, platform?: string) {
-  return prisma.pushToken.upsert({
+  logger.info(
+    { userId, platform, tokenPrefix: token.slice(0, 25) },
+    'Registering push token',
+  );
+  const saved = await prisma.pushToken.upsert({
     where: { token },
     create: { userId, token, platform },
     update: { userId, platform, updatedAt: new Date() },
   });
+  logger.info({ id: saved.id, userId }, 'Push token saved');
+  return saved;
 }
 
 export async function unregisterPushToken(token: string) {
@@ -33,7 +39,14 @@ export async function sendPushToUser(
   data?: Record<string, unknown>,
 ): Promise<void> {
   const tokens = await prisma.pushToken.findMany({ where: { userId } });
-  if (!tokens.length) return;
+  if (!tokens.length) {
+    logger.warn({ userId, title }, 'sendPushToUser: no tokens registered for user');
+    return;
+  }
+  logger.info(
+    { userId, title, tokenCount: tokens.length },
+    'Sending push notification',
+  );
 
   const messages: ExpoPushMessage[] = tokens.map((t) => ({
     to: t.token,

@@ -33,8 +33,14 @@ async function ensureHandlerConfigured() {
 }
 
 export async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) return null;
-  if (isExpoGo) return null;
+  if (!Device.isDevice) {
+    console.log('[push] skipped: not a real device');
+    return null;
+  }
+  if (isExpoGo) {
+    console.log('[push] skipped: running in Expo Go');
+    return null;
+  }
 
   try {
     await ensureHandlerConfigured();
@@ -51,36 +57,54 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    console.log('[push] existing permission status:', existingStatus);
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
+      console.log('[push] requested permission status:', status);
       finalStatus = status;
     }
-    if (finalStatus !== 'granted') return null;
+    if (finalStatus !== 'granted') {
+      console.warn('[push] permission denied -> no token will be registered');
+      return null;
+    }
 
     const projectId =
       Constants.expoConfig?.extra?.eas?.projectId ??
       (Constants as any).easConfig?.projectId;
+    console.log('[push] requesting Expo push token, projectId =', projectId);
     const tokenResponse = await Notifications.getExpoPushTokenAsync({
       projectId,
     });
     cachedToken = tokenResponse.data;
+    console.log('[push] obtained token:', cachedToken);
     return cachedToken;
-  } catch {
+  } catch (err) {
+    console.warn('[push] error obtaining token:', err);
     return null;
   }
 }
 
 export async function syncPushTokenToBackend(): Promise<void> {
+  console.log('[push] syncPushTokenToBackend called');
   const token = await registerForPushNotifications();
-  if (!token) return;
+  if (!token) {
+    console.warn('[push] no token to sync');
+    return;
+  }
   try {
-    await api.post('/users/push-token', {
+    console.log('[push] POST /users/push-token with', token.slice(0, 30) + '...');
+    const res = await api.post('/users/push-token', {
       token,
       platform: Platform.OS,
     });
-  } catch {
-    // Silencieux
+    console.log('[push] backend confirmed token registration:', res.status);
+  } catch (err: any) {
+    console.warn(
+      '[push] backend rejected token:',
+      err?.response?.status,
+      err?.response?.data ?? err?.message,
+    );
   }
 }
 
