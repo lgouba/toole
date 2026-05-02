@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { Map } from '@/components/map/Map';
 import { OnlineToggle } from '@/components/driver';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDriverStore } from '@/stores/driver.store';
-import { DEFAULT_MAP_REGION } from '@/utils/geo';
+import { useLocationStore } from '@/stores/location.store';
 import { LatLng } from '@/types';
 
 export default function DriverHomeScreen() {
@@ -17,36 +16,25 @@ export default function DriverHomeScreen() {
   const toggleOnline = useDriverStore((s) => s.toggleOnline);
   const currentLocation = useDriverStore((s) => s.currentLocation);
   const activeDelivery = useDriverStore((s) => s.activeDelivery);
+  // Position GPS globale (recuperee au lancement de l'app, partagee avec le client)
+  const userLocation = useLocationStore((s) => s.current);
+  const refreshLocation = useLocationStore((s) => s.refresh);
+  const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   const firstName = user?.firstName || user?.fullName.split(' ')[0] || 'Livreur';
   const isActivated = !!user?.isActive;
 
-  const [fallbackPos, setFallbackPos] = useState<LatLng | null>(null);
-
-  // Si on n'a pas de currentLocation (livreur hors-ligne au premier lancement),
-  // on demande une position GPS juste pour centrer la carte proprement.
+  // Demande/rafraichit la position GPS au mount si pas encore connue
   useEffect(() => {
-    if (currentLocation) return;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        setFallbackPos({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        });
-      } catch {
-        // ignore
-      }
-    })();
-  }, [currentLocation]);
+    if (!userLocation) {
+      refreshLocation().catch(() => {});
+    }
+  }, [userLocation, refreshLocation]);
 
-  // Position du livreur (fallback sur GPS une fois, sinon centre Ouaga)
-  const myPosition: LatLng =
-    currentLocation ?? fallbackPos ?? DEFAULT_MAP_REGION;
+  // Priorite : currentLocation (heartbeat en ligne) > userLocation (GPS global)
+  // > Ouagadougou (fallback ultime). Garantit qu'on n'affiche jamais Ouaga
+  // pour un livreur situe ailleurs des qu'on a une position GPS.
+  const myPosition: LatLng = currentLocation ?? userLocation ?? getCenter();
 
   // Markers a afficher :
   //  - toujours : position du livreur (avatar moto)
