@@ -466,6 +466,23 @@ export function Map({
     [zoom, structureKey, interactive, fitToContent],
   );
 
+  // Detecte un changement significatif du center (ex: GPS qui arrive apres
+  // un fallback Ouagadougou) et fait un setView via injection JS — sans
+  // rebuild du HTML, donc pas de tremblement.
+  useEffect(() => {
+    const prev = prevCenterRef.current;
+    const distLat = Math.abs(prev.latitude - center.latitude);
+    const distLng = Math.abs(prev.longitude - center.longitude);
+    // Seuil ~1km : evite les recentrages a chaque heartbeat (~10m) du
+    // livreur, mais capture les sauts type "Ouaga -> Paris".
+    const SIGNIFICANT = 0.01; // ~1.1km
+    if (distLat > SIGNIFICANT || distLng > SIGNIFICANT) {
+      const js = `try { map.setView([${center.latitude}, ${center.longitude}]); } catch(e) {} true;`;
+      webviewRef.current?.injectJavaScript(js);
+      prevCenterRef.current = center;
+    }
+  }, [center.latitude, center.longitude]);
+
   // Detecte les changements de coordonnees de markers et injecte des updates.
   useEffect(() => {
     const prev = prevMarkersRef.current;
