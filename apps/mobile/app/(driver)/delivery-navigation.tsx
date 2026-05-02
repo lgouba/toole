@@ -113,14 +113,19 @@ export default function DeliveryNavigationScreen() {
         </View>
 
         <Button
-          title="Je suis arrive - Entrer le code"
+          title="Je suis arrivé - Entrer le code"
           onPress={() => router.replace('/(driver)/code-validation')}
         />
         <View style={{ height: 8 }} />
+        {/* Une fois le colis recupere (status >= picked_up), l'annulation
+            n'est plus possible librement: le livreur s'est engage en validant
+            la photo + le code de recuperation. Pour annuler il doit passer
+            par le support. Le bouton est grise pour le signaler clairement. */}
         <Button
-          title="Annuler la course"
+          title="Annulation impossible (colis récupéré)"
           variant="outline"
-          onPress={() => setShowCancel(true)}
+          onPress={() => {}}
+          disabled
         />
       </View>
 
