@@ -35,7 +35,8 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 
 /**
  * Recherche des adresses pour l'autocompletion.
- * Biaisee vers le Burkina Faso. Retourne plusieurs resultats.
+ * Si `biasLocation` est fourni, les resultats proches sont prioritaires
+ * mais sans restriction pays — l'app est utilisable partout dans le monde.
  */
 export async function searchAddresses(
   query: string,
@@ -47,18 +48,19 @@ export async function searchAddresses(
     q: query.trim(),
     format: 'json',
     limit: '6',
-    countrycodes: 'bf',
     'accept-language': 'fr',
     addressdetails: '1',
   });
 
   if (biasLocation) {
     const { latitude, longitude } = biasLocation;
-    const delta = 0.2;
+    const delta = 0.5; // ~50km autour de la position pour prioriser
     params.set(
       'viewbox',
       `${longitude - delta},${latitude + delta},${longitude + delta},${latitude - delta}`,
     );
+    // bounded=0 -> les resultats hors viewbox restent retournes mais avec
+    // une priorite plus basse (utile si l'utilisateur cherche une ville lointaine).
     params.set('bounded', '0');
   }
 

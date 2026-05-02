@@ -8,15 +8,24 @@ import { Map } from '@/components/map/Map';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
-import { OUAGADOUGOU_CENTER } from '@/utils/geo';
+import { useLocationStore } from '@/stores/location.store';
 
 export default function ClientHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { nearbyDrivers, fetchNearbyDrivers } = useDeliveryStore();
+  const userLocation = useLocationStore((s) => s.current);
+  const refreshLocation = useLocationStore((s) => s.refresh);
+  const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   useEffect(() => {
-    fetchNearbyDrivers(OUAGADOUGOU_CENTER);
+    // Recupere la position GPS au montage si pas deja faite, puis cherche
+    // les livreurs proches autour de la position reelle de l'utilisateur.
+    (async () => {
+      const pos = userLocation ?? (await refreshLocation());
+      fetchNearbyDrivers(pos ?? getCenter());
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const firstName = user?.fullName.split(' ')[0] || 'Client';
@@ -36,7 +45,7 @@ export default function ClientHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Map center={OUAGADOUGOU_CENTER} zoom={13} markers={markers} />
+      <Map center={getCenter()} zoom={13} markers={markers} />
 
       {/* Top greeting */}
       <SafeAreaView edges={['top']} style={styles.topOverlay}>

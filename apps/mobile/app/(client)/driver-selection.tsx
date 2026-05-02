@@ -8,14 +8,21 @@ import { EmptyState } from '@/components/ui';
 import { DriverCard } from '@/components/driver';
 import { colors, typography, spacing } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
-import { OUAGADOUGOU_CENTER } from '@/utils/geo';
+import { useLocationStore } from '@/stores/location.store';
 
 export default function DriverSelectionScreen() {
   const router = useRouter();
   const { nearbyDrivers, fetchNearbyDrivers, selectDriver } = useDeliveryStore();
+  const userLocation = useLocationStore((s) => s.current);
+  const refreshLocation = useLocationStore((s) => s.refresh);
+  const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   useEffect(() => {
-    fetchNearbyDrivers(OUAGADOUGOU_CENTER);
+    (async () => {
+      const pos = userLocation ?? (await refreshLocation());
+      fetchNearbyDrivers(pos ?? getCenter());
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = (driver: any) => {

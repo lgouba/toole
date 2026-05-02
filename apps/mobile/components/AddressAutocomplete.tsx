@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { LatLng } from '@/types';
 import { searchAddresses, GeocodeSuggestion } from '@/utils/geocode';
-import { OUAGADOUGOU_CENTER } from '@/utils/geo';
+import { useLocationStore } from '@/stores/location.store';
 
 interface AddressAutocompleteProps {
   placeholder?: string;
@@ -68,10 +68,16 @@ export function AddressAutocomplete({
   onChangeText,
   onSelect,
   iconColor = colors.primary,
-  biasLocation = OUAGADOUGOU_CENTER,
+  biasLocation,
   autoFocus = false,
   hasConfirmedLocation = false,
 }: AddressAutocompleteProps) {
+  // Si pas de bias explicite, utilise la position GPS connue de l'utilisateur
+  // (fallback Ouagadougou si pas dispo). Permet a l'app d'etre utilisable
+  // partout dans le monde sans configuration.
+  const userLocation = useLocationStore((s) => s.current);
+  const fallbackCenter = useLocationStore((s) => s.getCenterOrFallback);
+  const effectiveBias = biasLocation ?? userLocation ?? fallbackCenter();
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -115,7 +121,7 @@ export function AddressAutocomplete({
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchAddresses(q, biasLocation);
+        const results = await searchAddresses(q, effectiveBias);
         cacheSet(q, results);
         setSuggestions(results);
       } finally {

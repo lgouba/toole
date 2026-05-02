@@ -12,6 +12,7 @@ import {
 import '@/utils/globalErrorHandler';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
@@ -47,6 +48,15 @@ export default function RootLayout() {
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [refreshSettings]);
+
+  // Recupere la position GPS de l'utilisateur des le demarrage (apres login)
+  // pour que les ecrans de carte / autocomplete soient deja prets.
+  const refreshLocation = useLocationStore((s) => s.refresh);
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshLocation().catch(() => {});
+    }
+  }, [isAuthenticated, refreshLocation]);
 
   // Quand le refresh token echoue, on force un logout propre.
   // Évite les états zombie ou l'utilisateur est "loggue" cote cache

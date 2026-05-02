@@ -26,8 +26,9 @@ import {
   searchAddresses,
   GeocodeSuggestion,
 } from '@/utils/geocode';
-import { DEFAULT_MAP_REGION, OUAGADOUGOU_CENTER } from '@/utils/geo';
+import { DEFAULT_MAP_REGION } from '@/utils/geo';
 import { useDeliveryStore } from '@/stores/delivery.store';
+import { useLocationStore } from '@/stores/location.store';
 
 const DEBOUNCE_MS = 250;
 
@@ -47,6 +48,8 @@ export default function AddressPickerScreen() {
   const isPickup = type === 'pickup';
 
   const { draft, setDraftField } = useDeliveryStore();
+  const userLocation = useLocationStore((s) => s.current);
+  const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   const initialAddress = isPickup ? draft.pickupAddress : draft.deliveryAddress;
   const initialLocation = isPickup
@@ -97,7 +100,8 @@ export default function AddressPickerScreen() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const r = await searchAddresses(q, OUAGADOUGOU_CENTER);
+        // Bias autour de la position GPS de l'utilisateur (fallback Ouaga si inconnu)
+        const r = await searchAddresses(q, userLocation ?? getCenter());
         setSuggestions(r);
       } finally {
         setLoading(false);
