@@ -25,11 +25,11 @@ export default function LoginScreen() {
     }
 
     const fullPhone = `226${cleaned}`;
-    const success = await sendOtp(fullPhone);
-    if (success) {
+    const result = await sendOtp(fullPhone);
+    if (result.success) {
       router.push('/(auth)/otp');
     } else {
-      setError('Erreur lors de l\'envoi du code');
+      setError(result.error || 'Erreur lors de l\'envoi du code');
     }
   };
 
