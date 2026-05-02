@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -52,8 +52,10 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
     y = year,
     h = hour,
     mi = minute,
+    overrideEnabled?: boolean,
   ) => {
-    if (!enabled) {
+    const isOn = overrideEnabled ?? enabled;
+    if (!isOn) {
       onChange(undefined);
       setError(null);
       return;
@@ -82,9 +84,28 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
       onChange(undefined);
       setError(null);
     } else {
-      applyIfValid();
+      // override enabled=true car setState n'est pas encore applique dans cette closure
+      applyIfValid(day, month, year, hour, minute, true);
     }
   };
+
+  // Heure actuelle affichee en temps reel pour aider l'utilisateur a choisir
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const nowStr = useMemo(
+    () =>
+      now.toLocaleString('fr-FR', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    [now],
+  );
 
   return (
     <View style={styles.container}>
@@ -112,6 +133,10 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 
       {enabled ? (
         <View style={styles.fields}>
+          <View style={styles.nowBanner}>
+            <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.nowText}>Maintenant : {nowStr}</Text>
+          </View>
           <Text style={styles.fieldLabel}>Date</Text>
           <View style={styles.dateRow}>
             <TextInput
@@ -328,5 +353,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.error,
     marginTop: spacing.xs,
+  },
+  nowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.background,
+    alignSelf: 'flex-start',
+  },
+  nowText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });
