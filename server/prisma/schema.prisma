@@ -329,6 +329,11 @@ model AppSettings {
   /// Fraicheur GPS requise pour considerer un livreur comme disponible
   /// (si le dernier heartbeat date de plus, on le passe offline auto)
   driverHeartbeatMaxAgeSeconds Int @default(120)
+  /// Delai minimum entre maintenant et l'heure choisie pour qu'une livraison
+  /// soit consideree comme "programmee" (en minutes). Sous ce seuil, la
+  /// livraison est diffusee immediatement aux livreurs. Permet aux admins de
+  /// l'abaisser pendant les tests (ex: 2 min) ou le remonter en prod.
+  scheduledMinDelayMinutes  Int @default(10)
 
   updatedAt DateTime @updatedAt
   updatedBy String?  @db.Uuid

@@ -217,6 +217,7 @@ const settingsUpdateSchema = z.object({
   driverHeartbeatMaxAgeSeconds: z.number().int().min(30).max(600).optional(),
   minWithdrawAmount: z.number().int().min(0).max(1000000).optional(),
   commissionDebtLimit: z.number().int().min(0).max(10000000).optional(),
+  scheduledMinDelayMinutes: z.number().int().min(1).max(120).optional(),
 });
 
 export async function getSettingsCtrl(

@@ -73,11 +73,14 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
   const pricing = await calculatePrice(input.packageType, distanceKm);
   const expiryMs = await getDeliveryExpiryMs();
 
-  // Si la date programmee est dans plus de 5 min, on cree en status 'scheduled'.
-  // Sinon on bascule en 'pending' direct (diffusion immediate).
+  // Si la date programmee est dans plus de `scheduledMinDelayMinutes` min,
+  // on cree en status 'scheduled'. Sinon diffusion immediate.
+  // Le seuil est pilote par l'admin (Settings.scheduledMinDelayMinutes).
   const now = Date.now();
+  const settingsForSchedule = await getAppSettings();
+  const minDelayMs = settingsForSchedule.scheduledMinDelayMinutes * 60 * 1000;
   const isScheduled =
-    input.scheduledFor && input.scheduledFor.getTime() - now > 5 * 60 * 1000;
+    input.scheduledFor && input.scheduledFor.getTime() - now > minDelayMs;
 
   const delivery = await prisma.delivery.create({
     data: {

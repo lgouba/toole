@@ -37,6 +37,10 @@ export default function NewDeliveryScreen() {
   const [thirdPartyPickup, setThirdPartyPickup] = useState(
     !!(draft.senderContactName || draft.senderContactPhone),
   );
+  // True quand le toggle "Programmer" est ON dans le SchedulePicker. Permet
+  // de bloquer la soumission si l'utilisateur a active le toggle mais que la
+  // date saisie est invalide (auquel cas draft.scheduledFor est undefined).
+  const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
   // Flag qui indique si on a déjà initialise le wizard pour cette session.
@@ -107,19 +111,32 @@ export default function NewDeliveryScreen() {
       Alert.alert('Destinataire manquant', 'Renseignez le nom et le téléphone du destinataire.');
       return;
     }
+    // Toggle "Programmer" active mais aucune date valide -> on empeche le submit
+    // pour eviter qu'une mauvaise saisie soit silencieusement ignoree.
+    if (scheduleEnabled && !draft.scheduledFor) {
+      Alert.alert(
+        'Heure de livraison invalide',
+        "Choisissez une date au moins 10 minutes après l'heure actuelle, ou désactivez la programmation pour une recherche immédiate.",
+      );
+      return;
+    }
+
+    // Capture le scheduledFor AVANT createDelivery (qui reset le draft),
+    // pour pouvoir afficher l'heure exacte dans l'alert.
+    const scheduledIsoBefore = draft.scheduledFor;
 
     try {
       const delivery = await createDelivery(user.id);
       if (delivery?.status === 'scheduled') {
-        const when = draft.scheduledFor
-          ? new Date(draft.scheduledFor).toLocaleString('fr-FR', {
+        const when = scheduledIsoBefore
+          ? new Date(scheduledIsoBefore).toLocaleString('fr-FR', {
               dateStyle: 'medium',
               timeStyle: 'short',
             })
           : 'plus tard';
         Alert.alert(
           'Livraison programmée',
-          `Votre course sera diffusee aux livreurs le ${when}. Vous recevrez une notification.`,
+          `Votre course sera diffusée aux livreurs le ${when}. Vous recevrez une notification.`,
           [{ text: 'OK', onPress: () => router.replace('/(client)') }],
         );
         return;
@@ -319,6 +336,7 @@ export default function NewDeliveryScreen() {
       <SchedulePicker
         value={draft.scheduledFor}
         onChange={(iso) => setDraftField('scheduledFor', iso)}
+        onEnabledChange={setScheduleEnabled}
       />
     </View>,
   ];

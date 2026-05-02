@@ -9,11 +9,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '@/theme';
+import { useSettingsStore } from '@/stores/settings.store';
 
 interface SchedulePickerProps {
   /** ISO datetime ou undefined */
   value: string | undefined;
   onChange: (iso: string | undefined) => void;
+  /**
+   * Notifie le parent de l'etat du toggle "Programmer". Permet au parent de
+   * detecter le cas "toggle on mais date invalide" et de bloquer la soumission.
+   */
+  onEnabledChange?: (enabled: boolean) => void;
 }
 
 /**
@@ -21,14 +27,24 @@ interface SchedulePickerProps {
  * Pas de DateTimePicker natif pour éviter une dépendance supplémentaire;
  * inputs texte HH/MM/JJ/MM/AAAA avec validation côté client.
  */
-export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
+export function SchedulePicker({
+  value,
+  onChange,
+  onEnabledChange,
+}: SchedulePickerProps) {
+  // Delai min pilote par l'admin (settings.operations.scheduledMinDelayMinutes)
+  const minDelayMinutes = useSettingsStore(
+    (s) => s.settings.operations.scheduledMinDelayMinutes,
+  );
+
   const initialDate = useMemo(() => {
     if (value) return new Date(value);
-    // Par defaut +2h pour un creneau raisonnable
+    // Par defaut: minDelay + 5 min de marge (suffisant pour passer la
+    // validation et donner une marge au cron qui scan toutes les 60s)
     const d = new Date();
-    d.setHours(d.getHours() + 2, 0, 0, 0);
+    d.setMinutes(d.getMinutes() + minDelayMinutes + 5, 0, 0);
     return d;
-  }, [value]);
+  }, [value, minDelayMinutes]);
 
   const [enabled, setEnabled] = useState(!!value);
   const [day, setDay] = useState(String(initialDate.getDate()).padStart(2, '0'));
@@ -65,14 +81,25 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
     const yN = parseInt(y, 10);
     const hN = parseInt(h, 10);
     const miN = parseInt(mi, 10);
-    if (!dN || !moN || !yN || isNaN(hN) || isNaN(miN)) return;
-    if (dN < 1 || dN > 31) return setError('Jour invalide');
-    if (moN < 1 || moN > 12) return setError('Mois invalide');
-    if (hN < 0 || hN > 23) return setError('Heure invalide');
-    if (miN < 0 || miN > 59) return setError('Minutes invalides');
+    // Helper: invalide la valeur ET pose un message d'erreur, pour que
+    // le client sache pourquoi le bouton "Confirmer" ne se fie pas a sa saisie.
+    const reject = (msg: string) => {
+      setError(msg);
+      onChange(undefined);
+    };
+    if (!dN || !moN || !yN || isNaN(hN) || isNaN(miN)) {
+      onChange(undefined);
+      return;
+    }
+    if (dN < 1 || dN > 31) return reject('Jour invalide');
+    if (moN < 1 || moN > 12) return reject('Mois invalide');
+    if (hN < 0 || hN > 23) return reject('Heure invalide');
+    if (miN < 0 || miN > 59) return reject('Minutes invalides');
     const dt = new Date(yN, moN - 1, dN, hN, miN);
-    if (dt.getTime() < Date.now() + 10 * 60 * 1000) {
-      return setError("La date doit etre dans plus de 10 min");
+    if (dt.getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
+      return reject(
+        `La date doit etre dans plus de ${minDelayMinutes} min apres maintenant`,
+      );
     }
     setError(null);
     onChange(dt.toISOString());
@@ -80,6 +107,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 
   const handleToggle = (v: boolean) => {
     setEnabled(v);
+    onEnabledChange?.(v);
     if (!v) {
       onChange(undefined);
       setError(null);
@@ -237,7 +265,7 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
                   } else if ('hour' in q && q.hour != null) {
                     if ('tomorrow' in q && q.tomorrow) d.setDate(d.getDate() + 1);
                     d.setHours(q.hour, 0, 0, 0);
-                    if (d.getTime() < Date.now() + 10 * 60 * 1000) {
+                    if (d.getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
                       d.setDate(d.getDate() + 1);
                     }
                   }

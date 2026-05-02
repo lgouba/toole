@@ -52,6 +52,7 @@ export async function updateAppSettings(
     driverHeartbeatMaxAgeSeconds: number;
     minWithdrawAmount: number;
     commissionDebtLimit: number;
+    scheduledMinDelayMinutes: number;
   }>,
   updatedBy?: string,
 ) {
@@ -95,6 +96,7 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
       deliveryExpiryMinutes: s.deliveryExpiryMinutes,
       driverCancelCooldownSeconds: s.driverCancelCooldownSeconds,
       nearbyRadiusKm: s.nearbyRadiusKm,
+      scheduledMinDelayMinutes: s.scheduledMinDelayMinutes,
     },
   };
 }

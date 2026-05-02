@@ -23,6 +23,7 @@ interface AppSettings {
   driverHeartbeatMaxAgeSeconds: number;
   minWithdrawAmount: number;
   commissionDebtLimit: number;
+  scheduledMinDelayMinutes: number;
   updatedAt: string;
 }
 
@@ -469,6 +470,21 @@ export default function Settings() {
                   max={600}
                 />
               </label>
+              <label>
+                Délai min livraison programmée (min)
+                <input
+                  type="number"
+                  value={settings.scheduledMinDelayMinutes}
+                  onChange={(e) =>
+                    update(
+                      'scheduledMinDelayMinutes',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={1}
+                  max={120}
+                />
+              </label>
             </div>
 
             <div
@@ -487,6 +503,11 @@ export default function Settings() {
                 <li>
                   <b>Duree de recherche</b> : temps maximum d'attente avant qu'une
                   demande client expire si aucun livreur n'accepte (defaut 5 min).
+                </li>
+                <li>
+                  <b>Délai min livraison programmée</b> : seuil sous lequel une
+                  livraison "programmée" est en réalité diffusée immédiatement.
+                  Par défaut 10 min ; descendre à 2-3 min pour les tests.
                 </li>
                 <li>
                   <b>Delai avant annulation</b> : un livreur ne peut pas annuler

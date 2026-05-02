@@ -18,6 +18,9 @@ export interface OperationSettings {
   driverCancelCooldownSeconds: number;
   /** Rayon de diffusion aux livreurs (km) — informatif pour le mobile */
   nearbyRadiusKm: number;
+  /** Delai minimum entre maintenant et l'heure choisie pour qu'une livraison
+   *  soit acceptee comme programmee (en minutes). En dessous, immediate. */
+  scheduledMinDelayMinutes: number;
 }
 
 export interface PublicSettings {
@@ -53,6 +56,7 @@ const DEFAULT_SETTINGS: PublicSettings = {
     deliveryExpiryMinutes: 5,
     driverCancelCooldownSeconds: 120,
     nearbyRadiusKm: 5,
+    scheduledMinDelayMinutes: 10,
   },
 };
 
