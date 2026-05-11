@@ -57,6 +57,7 @@ export default function AddressPickerScreen() {
 
   const { draft, setDraftField } = useDeliveryStore();
   const userLocation = useLocationStore((s) => s.current);
+  const countryCode = useLocationStore((s) => s.countryCode);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   const favorites = useAddressFavoritesStore((s) => s.favorites);
@@ -115,7 +116,11 @@ export default function AddressPickerScreen() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const r = await searchAddresses(q, userLocation ?? getCenter());
+        const r = await searchAddresses(
+          q,
+          userLocation ?? getCenter(),
+          countryCode,
+        );
         setSuggestions(r);
       } finally {
         setLoading(false);

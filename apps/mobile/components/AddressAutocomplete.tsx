@@ -76,6 +76,7 @@ export function AddressAutocomplete({
   // (fallback Ouagadougou si pas dispo). Permet a l'app d'etre utilisable
   // partout dans le monde sans configuration.
   const userLocation = useLocationStore((s) => s.current);
+  const countryCode = useLocationStore((s) => s.countryCode);
   const fallbackCenter = useLocationStore((s) => s.getCenterOrFallback);
   const effectiveBias = biasLocation ?? userLocation ?? fallbackCenter();
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
@@ -121,7 +122,7 @@ export function AddressAutocomplete({
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchAddresses(q, effectiveBias);
+        const results = await searchAddresses(q, effectiveBias, countryCode);
         cacheSet(q, results);
         setSuggestions(results);
       } finally {

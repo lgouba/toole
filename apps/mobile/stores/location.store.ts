@@ -4,6 +4,24 @@ import { LatLng } from '@/types';
 import { OUAGADOUGOU_CENTER } from '@/utils/geo';
 
 /**
+ * Reverse geocode minimaliste qui renvoie uniquement le code pays ISO 2.
+ * Utilise expo-location.reverseGeocodeAsync (Apple/Google natif) plutot que
+ * Nominatim pour eviter un round-trip reseau au demarrage.
+ */
+async function detectCountryCode(loc: LatLng): Promise<string | null> {
+  try {
+    const results = await Location.reverseGeocodeAsync({
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+    });
+    const first = results[0];
+    return first?.isoCountryCode?.toLowerCase() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Position GPS courante de l'utilisateur (client ou livreur).
  * Recuperee une fois au demarrage de l'app puis rafraichie a la demande.
  *
@@ -18,6 +36,8 @@ import { OUAGADOUGOU_CENTER } from '@/utils/geo';
  */
 interface LocationState {
   current: LatLng | null;
+  /** Code ISO 2 du pays detecte depuis la position courante (ex: 'bf', 'fr'). */
+  countryCode: string | null;
   permissionGranted: boolean;
   isLoading: boolean;
   /** Refresh la position. Demande la permission si pas encore accordee. */
@@ -28,6 +48,7 @@ interface LocationState {
 
 export const useLocationStore = create<LocationState>((set, get) => ({
   current: null,
+  countryCode: null,
   permissionGranted: false,
   isLoading: false,
 
@@ -47,6 +68,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         longitude: pos.coords.longitude,
       };
       set({ current: loc, permissionGranted: true, isLoading: false });
+      // Detection pays en background (non-bloquant)
+      detectCountryCode(loc)
+        .then((cc) => {
+          if (cc) set({ countryCode: cc });
+        })
+        .catch(() => {});
       return loc;
     } catch (err) {
       console.warn('[location.store] refresh failed', err);

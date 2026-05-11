@@ -35,12 +35,15 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 
 /**
  * Recherche des adresses pour l'autocompletion.
- * Si `biasLocation` est fourni, les resultats proches sont prioritaires
- * mais sans restriction pays — l'app est utilisable partout dans le monde.
+ * Si `countryCode` est fourni (ISO 2, ex: 'bf', 'fr'), les resultats sont
+ * STRICTEMENT limites a ce pays — evite les "Banque mondiale Washington"
+ * quand l'utilisateur tape "banque" depuis Ouagadougou.
+ * Si `biasLocation` est fourni en plus, les resultats proches sont prioritaires.
  */
 export async function searchAddresses(
   query: string,
   biasLocation?: LatLng,
+  countryCode?: string | null,
 ): Promise<GeocodeSuggestion[]> {
   if (!query || query.trim().length < 3) return [];
 
@@ -52,6 +55,13 @@ export async function searchAddresses(
     addressdetails: '1',
   });
 
+  // Filtre strict par pays = la solution la plus fiable pour des recherches
+  // generiques (banque, station, marche). Sans ca Nominatim renvoie des
+  // resultats du monde entier meme avec viewbox.
+  if (countryCode) {
+    params.set('countrycodes', countryCode);
+  }
+
   if (biasLocation) {
     const { latitude, longitude } = biasLocation;
     const delta = 0.5; // ~50km autour de la position pour prioriser
@@ -59,9 +69,10 @@ export async function searchAddresses(
       'viewbox',
       `${longitude - delta},${latitude + delta},${longitude + delta},${latitude - delta}`,
     );
-    // bounded=0 -> les resultats hors viewbox restent retournes mais avec
-    // une priorite plus basse (utile si l'utilisateur cherche une ville lointaine).
-    params.set('bounded', '0');
+    // Avec countrycodes, on peut activer bounded sans risque de tout perdre :
+    // on reste dans le pays. Sans countrycodes, on garde bounded=0 pour ne pas
+    // tuer les resultats hors-zone.
+    params.set('bounded', countryCode ? '0' : '0');
   }
 
   const data = await fetchJson<
