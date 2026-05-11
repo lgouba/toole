@@ -170,3 +170,57 @@ export async function requestTopupCtrl(
     next(err);
   }
 }
+
+// -------- Topup en espèce --------
+// Le livreur prefere remettre son cash en main propre a l'admin plutot que
+// passer par Mobile Money. On cree juste une transaction 'topup' en status
+// 'pending' avec paymentMethod='cash' + un token court servant de preuve a
+// montrer a l'admin. L'admin valide manuellement = encaissement OK.
+
+const cashTopupSchema = z.object({
+  amount: z.number().int().positive(),
+});
+
+export async function requestCashTopupCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = cashTopupSchema.parse(req.body);
+
+    const profile = await prisma.driverProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+    if (!profile) {
+      throw new HttpError(403, 'NOT_DRIVER', 'Seuls les livreurs peuvent regler leur dette');
+    }
+
+    // Code court (4 chiffres) que le livreur presentera a l'admin pour valider
+    const confirmCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    const tx = await prisma.transaction.create({
+      data: {
+        userId: req.user!.id,
+        type: 'topup',
+        amount: body.amount,
+        paymentMethod: 'cash',
+        status: 'pending',
+        note: `Reglement cash - code: ${confirmCode}`,
+      },
+    });
+
+    logger.info(
+      {
+        userId: req.user!.id,
+        amount: body.amount,
+        txId: tx.id,
+        confirmCode,
+      },
+      'Cash topup requested',
+    );
+    return success(res, { ...tx, confirmCode });
+  } catch (err) {
+    next(err);
+  }
+}

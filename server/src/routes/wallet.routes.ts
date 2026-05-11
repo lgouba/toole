@@ -7,6 +7,7 @@ import {
   requestWithdrawCtrl,
   sendTopupOtpCtrl,
   requestTopupCtrl,
+  requestCashTopupCtrl,
 } from '../controllers/wallet.controller.js';
 
 const router = Router();
@@ -24,5 +25,6 @@ router.post('/withdraw', requestWithdrawCtrl);
 // Topup (reglement de dette commission)
 router.post('/topup/otp', sendTopupOtpCtrl);
 router.post('/topup', requestTopupCtrl);
+router.post('/topup/cash', requestCashTopupCtrl);
 
 export default router;

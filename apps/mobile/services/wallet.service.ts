@@ -73,6 +73,18 @@ export async function requestTopup(args: {
   return unwrap<Transaction>(res);
 }
 
+/**
+ * Reglement de dette en especes (remise main propre a l'admin).
+ * Cree une transaction topup pending avec paymentMethod=cash et renvoie
+ * un code court a 4 chiffres que le livreur presente a l'admin pour validation.
+ */
+export async function requestCashTopup(amount: number): Promise<
+  Transaction & { confirmCode: string }
+> {
+  const res = await api.post('/wallet/topup/cash', { amount });
+  return unwrap(res);
+}
+
 /** Formate un numéro 226XXXXXXXX en "XX XX XX XX" */
 export function formatPhoneForDisplay(phone: string | null | undefined): string {
   if (!phone) return '';

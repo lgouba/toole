@@ -68,85 +68,90 @@ export default function WalletScreen() {
           <View>
             <Text style={styles.pageTitle}>Portefeuille</Text>
 
-            {/* Card principale : dette ou solde */}
+            {/* ============================================ */}
+            {/* Card 1 : MON GAIN NET (toujours visible)     */}
+            {/* ============================================ */}
+            <View style={[styles.metricCard, styles.metricCardGain]}>
+              <View style={styles.metricHeader}>
+                <View style={styles.metricIconGain}>
+                  <Ionicons name="trending-up" size={20} color={colors.white} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.metricLabel}>Mon gain net</Text>
+                  <Text style={styles.metricHint}>
+                    Disponible pour retrait
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.metricValueGain}>{formatCFA(balance)}</Text>
+              {canWithdraw ? (
+                <TouchableOpacity
+                  style={styles.actionBtnGain}
+                  onPress={() => router.push('/wallet-flow?mode=withdraw')}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="arrow-down-circle" size={18} color={colors.white} />
+                  <Text style={styles.actionBtnText}>Retirer</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.actionBtnDisabled}>
+                  <Text style={styles.actionBtnDisabledText}>
+                    Effectuez des livraisons pour gagner
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* ============================================ */}
+            {/* Card 2 : COMMISSION À REVERSER (si > 0)      */}
+            {/* ============================================ */}
             {hasDebt ? (
-              <View style={[styles.balanceCard, styles.balanceCardDebt]}>
-                <View style={styles.balanceRow}>
-                  <View>
-                    <Text style={styles.balanceLabel}>
-                      À régler à la plateforme
-                    </Text>
-                    <Text style={styles.balanceValueDebt}>
-                      {formatCFA(debt)}
-                    </Text>
-                    <Text style={styles.balanceHint}>
-                      Commission des courses payées cash
-                    </Text>
-                  </View>
-                  <View style={styles.debtIconWrap}>
+              <View style={[styles.metricCard, styles.metricCardDebt]}>
+                <View style={styles.metricHeader}>
+                  <View style={styles.metricIconDebt}>
                     <Ionicons
                       name="alert-circle"
-                      size={32}
-                      color={colors.error}
+                      size={20}
+                      color={colors.white}
                     />
                   </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.metricLabelDebt}>
+                      Commission à reverser
+                    </Text>
+                    <Text style={styles.metricHint}>
+                      Sur les courses payées en espèce
+                    </Text>
+                  </View>
                 </View>
+                <Text style={styles.metricValueDebt}>{formatCFA(debt)}</Text>
                 <TouchableOpacity
-                  style={styles.primaryBtn}
+                  style={styles.actionBtnDebt}
                   onPress={() =>
                     router.push(`/wallet-flow?mode=topup&amount=${debt}`)
                   }
+                  activeOpacity={0.85}
                 >
                   <Ionicons name="wallet" size={18} color={colors.white} />
-                  <Text style={styles.primaryBtnText}>Régler maintenant</Text>
+                  <Text style={styles.actionBtnText}>Reverser</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View style={styles.balanceCard}>
-                <View style={styles.balanceRow}>
-                  <View>
-                    <Text style={styles.balanceLabel}>Solde disponible</Text>
-                    <Text style={styles.balanceValue}>{formatCFA(balance)}</Text>
-                    <Text style={styles.balanceHint}>
-                      {canWithdraw
-                        ? 'Disponible pour retrait'
-                        : 'Effectuez des livraisons pour gagner'}
-                    </Text>
-                  </View>
-                  <View style={styles.walletIconWrap}>
-                    <Ionicons name="wallet" size={32} color={colors.primary} />
-                  </View>
-                </View>
-                {canWithdraw ? (
-                  <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={() => router.push('/wallet-flow?mode=withdraw')}
-                  >
-                    <Ionicons
-                      name="arrow-down-circle"
-                      size={18}
-                      color={colors.white}
-                    />
-                    <Text style={styles.primaryBtnText}>Retirer</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
+            ) : null}
 
-            {/* Stats rapides */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
+            {/* Stat livraisons */}
+            <View style={styles.deliveriesPill}>
+              <Ionicons
+                name="bicycle"
+                size={16}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.deliveriesPillText}>
+                <Text style={{ fontWeight: '800' }}>
                   {wallet?.totalDeliveries ?? 0}
-                </Text>
-                <Text style={styles.statLabel}>Livraisons</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {hasDebt ? formatCFA(debt) : '—'}
-                </Text>
-                <Text style={styles.statLabel}>Dette cash</Text>
-              </View>
+                </Text>{' '}
+                livraison{(wallet?.totalDeliveries ?? 0) > 1 ? 's' : ''}{' '}
+                effectuée{(wallet?.totalDeliveries ?? 0) > 1 ? 's' : ''}
+              </Text>
             </View>
 
             <Text style={styles.historyTitle}>Historique</Text>
@@ -253,63 +258,74 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.md,
   },
-  balanceCard: {
+  // ============== Metric cards (gain + dette) ==============
+  metricCard: {
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
     marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  balanceCardDebt: {
-    backgroundColor: colors.errorLight,
+  metricCardGain: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight + '60',
+  },
+  metricCardDebt: {
     borderColor: colors.error,
+    backgroundColor: colors.errorLight,
   },
-  balanceRow: {
+  metricHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
-  balanceLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  metricIconGain: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceValue: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginTop: spacing.xs,
+  metricIconDebt: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceValueDebt: {
-    ...typography.h1,
+  metricLabel: {
+    ...typography.bodyMedium,
+    color: colors.primaryDark,
+    fontWeight: '800',
+  },
+  metricLabelDebt: {
+    ...typography.bodyMedium,
     color: colors.error,
-    marginTop: spacing.xs,
+    fontWeight: '800',
   },
-  balanceHint: {
+  metricHint: {
     ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
   },
-  walletIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+  metricValueGain: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.5,
+    marginVertical: 4,
   },
-  debtIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
+  metricValueDebt: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.error,
+    letterSpacing: -0.5,
+    marginVertical: 4,
   },
-  primaryBtn: {
+  actionBtnGain: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -317,32 +333,60 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: borderRadius.md,
     backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  primaryBtnText: {
+  actionBtnDebt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.error,
+    shadowColor: colors.error,
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  actionBtnText: {
     ...typography.button,
     color: colors.white,
+    fontWeight: '800',
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
+  actionBtnDisabled: {
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    borderStyle: 'dashed',
   },
-  statValue: {
-    ...typography.h3,
-    color: colors.textPrimary,
+  actionBtnDisabledText: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    fontWeight: '600',
   },
-  statLabel: {
-    ...typography.caption,
+  deliveriesPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  deliveriesPillText: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    marginTop: 2,
   },
   historyTitle: {
     ...typography.bodyMedium,
