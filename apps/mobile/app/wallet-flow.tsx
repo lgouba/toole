@@ -22,12 +22,10 @@ import {
   requestWithdraw,
   sendTopupOtp,
   requestTopup,
-  requestCashTopup,
 } from '@/services/wallet.service';
 
 type Mode = 'withdraw' | 'topup';
-type Step = 'method' | 'amount' | 'phone' | 'otp' | 'cash-confirm';
-type Method = 'cash' | 'mobile_money';
+type Step = 'amount' | 'phone' | 'otp';
 
 const OPERATORS: {
   key: 'orange_money' | 'moov_money';
@@ -49,17 +47,13 @@ export default function WalletFlowScreen() {
 
   const user = useAuthStore((s) => s.user);
 
-  // Pour un règlement (topup) : on commence par "method" (cash vs MM)
-  // Pour un retrait : pas de choix, on va direct sur amount (MM only)
-  const initialStep: Step =
-    mode === 'topup' ? 'method' : amountLocked ? 'phone' : 'amount';
-  const [step, setStep] = useState<Step>(initialStep);
-  const [method, setMethod] = useState<Method | null>(null);
+  // Si montant verrouille (cas du reglement de dette), on saute directement
+  // a l'etape 2 (phone). Sinon on demarre par la saisie du montant.
+  const [step, setStep] = useState<Step>(amountLocked ? 'phone' : 'amount');
   const [amount, setAmount] = useState(initialAmount);
   const [operator, setOperator] = useState<'orange_money' | 'moov_money' | null>(
     null,
   );
-  const [cashConfirmCode, setCashConfirmCode] = useState<string>('');
   const [phone, setPhone] = useState(
     user?.phone
       ? user.phone.replace(/^226/, '').replace(/\D/g, '').slice(0, 8)
@@ -167,36 +161,7 @@ export default function WalletFlowScreen() {
     setError('');
     if (step === 'otp') return setStep('phone');
     if (step === 'phone' && !amountLocked) return setStep('amount');
-    if (step === 'phone' && amountLocked && mode === 'topup') return setStep('method');
-    if (step === 'amount' && mode === 'topup') return setStep('method');
-    if (step === 'cash-confirm') return setStep('method');
     router.back();
-  };
-
-  // Choix Espece : creer une demande de topup cash et afficher le code de confirmation
-  const handleSelectCash = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const res = await requestCashTopup(parseInt(amount || '0', 10));
-      setCashConfirmCode(res.confirmCode);
-      setStep('cash-confirm');
-    } catch (err: any) {
-      Alert.alert(
-        'Erreur',
-        err?.response?.data?.error?.message ??
-          "Impossible d'enregistrer le paiement cash. Réessayez.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Choix MM : on enchaine sur le flow existant (phone -> otp)
-  const handleSelectMobileMoney = () => {
-    setMethod('mobile_money');
-    if (amountLocked) setStep('phone');
-    else setStep('amount');
   };
 
   return (
@@ -239,117 +204,6 @@ export default function WalletFlowScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Étape 0 (topup uniquement) : choix du moyen de paiement */}
-          {step === 'method' && (
-            <>
-              <Text style={styles.stepTitle}>Comment souhaitez-vous régler ?</Text>
-              <Text style={styles.stepHint}>
-                Montant à régler :{' '}
-                <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
-                  {formatCFA(parseInt(amount || '0', 10))}
-                </Text>
-              </Text>
-
-              <View style={styles.methodList}>
-                <TouchableOpacity
-                  style={styles.methodCard}
-                  onPress={handleSelectCash}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  <View
-                    style={[
-                      styles.methodIcon,
-                      { backgroundColor: colors.primaryLight },
-                    ]}
-                  >
-                    <Ionicons name="cash-outline" size={28} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.methodTitle}>Espèce</Text>
-                    <Text style={styles.methodSub}>
-                      Remise en main propre à l'administrateur. Présentez votre
-                      code à 4 chiffres pour validation.
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={colors.textTertiary}
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.methodCard}
-                  onPress={handleSelectMobileMoney}
-                  activeOpacity={0.85}
-                >
-                  <View
-                    style={[
-                      styles.methodIcon,
-                      { backgroundColor: '#FFF0EB' },
-                    ]}
-                  >
-                    <Ionicons name="phone-portrait-outline" size={28} color="#FF7900" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.methodTitle}>Mobile Money</Text>
-                    <Text style={styles.methodSub}>
-                      Orange Money ou Moov Money. Confirmation par code SMS.
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={colors.textTertiary}
-                  />
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {/* Étape "cash-confirm" : afficher le code à montrer à l'admin */}
-          {step === 'cash-confirm' && (
-            <>
-              <View style={styles.cashSuccessIcon}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={64}
-                  color={colors.primary}
-                />
-              </View>
-              <Text style={[styles.stepTitle, { textAlign: 'center' }]}>
-                Paiement enregistré
-              </Text>
-              <Text style={[styles.stepHint, { textAlign: 'center' }]}>
-                Présentez ce code à l'administrateur lors de la remise des
-                espèces. Il validera le paiement et votre dette sera régularisée.
-              </Text>
-
-              <View style={styles.codeBig}>
-                <Text style={styles.codeBigLabel}>VOTRE CODE DE VALIDATION</Text>
-                <Text style={styles.codeBigValue}>{cashConfirmCode}</Text>
-                <Text style={styles.codeBigAmount}>
-                  Montant à remettre :{' '}
-                  {formatCFA(parseInt(amount || '0', 10))}
-                </Text>
-              </View>
-
-              <View style={styles.cashInfoBox}>
-                <Ionicons
-                  name="information-circle"
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.cashInfoText}>
-                  Vous pouvez retrouver ce code dans votre historique
-                  ("Règlement en attente") tant que l'administrateur n'a pas
-                  confirmé.
-                </Text>
-              </View>
-            </>
-          )}
-
           {/* Étape 1 : montant */}
           {step === 'amount' && (
             <>
@@ -548,9 +402,6 @@ export default function WalletFlowScreen() {
               loading={loading}
               disabled={otp.length !== 4}
             />
-          )}
-          {step === 'cash-confirm' && (
-            <Button title="Terminer" onPress={() => router.back()} />
           )}
         </View>
       </KeyboardAvoidingView>
@@ -766,87 +617,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
-  },
-  // ============== Choix méthode (espèce / MM) ==============
-  methodList: {
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  methodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  methodIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  methodTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  methodSub: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 17,
-  },
-  // ============== Cash confirm ==============
-  cashSuccessIcon: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  codeBig: {
-    marginTop: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-  },
-  codeBigLabel: {
-    ...typography.caption,
-    color: colors.primaryDark,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  codeBigValue: {
-    fontSize: 56,
-    fontWeight: '800',
-    color: colors.primaryDark,
-    letterSpacing: 12,
-    marginVertical: spacing.sm,
-  },
-  codeBigAmount: {
-    ...typography.bodyMedium,
-    color: colors.primaryDark,
-    fontWeight: '700',
-  },
-  cashInfoBox: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    marginTop: spacing.lg,
-  },
-  cashInfoText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
   },
 });
