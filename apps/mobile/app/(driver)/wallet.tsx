@@ -52,8 +52,13 @@ export default function WalletScreen() {
   };
 
   const debt = wallet?.commissionDebt ?? 0;
+  const pending = wallet?.pendingTopupAmount ?? 0;
+  const effectiveDebt = wallet?.effectiveDebt ?? 0;
   const balance = wallet?.balance ?? 0;
   const hasDebt = debt > 0;
+  // Le livreur peut reverser seulement si la dette nette est > 0
+  // (sinon tout est deja en attente de validation)
+  const canPay = effectiveDebt > 0;
   const canWithdraw = balance > 0;
 
   return (
@@ -124,17 +129,72 @@ export default function WalletScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.metricValueDebt}>{formatCFA(debt)}</Text>
-                <TouchableOpacity
-                  style={styles.actionBtnDebt}
-                  onPress={() =>
-                    router.push(`/wallet-flow?mode=topup&amount=${debt}`)
-                  }
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="wallet" size={18} color={colors.white} />
-                  <Text style={styles.actionBtnText}>Reverser</Text>
-                </TouchableOpacity>
+                <Text style={styles.metricValueDebt}>
+                  {formatCFA(effectiveDebt)}
+                </Text>
+
+                {/* Detail dette totale + en attente */}
+                {pending > 0 ? (
+                  <View style={styles.debtBreakdown}>
+                    <View style={styles.breakdownRow}>
+                      <Text style={styles.breakdownLabel}>Dette totale</Text>
+                      <Text style={styles.breakdownValue}>{formatCFA(debt)}</Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <View style={styles.breakdownLabelRow}>
+                        <Ionicons
+                          name="time-outline"
+                          size={13}
+                          color={colors.warning}
+                        />
+                        <Text
+                          style={[
+                            styles.breakdownLabel,
+                            { color: colors.warning },
+                          ]}
+                        >
+                          En attente de validation
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.breakdownValue,
+                          { color: colors.warning },
+                        ]}
+                      >
+                        −{formatCFA(pending)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {canPay ? (
+                  <TouchableOpacity
+                    style={styles.actionBtnDebt}
+                    onPress={() =>
+                      router.push(
+                        `/wallet-flow?mode=topup&amount=${effectiveDebt}`,
+                      )
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="wallet" size={18} color={colors.white} />
+                    <Text style={styles.actionBtnText}>
+                      Reverser {formatCFA(effectiveDebt)}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.actionBtnPending}>
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={colors.warning}
+                    />
+                    <Text style={styles.actionBtnPendingText}>
+                      En attente de validation admin
+                    </Text>
+                  </View>
+                )}
               </View>
             ) : null}
 
@@ -372,6 +432,50 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textTertiary,
     fontWeight: '600',
+  },
+  debtBreakdown: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm + 2,
+    gap: 6,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakdownLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  breakdownLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  breakdownValue: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  actionBtnPending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.warningLight,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderStyle: 'dashed',
+  },
+  actionBtnPendingText: {
+    ...typography.bodySmall,
+    color: colors.warning,
+    fontWeight: '700',
   },
   deliveriesPill: {
     flexDirection: 'row',

@@ -3,6 +3,11 @@ import { api, unwrap } from './api.client';
 export interface WalletSnapshot {
   balance: number;
   commissionDebt: number;
+  /** Somme des topups deja initiés et en attente de validation admin. */
+  pendingTopupAmount: number;
+  /** Dette commission restante apres soustraction des pending. C'est le
+   *  maximum que le livreur peut encore reverser MAINTENANT. */
+  effectiveDebt: number;
   totalDeliveries: number;
 }
 

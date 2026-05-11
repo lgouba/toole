@@ -149,6 +149,11 @@ export async function requestTopupCtrl(
       throw new HttpError(403, 'NOT_DRIVER', 'Seuls les livreurs peuvent regler leur dette');
     }
 
+    // Empeche le double-paiement : on bloque si la somme {nouveau topup + pending}
+    // depasse la dette commission reelle. Le livreur doit attendre la validation
+    // de ses paiements precedents avant d'en faire de nouveaux.
+    await assertTopupWithinEffectiveDebt(req.user!.id, body.amount);
+
     const tx = await prisma.transaction.create({
       data: {
         userId: req.user!.id,
@@ -168,6 +173,41 @@ export async function requestTopupCtrl(
     return success(res, tx);
   } catch (err) {
     next(err);
+  }
+}
+
+/**
+ * Verifie que (somme topup pending + nouveau montant) ne depasse pas la dette
+ * commission reelle du livreur. Sinon on refuse (un autre paiement est deja
+ * en attente, le livreur doit patienter).
+ */
+async function assertTopupWithinEffectiveDebt(userId: string, amount: number) {
+  const profile = await prisma.driverProfile.findUnique({
+    where: { userId },
+    select: { walletBalance: true },
+  });
+  const commissionDebt = Math.max(0, -(profile?.walletBalance ?? 0));
+  const pendingAgg = await prisma.transaction.aggregate({
+    where: { userId, type: 'topup', status: 'pending' },
+    _sum: { amount: true },
+  });
+  const pendingTopupAmount = pendingAgg._sum.amount ?? 0;
+  const effectiveDebt = Math.max(0, commissionDebt - pendingTopupAmount);
+
+  if (commissionDebt === 0) {
+    throw new HttpError(
+      400,
+      'NO_DEBT',
+      "Vous n'avez aucune commission a reverser.",
+    );
+  }
+  if (amount > effectiveDebt) {
+    throw new HttpError(
+      400,
+      'PENDING_TOPUPS_EXCEED',
+      `Vous avez deja ${pendingTopupAmount} FCFA en attente de validation. ` +
+        `Vous pouvez encore reverser au maximum ${effectiveDebt} FCFA.`,
+    );
   }
 }
 
@@ -195,6 +235,9 @@ export async function requestCashTopupCtrl(
     if (!profile) {
       throw new HttpError(403, 'NOT_DRIVER', 'Seuls les livreurs peuvent regler leur dette');
     }
+
+    // Verifie pas de double-paiement (cf. requestTopupCtrl)
+    await assertTopupWithinEffectiveDebt(req.user!.id, body.amount);
 
     // Code court (4 chiffres) que le livreur presentera a l'admin pour valider
     const confirmCode = Math.floor(1000 + Math.random() * 9000).toString();

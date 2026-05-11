@@ -38,9 +38,27 @@ export async function getWalletSnapshot(userId: string) {
   if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
 
   const raw = profile.walletBalance;
+  const commissionDebt = Math.max(0, -raw);
+
+  // Somme des topups en attente de validation (deja initie un reglement
+  // par le livreur, attend la confirmation admin pour debiter la dette).
+  // On l'utilise pour eviter qu'un livreur fasse plusieurs reglements pour
+  // le meme montant en attendant que l'admin valide.
+  const pendingAgg = await prisma.transaction.aggregate({
+    where: { userId, type: 'topup', status: 'pending' },
+    _sum: { amount: true },
+  });
+  const pendingTopupAmount = pendingAgg._sum.amount ?? 0;
+
+  // Dette nette = ce que le livreur peut encore reverser MAINTENANT
+  // (commission encore due moins les reglements en attente de validation).
+  const effectiveDebt = Math.max(0, commissionDebt - pendingTopupAmount);
+
   return {
     balance: Math.max(0, raw),
-    commissionDebt: Math.max(0, -raw),
+    commissionDebt,
+    pendingTopupAmount,
+    effectiveDebt,
     totalDeliveries: profile.totalDeliveries,
   };
 }
