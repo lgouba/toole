@@ -63,6 +63,8 @@ const registerSchema = z.object({
   email: z.string().trim().email().optional().or(z.literal('')),
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
   vehiclePlate: z.string().trim().max(20).optional().or(z.literal('')),
+  /** Code de parrainage saisi. La logique de bonus sera ajoutee plus tard. */
+  referralCode: z.string().trim().max(20).optional().or(z.literal('')),
 });
 
 export async function registerCtrl(req: Request, res: Response, next: NextFunction) {
@@ -78,6 +80,7 @@ export async function registerCtrl(req: Request, res: Response, next: NextFuncti
       email: body.email || undefined,
       vehicleType: body.vehicleType,
       vehiclePlate: body.vehiclePlate || undefined,
+      referralCode: body.referralCode || undefined,
     });
     return success(
       res,

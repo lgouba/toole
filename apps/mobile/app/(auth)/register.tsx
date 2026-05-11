@@ -25,18 +25,22 @@ const roles: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   subtitle: string;
+  description: string;
 }[] = [
   {
     type: 'client',
     icon: 'cube-outline',
     title: 'Client',
     subtitle: "J'envoie des colis",
+    description: 'Faites livrer un colis partout en ville en quelques minutes.',
   },
   {
     type: 'driver',
     icon: 'bicycle-outline',
     title: 'Livreur',
     subtitle: 'Je livre des colis',
+    description:
+      "Inscrivez-vous comme livreur indépendant, fixez vos horaires et gagnez de l'argent.",
   },
 ];
 
@@ -116,6 +120,10 @@ export default function RegisterScreen() {
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
   const [vehiclePlate, setVehiclePlate] = useState('');
 
+  // Code de parrainage (optionnel) — actuellement stocke seulement, la logique
+  // de bonus (parrain X FCFA / parraine Y FCFA) sera activee plus tard.
+  const [referralCode, setReferralCode] = useState('');
+
   const [error, setError] = useState('');
 
   const totalSteps = selectedRole === 'driver' ? 3 : 2;
@@ -179,6 +187,7 @@ export default function RegisterScreen() {
       userType: selectedRole,
       vehicleType: vehicleType ?? undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
+      referralCode: referralCode.trim() || undefined,
     });
     if (!ok) {
       setError('Impossible de créer le compte. Vérifiez votre connexion.');
@@ -232,47 +241,62 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.cardsGrid}>
-                {roles.map((role) => (
-                  <TouchableOpacity
-                    key={role.type}
-                    style={[
-                      styles.roleCard,
-                      selectedRole === role.type && styles.roleCardSelected,
-                    ]}
-                    onPress={() => setSelectedRole(role.type)}
-                    activeOpacity={0.8}
-                  >
-                    <View
+                {roles.map((role) => {
+                  const isSelected = selectedRole === role.type;
+                  return (
+                    <TouchableOpacity
+                      key={role.type}
                       style={[
-                        styles.roleIconCircle,
-                        selectedRole === role.type && styles.roleIconCircleSelected,
+                        styles.roleCard,
+                        isSelected && styles.roleCardSelected,
                       ]}
+                      onPress={() => setSelectedRole(role.type)}
+                      activeOpacity={0.8}
                     >
-                      <Ionicons
-                        name={role.icon}
-                        size={34}
-                        color={
-                          selectedRole === role.type ? colors.white : colors.primary
-                        }
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.roleTitle,
-                        selectedRole === role.type && styles.roleTitleSelected,
-                      ]}
-                    >
-                      {role.title}
-                    </Text>
-                    <Text style={styles.roleSubtitle}>{role.subtitle}</Text>
-                    {selectedRole === role.type ? (
-                      <View style={styles.checkmark}>
-                        <Ionicons name="checkmark" size={14} color={colors.white} />
+                      <View
+                        style={[
+                          styles.roleIconBox,
+                          isSelected && styles.roleIconBoxSelected,
+                        ]}
+                      >
+                        <Ionicons
+                          name={role.icon}
+                          size={28}
+                          color={isSelected ? colors.white : colors.primary}
+                        />
                       </View>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
+                      <View style={styles.roleTextWrap}>
+                        <Text
+                          style={[
+                            styles.roleTitle,
+                            isSelected && styles.roleTitleSelected,
+                          ]}
+                        >
+                          {role.title}
+                        </Text>
+                        <Text style={styles.roleSubtitle}>{role.subtitle}</Text>
+                        <Text style={styles.roleDescription}>
+                          {role.description}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.roleRadio,
+                          isSelected && styles.roleRadioSelected,
+                        ]}
+                      >
+                        {isSelected ? (
+                          <Ionicons name="checkmark" size={14} color={colors.white} />
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
+
+              <Text style={styles.roleHelp}>
+                Vous pourrez modifier ces choix plus tard dans votre profil.
+              </Text>
             </>
           )}
 
@@ -348,6 +372,15 @@ export default function RegisterScreen() {
                   </View>
                   <Text style={styles.dobHint}>Format : JJ / MM / AAAA</Text>
                 </View>
+
+                <Input
+                  label="Code de parrainage (optionnel)"
+                  placeholder="Ex : AMINA22"
+                  value={referralCode}
+                  onChangeText={(t) => setReferralCode(t.toUpperCase())}
+                  autoCapitalize="characters"
+                  maxLength={20}
+                />
 
                 {error ? <Text style={styles.error}>{error}</Text> : null}
               </View>
@@ -510,48 +543,66 @@ const styles = StyleSheet.create({
   },
   cardsGrid: { gap: spacing.md },
   roleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.md,
     backgroundColor: colors.surface,
-    position: 'relative',
   },
   roleCardSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
-  roleIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  roleIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
   },
-  roleIconCircleSelected: { backgroundColor: colors.primary },
+  roleIconBoxSelected: { backgroundColor: colors.primary },
+  roleTextWrap: { flex: 1, gap: 2 },
   roleTitle: {
-    ...typography.h3,
+    ...typography.bodyMedium,
     color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 16,
   },
   roleTitleSelected: { color: colors.primaryDark },
   roleSubtitle: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
-  checkmark: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
+  roleDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  roleRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  roleRadioSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleHelp: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    fontStyle: 'italic',
   },
   form: { gap: spacing.md },
   dobLabel: {

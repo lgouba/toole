@@ -25,6 +25,8 @@ interface AuthState {
     email?: string;
     vehicleType?: string;
     vehiclePlate?: string;
+    /** Code de parrainage saisi (optionnel, stockage only pour l'instant). */
+    referralCode?: string;
   }) => Promise<boolean>;
   completeOnboarding: () => void;
   refreshUser: () => Promise<void>;

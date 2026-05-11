@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Card } from '@/components/ui';
 import { AddressField } from '@/components/AddressField';
 import { PriceEstimate, SchedulePicker } from '@/components/delivery';
+import { ContactPickerModal } from '@/components/ContactPickerModal';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -41,6 +42,10 @@ export default function NewDeliveryScreen() {
   // de bloquer la soumission si l'utilisateur a active le toggle mais que la
   // date saisie est invalide (auquel cas draft.scheduledFor est undefined).
   const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
+  // Modal contact picker : 'recipient' = destinataire, 'sender' = expediteur tiers
+  const [contactPickerTarget, setContactPickerTarget] = useState<
+    null | 'recipient' | 'sender'
+  >(null);
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
   // Flag qui indique si on a déjà initialise le wizard pour cette session.
@@ -225,6 +230,17 @@ export default function NewDeliveryScreen() {
     // Step 2: Recipient
     <View key="recipient" style={styles.stepContent}>
       <Text style={styles.stepTitle}>Destinataire</Text>
+
+      {/* Picker contact */}
+      <TouchableOpacity
+        style={styles.contactBtn}
+        onPress={() => setContactPickerTarget('recipient')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="people-outline" size={18} color={colors.primary} />
+        <Text style={styles.contactBtnText}>Choisir depuis mes contacts</Text>
+      </TouchableOpacity>
+
       <Input
         label="Nom du destinataire"
         placeholder="Ex: Rasmane Kindo"
@@ -242,7 +258,7 @@ export default function NewDeliveryScreen() {
         containerStyle={styles.inputMargin}
       />
 
-      {/* Toggle expéditeur tiers */}
+      {/* Toggle expéditeur tiers — UX améliorée */}
       <TouchableOpacity
         style={styles.toggleRow}
         onPress={() => {
@@ -256,10 +272,7 @@ export default function NewDeliveryScreen() {
         activeOpacity={0.7}
       >
         <View
-          style={[
-            styles.checkbox,
-            thirdPartyPickup && styles.checkboxChecked,
-          ]}
+          style={[styles.checkbox, thirdPartyPickup && styles.checkboxChecked]}
         >
           {thirdPartyPickup && (
             <Ionicons name="checkmark" size={16} color={colors.white} />
@@ -267,18 +280,27 @@ export default function NewDeliveryScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.toggleLabel}>
-            Le colis est chez quelqu'un d'autre
+            Quelqu'un d'autre détient le colis
           </Text>
           <Text style={styles.toggleHint}>
-            Le livreur appellera cette personne pour récupérer le colis.
+            Activez cette option si le colis n'est pas chez vous (ex : chez un
+            ami, dans une boutique). Le livreur contactera cette personne.
           </Text>
         </View>
       </TouchableOpacity>
 
       {thirdPartyPickup && (
         <View style={styles.thirdPartyBlock}>
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => setContactPickerTarget('sender')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="people-outline" size={18} color={colors.primary} />
+            <Text style={styles.contactBtnText}>Choisir depuis mes contacts</Text>
+          </TouchableOpacity>
           <Input
-            label="Nom de l'expediteur"
+            label="Nom de l'expéditeur"
             placeholder="Ex: Awa Sawadogo"
             value={draft.senderContactName || ''}
             onChangeText={(v) => setDraftField('senderContactName', v)}
@@ -286,7 +308,7 @@ export default function NewDeliveryScreen() {
             containerStyle={styles.inputMargin}
           />
           <Input
-            label="Telephone de l'expéditeur"
+            label="Téléphone de l'expéditeur"
             placeholder="70 12 34 56"
             value={draft.senderContactPhone || ''}
             onChangeText={(v) => setDraftField('senderContactPhone', v)}
@@ -422,6 +444,27 @@ export default function NewDeliveryScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Modal selection contact (destinataire OU expediteur tiers) */}
+      <ContactPickerModal
+        visible={contactPickerTarget !== null}
+        onClose={() => setContactPickerTarget(null)}
+        title={
+          contactPickerTarget === 'sender'
+            ? "Choisir l'expéditeur"
+            : 'Choisir le destinataire'
+        }
+        onPick={({ name, phone }) => {
+          if (contactPickerTarget === 'recipient') {
+            setDraftField('recipientName', name);
+            setDraftField('recipientPhone', phone);
+          } else if (contactPickerTarget === 'sender') {
+            setDraftField('senderContactName', name);
+            setDraftField('senderContactPhone', phone);
+          }
+          setContactPickerTarget(null);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -570,6 +613,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
+  },
+  contactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    marginBottom: spacing.md,
+  },
+  contactBtnText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '600',
   },
   toggleRow: {
     flexDirection: 'row',

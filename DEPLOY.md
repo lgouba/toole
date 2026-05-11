@@ -3,6 +3,20 @@
 > **À lire avant toute commande de déploiement.**
 > Ce fichier fixe le workflow réel pour éviter de casser ce qui marche.
 
+## Reverse proxy (très important)
+
+Le port 80 ET 443 du VPS sont gérés par le conteneur `nginx-proxy`
+(jwilder/nginx-proxy) défini dans `/apps/docker-compose.yml`. **Ne jamais**
+laisser un nginx system (`systemctl start nginx`) démarrer : il piquerait
+les ports et casserait tout le HTTPS.
+
+Si HTTPS tombe : `ss -tlnp | grep -E ':80|:443'` doit montrer `docker-proxy`.
+Si ce n'est pas le cas :
+```bash
+systemctl stop nginx ; systemctl disable nginx
+cd /apps && docker compose up -d --force-recreate nginx-proxy acme-companion
+```
+
 ---
 
 ## Infrastructure

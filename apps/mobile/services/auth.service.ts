@@ -70,6 +70,8 @@ export interface RegisterPayload {
   email?: string;
   vehicleType?: string;
   vehiclePlate?: string;
+  /** Code de parrainage saisi (la logique de bonus sera ajoutee plus tard) */
+  referralCode?: string;
 }
 
 export async function registerUser(payload: RegisterPayload): Promise<User> {
@@ -84,6 +86,7 @@ export async function registerUser(payload: RegisterPayload): Promise<User> {
   if (payload.email) body.email = payload.email;
   if (payload.vehicleType) body.vehicleType = payload.vehicleType;
   if (payload.vehiclePlate) body.vehiclePlate = payload.vehiclePlate;
+  if (payload.referralCode) body.referralCode = payload.referralCode;
 
   const res = await api.post('/auth/register', body);
   const data = unwrap<{ user: any; accessToken: string; refreshToken: string }>(res);

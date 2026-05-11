@@ -88,8 +88,17 @@ export async function registerUser(args: {
   email?: string;
   vehicleType?: VehicleType;
   vehiclePlate?: string;
+  /** Code de parrainage saisi par l'utilisateur. Logge mais pas encore
+   *  applique (le mecanisme bonus parrain/parraine sera ajoute plus tard). */
+  referralCode?: string;
 }) {
   await verifyOtpCode(args.phone, args.otpCode);
+  if (args.referralCode) {
+    logger.info(
+      { phone: args.phone, referralCode: args.referralCode, userType: args.userType },
+      'Referral code submitted at registration (no reward applied yet)',
+    );
+  }
   const existing = await prisma.user.findUnique({ where: { phone: args.phone } });
   if (existing) {
     throw new HttpError(409, 'USER_EXISTS', 'A user with this phone already exists');
