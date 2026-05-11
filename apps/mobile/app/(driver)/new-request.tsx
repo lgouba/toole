@@ -1,42 +1,70 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card } from '@/components/ui';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  SlideInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useCountdown } from '@/hooks/useCountdown';
-import { haptic } from '@/utils/haptics';
 import { alertConfirmSuccess, alertRejection, stopAlert } from '@/utils/alerts';
-import { formatCFA, formatDistance, formatDuration } from '@/utils/format';
-import { PACKAGE_LABELS } from '@/types';
+import { formatCFA, formatDistance } from '@/utils/format';
+import { PACKAGE_LABELS, PackageType } from '@/types';
+
+const TIMEOUT_SECONDS = 120;
+
+const PACKAGE_ICONS: Record<PackageType, keyof typeof Ionicons.glyphMap> = {
+  envelope: 'mail',
+  small: 'cube',
+  large: 'archive',
+};
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function NewRequestScreen() {
   const router = useRouter();
   const { currentRequest, acceptRequest, rejectRequest } = useDriverStore();
 
-  const { remaining, start } = useCountdown(120, () => {
-    // Auto-reject on timeout
+  const { remaining, start } = useCountdown(TIMEOUT_SECONDS, () => {
     rejectRequest();
     router.replace('/(driver)');
   });
 
-  // Redemarre le countdown a chaque nouvelle demande (sinon le timer reste fige
-  // quand l'ecran est déjà monte et qu'une nouvelle demande arrive).
   useEffect(() => {
-    if (currentRequest) {
-      start();
-    }
+    if (currentRequest) start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRequest?.id]);
 
-  // Si la demande devient invalide (annulée, expiree, prise par un autre livreur),
-  // le store la met a null. On revient au dashboard driver.
   useEffect(() => {
-    if (!currentRequest) {
-      router.replace('/(driver)');
-    }
+    if (!currentRequest) router.replace('/(driver)');
   }, [currentRequest, router]);
+
+  // Pulse subtil sur le bouton accepter pour attirer l'œil
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.03, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      true,
+    );
+  }, []);
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
 
   const handleAccept = async () => {
     stopAlert();
@@ -60,203 +88,495 @@ export default function NewRequestScreen() {
     );
   }
 
-  const timerProgress = remaining / 120;
+  const progress = remaining / TIMEOUT_SECONDS;
+  const isThirdParty = !!currentRequest.senderContactName;
+  const gain = currentRequest.driverCommission || currentRequest.price;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Timer bar */}
-      <View style={styles.timerBar}>
-        <View style={[styles.timerFill, { width: `${timerProgress * 100}%` }]} />
-      </View>
+    <View style={styles.container}>
+      {/* Overlay sombre derriere la card (look "modal") */}
+      <View style={styles.backdrop} />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Nouvelle demande</Text>
-        <Text style={styles.timer}>{formatDuration(remaining)}</Text>
-
-        <Card style={styles.details}>
-          {/* Package info */}
-          <View style={styles.row}>
-            <Ionicons name="cube-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.detailLabel}>
-              {PACKAGE_LABELS[currentRequest.packageType]}
-            </Text>
-          </View>
-
-          {/* Pickup */}
-          <View style={styles.addressSection}>
-            <View style={styles.addressRow}>
-              <Ionicons name="radio-button-on" size={14} color={colors.primary} />
-              <View style={styles.addressInfo}>
-                <Text style={styles.addressLabel}>Récupération</Text>
-                <Text style={styles.address}>{currentRequest.pickupAddress}</Text>
-                {currentRequest.pickupDetails && (
-                  <Text style={styles.addressDetails}>{currentRequest.pickupDetails}</Text>
-                )}
-              </View>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header : titre + timer rond */}
+        <Animated.View
+          entering={FadeIn.duration(400)}
+          style={styles.header}
+        >
+          <View style={styles.headerLeft}>
+            <View style={styles.bikeBadge}>
+              <Ionicons name="bicycle" size={22} color={colors.white} />
             </View>
-            <View style={styles.connector} />
-            <View style={styles.addressRow}>
-              <Ionicons name="location" size={14} color={colors.secondary} />
-              <View style={styles.addressInfo}>
-                <Text style={styles.addressLabel}>Livraison</Text>
-                <Text style={styles.address}>{currentRequest.deliveryAddress}</Text>
-                {currentRequest.deliveryDetails && (
-                  <Text style={styles.addressDetails}>{currentRequest.deliveryDetails}</Text>
-                )}
-              </View>
+            <View>
+              <Text style={styles.kicker}>NOUVELLE COURSE</Text>
+              <Text style={styles.title}>Une demande pour vous</Text>
             </View>
           </View>
+          <TimerRing seconds={remaining} progress={progress} />
+        </Animated.View>
 
-          {/* Distance & Price */}
-          <View style={styles.bottomRow}>
-            <View style={styles.stat}>
-              <Ionicons name="navigate-outline" size={18} color={colors.textSecondary} />
-              <Text style={styles.statValue}>
-                {currentRequest.estimatedDistanceKm
-                  ? formatDistance(currentRequest.estimatedDistanceKm)
-                  : '-'}
+        {/* Card principale */}
+        <Animated.View
+          entering={SlideInDown.duration(450).springify().damping(18)}
+          style={styles.sheet}
+        >
+          {/* Hero gain */}
+          <View style={styles.gainHero}>
+            <Text style={styles.gainLabel}>Votre gain</Text>
+            <Text style={styles.gainValue}>{formatCFA(gain)}</Text>
+            <View style={styles.gainMeta}>
+              <Stat
+                icon="navigate-outline"
+                value={
+                  currentRequest.estimatedDistanceKm
+                    ? formatDistance(currentRequest.estimatedDistanceKm)
+                    : '—'
+                }
+                label="Distance"
+              />
+              <View style={styles.statDivider} />
+              <Stat
+                icon={PACKAGE_ICONS[currentRequest.packageType]}
+                value={PACKAGE_LABELS[currentRequest.packageType]}
+                label="Colis"
+              />
+            </View>
+          </View>
+
+          {/* Badge expediteur tiers si applicable */}
+          {isThirdParty ? (
+            <Animated.View
+              entering={FadeInDown.duration(350).delay(150)}
+              style={styles.thirdPartyBadge}
+            >
+              <Ionicons name="person" size={16} color={colors.primaryDark} />
+              <Text style={styles.thirdPartyText}>
+                Colis chez{' '}
+                <Text style={styles.thirdPartyName}>
+                  {currentRequest.senderContactName}
+                </Text>
               </Text>
-            </View>
-            <View style={styles.priceBox}>
-              <Text style={styles.priceLabel}>Gain</Text>
-              <Text style={styles.priceValue}>
-                {formatCFA(currentRequest.driverCommission || currentRequest.price)}
-              </Text>
-            </View>
-          </View>
-        </Card>
-      </View>
+            </Animated.View>
+          ) : null}
 
-      {/* Action buttons */}
-      <View style={styles.footer}>
-        <Button
-          title="Refuser"
-          variant="outline"
-          onPress={handleReject}
-          style={styles.rejectButton}
+          {/* Trajet */}
+          <Animated.View
+            entering={FadeInDown.duration(350).delay(200)}
+            style={styles.routeBox}
+          >
+            <RoutePoint
+              dotColor={colors.primary}
+              label="RÉCUPÉRATION"
+              address={currentRequest.pickupAddress}
+              details={currentRequest.pickupDetails}
+            />
+            <View style={styles.routeConnector}>
+              <View style={styles.routeDash} />
+              <View style={styles.routeDash} />
+              <View style={styles.routeDash} />
+            </View>
+            <RoutePoint
+              dotColor={colors.secondary}
+              label="LIVRAISON"
+              address={currentRequest.deliveryAddress}
+              details={currentRequest.deliveryDetails}
+              isLast
+            />
+          </Animated.View>
+
+          {/* Boutons */}
+          <View style={styles.actions}>
+            <Pressable
+              onPress={handleReject}
+              style={({ pressed }) => [
+                styles.rejectBtn,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
+              <Text style={styles.rejectText}>Refuser</Text>
+            </Pressable>
+
+            <Animated.View style={[styles.acceptBtnWrap, pulseStyle]}>
+              <Pressable
+                onPress={handleAccept}
+                style={({ pressed }) => [
+                  styles.acceptBtn,
+                  pressed && { transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={styles.acceptInner}>
+                  <Text style={styles.acceptText}>Accepter la course</Text>
+                  <View style={styles.acceptArrow}>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={20}
+                      color={colors.white}
+                    />
+                  </View>
+                </View>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// --- Sous-composants ---
+
+function TimerRing({ seconds, progress }: { seconds: number; progress: number }) {
+  const SIZE = 56;
+  const STROKE = 5;
+  const RADIUS = (SIZE - STROKE) / 2;
+  const CIRC = 2 * Math.PI * RADIUS;
+  const dashOffset = CIRC * (1 - progress);
+  const isUrgent = seconds <= 20;
+
+  return (
+    <View style={{ width: SIZE, height: SIZE }}>
+      <Svg width={SIZE} height={SIZE}>
+        {/* Track */}
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke={colors.border}
+          strokeWidth={STROKE}
+          fill="none"
         />
-        <Button
-          title="Accepter"
-          onPress={handleAccept}
-          style={styles.acceptButton}
+        {/* Progress */}
+        <AnimatedCircle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={RADIUS}
+          stroke={isUrgent ? colors.error : colors.primary}
+          strokeWidth={STROKE}
+          fill="none"
+          strokeDasharray={CIRC}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
         />
+      </Svg>
+      <View style={styles.timerCenter}>
+        <Text
+          style={[
+            styles.timerNum,
+            isUrgent && { color: colors.error },
+          ]}
+        >
+          {seconds}
+        </Text>
       </View>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+function Stat({
+  icon,
+  value,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.stat}>
+      <Ionicons name={icon} size={18} color={colors.white} style={{ opacity: 0.8 }} />
+      <View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
+function RoutePoint({
+  dotColor,
+  label,
+  address,
+  details,
+  isLast,
+}: {
+  dotColor: string;
+  label: string;
+  address: string;
+  details?: string | null;
+  isLast?: boolean;
+}) {
+  return (
+    <View style={styles.routePoint}>
+      <View style={[styles.routeDot, { backgroundColor: dotColor }]} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.routeLabel}>{label}</Text>
+        <Text style={styles.routeAddress} numberOfLines={2}>
+          {address}
+        </Text>
+        {details ? (
+          <Text style={styles.routeDetails} numberOfLines={1}>
+            {details}
+          </Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primaryDark,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.primaryDark,
+  },
+  safeArea: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
   noRequest: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: colors.white,
     textAlign: 'center',
     marginTop: spacing.xxl,
   },
-  timerBar: {
-    height: 4,
-    backgroundColor: colors.surface,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
-  timerFill: {
-    height: 4,
-    backgroundColor: colors.primary,
-  },
-  content: {
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     flex: 1,
-    padding: spacing.lg,
+  },
+  bikeBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kicker: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   title: {
-    ...typography.h2,
-    color: colors.textPrimary,
-  },
-  timer: {
-    ...typography.h3,
-    color: colors.warning,
-    marginBottom: spacing.md,
-  },
-  details: {
-    gap: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  detailLabel: {
     ...typography.bodyMedium,
-    color: colors.textPrimary,
+    color: colors.white,
+    fontWeight: '700',
+    marginTop: 2,
   },
-  addressSection: {
-    gap: 2,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    paddingTop: 2,
-  },
-  connector: {
-    width: 1,
-    height: 16,
-    backgroundColor: colors.border,
-    marginLeft: 7,
-  },
-  addressInfo: {
-    flex: 1,
-  },
-  addressLabel: {
-    ...typography.captionMedium,
-    color: colors.textTertiary,
-  },
-  address: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-  },
-  addressDetails: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  timerCenter: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerNum: {
+    ...typography.bodyMedium,
+    color: colors.white,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  sheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  gainHero: {
+    backgroundColor: colors.primary,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  gainLabel: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  gainValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.white,
+    marginTop: 4,
+    letterSpacing: -0.5,
+  },
+  gainMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    width: '100%',
+    justifyContent: 'center',
   },
   stat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
   statValue: {
     ...typography.bodySmall,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  thirdPartyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    backgroundColor: colors.primaryLight,
+    alignSelf: 'center',
+  },
+  thirdPartyText: {
+    ...typography.bodySmall,
+    color: colors.primaryDark,
+  },
+  thirdPartyName: {
+    fontWeight: '700',
+  },
+  routeBox: {
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    gap: 4,
+  },
+  routePoint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  routeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  routeLabel: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  routeAddress: {
+    ...typography.bodySmall,
     color: colors.textPrimary,
+    fontWeight: '600',
+    marginTop: 2,
+    lineHeight: 18,
   },
-  priceBox: {
-    alignItems: 'flex-end',
-  },
-  priceLabel: {
+  routeDetails: {
     ...typography.caption,
     color: colors.textSecondary,
+    marginTop: 2,
   },
-  priceValue: {
-    ...typography.h3,
-    color: colors.primary,
+  routeConnector: {
+    marginLeft: 5,
+    paddingVertical: 6,
+    gap: 3,
   },
-  footer: {
+  routeDash: {
+    width: 2,
+    height: 3,
+    backgroundColor: colors.border,
+    borderRadius: 1,
+  },
+  actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
-  rejectButton: {
+  rejectBtn: {
+    width: 64,
+    height: 56,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  rejectText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  acceptBtnWrap: {
     flex: 1,
   },
-  acceptButton: {
-    flex: 2,
+  acceptBtn: {
+    height: 56,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.primary,
+    overflow: 'hidden',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  acceptInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+  },
+  acceptText: {
+    ...typography.bodyMedium,
+    color: colors.white,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  acceptArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
