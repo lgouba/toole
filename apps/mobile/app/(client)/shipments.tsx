@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { EmptyState } from '@/components/ui';
+import { EmptyState, SkeletonList } from '@/components/ui';
 import { DeliveryCard } from '@/components/delivery';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
@@ -83,13 +83,18 @@ export default function ShipmentsScreen() {
           />
         )}
         ListEmptyComponent={
-          <EmptyState
-            icon="cube-outline"
-            title="Aucun envoi"
-            subtitle="Vos livraisons apparaitront ici"
-            actionLabel="Envoyer un colis"
-            onAction={() => router.push('/(client)/new-delivery')}
-          />
+          isLoading ? (
+            <SkeletonList count={4} />
+          ) : (
+            <EmptyState
+              icon="cube-outline"
+              title="Aucun envoi pour l'instant"
+              subtitle="Toutes vos livraisons (passées et en cours) apparaîtront ici. Lancez-en une en quelques secondes."
+              actionLabel="Envoyer un colis"
+              onAction={() => router.push('/(client)/new-delivery')}
+              tone="primary"
+            />
+          )
         }
       />
     </SafeAreaView>

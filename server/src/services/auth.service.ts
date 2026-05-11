@@ -8,13 +8,16 @@ import {
 import { generateOtp, otpExpiryDate } from '../lib/otp.js';
 import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
-import { sendSms } from '../lib/sms.js';
+import { sendOtpMessage, type MessageChannel } from '../lib/sms.js';
 import { env } from '../config/env.js';
 import { emitToAdmins } from './notification.service.js';
 import { sendAdminAlert } from '../lib/mailer.js';
 import { getAppSettings } from './settings.service.js';
 
-export async function sendOtp(phone: string): Promise<{ success: true }> {
+export async function sendOtp(
+  phone: string,
+  channel: MessageChannel = 'sms',
+): Promise<{ success: true }> {
   const code = generateOtp();
   await prisma.otpCode.create({
     data: {
@@ -23,17 +26,24 @@ export async function sendOtp(phone: string): Promise<{ success: true }> {
       expiresAt: otpExpiryDate(),
     },
   });
-  logger.info({ phone, code: env.SMS_PROVIDER === 'dev' ? code : '****' }, 'OTP generated');
+  logger.info(
+    { phone, channel, code: env.SMS_PROVIDER === 'dev' ? code : '****' },
+    'OTP generated',
+  );
 
   try {
-    await sendSms(
-      phone,
-      `Tolle: votre code de verification est ${code}. Valide 5 minutes.`,
-    );
+    await sendOtpMessage(phone, code, channel);
   } catch (err) {
-    // Si l'envoi SMS echoue, on invalide le code pour ne pas laisser un OTP fantome.
+    // Si l'envoi echoue, on invalide le code pour ne pas laisser un OTP fantome.
     await prisma.otpCode.deleteMany({ where: { phone, code } });
-    throw new HttpError(502, 'SMS_FAILED', 'Impossible d\'envoyer le SMS. Reessayez.');
+    const isWhatsApp = channel === 'whatsapp';
+    throw new HttpError(
+      502,
+      isWhatsApp ? 'WHATSAPP_FAILED' : 'SMS_FAILED',
+      isWhatsApp
+        ? "Impossible d'envoyer le code par WhatsApp. Essayez par SMS."
+        : "Impossible d'envoyer le SMS. Reessayez.",
+    );
   }
 
   return { success: true };

@@ -75,3 +75,122 @@ export async function sendSms(to: string, message: string): Promise<void> {
 
   throw new Error(`Unknown SMS_PROVIDER: ${env.SMS_PROVIDER}`);
 }
+
+// ============================================================
+// WhatsApp via Meta Cloud API
+// ============================================================
+// Requiert :
+//   - WHATSAPP_PHONE_NUMBER_ID (id du numero WhatsApp Business)
+//   - WHATSAPP_ACCESS_TOKEN (Meta Graph API token)
+//   - WHATSAPP_OTP_TEMPLATE_NAME (nom du template approuve par Meta)
+//   - WHATSAPP_OTP_TEMPLATE_LANG (ex: 'fr', 'en')
+//
+// Si les variables ne sont pas configurees, l'appel fallback sur SMS.
+
+async function sendViaWhatsAppCloudApi(
+  to: string,
+  code: string,
+): Promise<void> {
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const template = process.env.WHATSAPP_OTP_TEMPLATE_NAME;
+  const lang = process.env.WHATSAPP_OTP_TEMPLATE_LANG ?? 'fr';
+
+  if (!phoneId || !token || !template) {
+    throw new Error('WHATSAPP_NOT_CONFIGURED');
+  }
+
+  const url = `https://graph.facebook.com/v20.0/${phoneId}/messages`;
+  const recipient = normalizePhone(to).replace('+', '');
+
+  const body = {
+    messaging_product: 'whatsapp',
+    to: recipient,
+    type: 'template',
+    template: {
+      name: template,
+      language: { code: lang },
+      // Le template doit etre configure cote Meta avec 1 variable {{1}} pour l'OTP.
+      components: [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: code }],
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', text: code }],
+        },
+      ],
+    },
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '<no body>');
+    throw new Error(`WhatsApp Cloud API failed (${res.status}): ${txt}`);
+  }
+
+  const json: any = await res.json().catch(() => ({}));
+  logger.info(
+    { to: recipient, messages: json?.messages?.length ?? 0 },
+    'WhatsApp OTP sent via Meta Cloud API',
+  );
+}
+
+export type MessageChannel = 'sms' | 'whatsapp';
+
+/**
+ * Envoie le message OTP via le canal demande, avec fallback automatique.
+ * - channel='whatsapp' : essaye WhatsApp ; si non configure ou echec -> SMS
+ * - channel='sms' : SMS uniquement
+ *
+ * En mode SMS_PROVIDER=dev, aucun message reel n'est envoye (le code reste
+ * disponible dans les logs).
+ */
+export async function sendOtpMessage(
+  to: string,
+  code: string,
+  channel: MessageChannel = 'sms',
+): Promise<void> {
+  const smsText = `Tolle: votre code de verification est ${code}. Valide 5 minutes.`;
+
+  // Mode dev : on log, pas d'envoi reel
+  if (env.SMS_PROVIDER === 'dev') {
+    logger.info(
+      { to, channel, code },
+      `[DEV] OTP not sent (SMS_PROVIDER=dev), code visible in this log`,
+    );
+    return;
+  }
+
+  if (channel === 'whatsapp') {
+    try {
+      await sendViaWhatsAppCloudApi(to, code);
+      return;
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      logger.warn(
+        { to, err: msg },
+        msg === 'WHATSAPP_NOT_CONFIGURED'
+          ? 'WhatsApp provider not configured, falling back to SMS'
+          : 'WhatsApp send failed, falling back to SMS',
+      );
+      // Fallback transparent vers SMS
+      await sendSms(to, smsText);
+      return;
+    }
+  }
+
+  // SMS par defaut
+  await sendSms(to, smsText);
+}

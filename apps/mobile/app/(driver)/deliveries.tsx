@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { EmptyState } from '@/components/ui';
+import { EmptyState, SkeletonList } from '@/components/ui';
 import { DeliveryCard } from '@/components/delivery';
 import { colors, typography, spacing } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
@@ -12,7 +12,7 @@ import { useAuthStore } from '@/stores/auth.store';
 export default function DriverDeliveriesScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { deliveries, fetchDeliveries } = useDeliveryStore();
+  const { deliveries, fetchDeliveries, isLoading } = useDeliveryStore();
 
   useEffect(() => {
     if (user) {
@@ -34,11 +34,16 @@ export default function DriverDeliveriesScreen() {
           />
         )}
         ListEmptyComponent={
-          <EmptyState
-            icon="cube-outline"
-            title="Aucune livraison"
-            subtitle="Passez en ligne pour recevoir des demandes"
-          />
+          isLoading ? (
+            <SkeletonList count={4} />
+          ) : (
+            <EmptyState
+              icon="bicycle-outline"
+              title="Pas encore de course"
+              subtitle="Passez en ligne pour recevoir des demandes. Chaque course terminée apparaîtra dans votre historique."
+              tone="primary"
+            />
+          )
         }
       />
     </SafeAreaView>

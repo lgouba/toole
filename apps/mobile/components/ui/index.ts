@@ -7,3 +7,4 @@ export { OtpInput } from './OtpInput';
 export { NumericKeypad } from './NumericKeypad';
 export { Rating } from './Rating';
 export { EmptyState } from './EmptyState';
+export { Skeleton, SkeletonRow, SkeletonCard, SkeletonList } from './Skeleton';

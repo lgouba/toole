@@ -5,7 +5,7 @@ import {
   StyleSheet,
   FlatList,
   useWindowDimensions,
-  Animated,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,28 +13,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSettingsStore } from '@/stores/settings.store';
 
 const slides = [
   {
     id: '1',
-    icon: 'send' as const,
-    title: 'Envoyez',
-    subtitle: 'Envoyez vos colis partout a Ouagadougou en quelques clics',
+    icon: 'cube-outline' as const,
+    title: 'Envoyez en un clic',
+    subtitle:
+      "Faites livrer un colis partout en ville, à toute heure. C'est rapide et fiable.",
     color: colors.primary,
   },
   {
     id: '2',
-    icon: 'locate' as const,
-    title: 'Suivez',
-    subtitle: 'Suivez votre livreur en temps reel sur la carte',
+    icon: 'navigate' as const,
+    title: 'Suivez en direct',
+    subtitle:
+      'Visualisez votre livreur sur la carte en temps réel, du retrait à la livraison.',
     color: colors.secondary,
   },
   {
     id: '3',
-    icon: 'checkmark-circle' as const,
-    title: 'Recevez',
-    subtitle: 'Confirmez la livraison avec un code sécurisé a 4 chiffres',
-    color: colors.warning,
+    icon: 'shield-checkmark-outline' as const,
+    title: 'Livraison sécurisée',
+    subtitle:
+      'Un code à 4 chiffres confirme chaque étape. Photo, contact et preuve à chaque livraison.',
+    color: colors.success,
   },
 ];
 
@@ -42,6 +46,7 @@ export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
+  const appName = useSettingsStore((s) => s.settings.appName);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -54,14 +59,33 @@ export default function OnboardingScreen() {
     }
   };
 
+  const handleSkip = () => {
+    completeOnboarding();
+    router.replace('/(auth)/login');
+  };
+
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems[0]) {
       setCurrentIndex(viewableItems[0].index);
     }
   }).current;
 
+  const isLastSlide = currentIndex === slides.length - 1;
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header : logo + skip */}
+      <View style={styles.topBar}>
+        <Text style={styles.logo}>{appName}</Text>
+        {!isLastSlide ? (
+          <TouchableOpacity onPress={handleSkip} hitSlop={10}>
+            <Text style={styles.skipText}>Passer</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 50 }} />
+        )}
+      </View>
+
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -72,8 +96,10 @@ export default function OnboardingScreen() {
         viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width }]}>
-            <View style={[styles.iconCircle, { backgroundColor: item.color + '20' }]}>
-              <Ionicons name={item.icon} size={64} color={item.color} />
+            <View style={[styles.iconBg, { backgroundColor: item.color + '14' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: item.color }]}>
+                <Ionicons name={item.icon} size={56} color={colors.white} />
+              </View>
             </View>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
@@ -82,7 +108,7 @@ export default function OnboardingScreen() {
         keyExtractor={(item) => item.id}
       />
 
-      {/* Dots */}
+      {/* Dots animés */}
       <View style={styles.dots}>
         {slides.map((_, i) => (
           <View
@@ -92,10 +118,10 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      {/* Button */}
+      {/* Footer button */}
       <View style={styles.footer}>
         <Button
-          title={currentIndex === slides.length - 1 ? 'Commencer' : 'Suivant'}
+          title={isLastSlide ? 'Commencer' : 'Suivant'}
           onPress={handleNext}
         />
       </View>
@@ -108,19 +134,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  logo: {
+    ...typography.h3,
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  skipText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
   slide: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
-  iconCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+  iconBg: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xl,
+  },
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     ...typography.h1,
@@ -133,6 +183,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
+    maxWidth: 320,
   },
   dots: {
     flexDirection: 'row',

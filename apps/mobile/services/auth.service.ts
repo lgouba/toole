@@ -20,8 +20,13 @@ function normalizeUser(raw: any): User {
   };
 }
 
-export async function sendOtp(phone: string): Promise<{ success: boolean }> {
-  const res = await api.post('/auth/send-otp', { phone });
+export type OtpChannel = 'sms' | 'whatsapp';
+
+export async function sendOtp(
+  phone: string,
+  channel: OtpChannel = 'sms',
+): Promise<{ success: boolean }> {
+  const res = await api.post('/auth/send-otp', { phone, channel });
   return unwrap(res);
 }
 

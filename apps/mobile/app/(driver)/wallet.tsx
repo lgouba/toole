@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '@/theme';
+import { EmptyState, SkeletonList } from '@/components/ui';
 import { formatCFA, formatDateTime } from '@/utils/format';
 import {
   getMyWallet,
@@ -152,16 +153,16 @@ export default function WalletScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <Ionicons
-                name="receipt-outline"
-                size={40}
-                color={colors.textTertiary}
-              />
-              <Text style={styles.emptyText}>Aucune transaction</Text>
-            </View>
-          ) : null
+          loading ? (
+            <SkeletonList count={5} />
+          ) : (
+            <EmptyState
+              icon="receipt-outline"
+              title="Aucune transaction"
+              subtitle="Vos gains, retraits et règlements de commission apparaîtront ici dès votre première course."
+              tone="neutral"
+            />
+          )
         }
         renderItem={({ item }) => <TransactionRow tx={item} />}
         contentContainerStyle={styles.scroll}

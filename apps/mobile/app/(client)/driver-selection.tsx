@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
-import { EmptyState } from '@/components/ui';
+import { EmptyState, SkeletonList } from '@/components/ui';
 import { DriverCard } from '@/components/driver';
 import { colors, typography, spacing } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
@@ -16,11 +16,13 @@ export default function DriverSelectionScreen() {
   const userLocation = useLocationStore((s) => s.current);
   const refreshLocation = useLocationStore((s) => s.refresh);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
       const pos = userLocation ?? (await refreshLocation());
-      fetchNearbyDrivers(pos ?? getCenter());
+      await fetchNearbyDrivers(pos ?? getCenter());
+      setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -48,11 +50,16 @@ export default function DriverSelectionScreen() {
           <DriverCard driver={item} onPress={() => handleSelect(item)} />
         )}
         ListEmptyComponent={
-          <EmptyState
-            icon="bicycle-outline"
-            title="Aucun livreur disponible"
-            subtitle="Essayez dans quelques instants"
-          />
+          !loaded ? (
+            <SkeletonList count={4} />
+          ) : (
+            <EmptyState
+              icon="bicycle-outline"
+              title="Aucun livreur disponible"
+              subtitle="Aucun livreur n'est en ligne dans votre zone pour le moment. Réessayez dans quelques minutes."
+              tone="warning"
+            />
+          )
         }
       />
     </SafeAreaView>

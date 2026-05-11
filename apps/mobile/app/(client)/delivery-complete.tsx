@@ -170,6 +170,11 @@ export default function DeliveryCompleteScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Confettis declenches a l'arrivee sur l'ecran (moment "wow") */}
+      {useSettingsStore.getState().settings.confettiEnabled ? (
+        <Confetti />
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

@@ -13,12 +13,16 @@ const phoneSchema = z
   .trim()
   .regex(/^\+?[0-9]{8,15}$/, 'Invalid phone number');
 
-const sendOtpSchema = z.object({ phone: phoneSchema });
+const sendOtpSchema = z.object({
+  phone: phoneSchema,
+  /** Canal d'envoi du code. Defaut: sms. */
+  channel: z.enum(['sms', 'whatsapp']).optional(),
+});
 
 export async function sendOtpCtrl(req: Request, res: Response, next: NextFunction) {
   try {
-    const { phone } = sendOtpSchema.parse(req.body);
-    const result = await sendOtp(phone);
+    const { phone, channel } = sendOtpSchema.parse(req.body);
+    const result = await sendOtp(phone, channel ?? 'sms');
     return success(res, result);
   } catch (err) {
     next(err);
