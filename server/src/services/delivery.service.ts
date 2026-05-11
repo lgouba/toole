@@ -1,6 +1,11 @@
 import { Delivery, DeliveryStatus, PackageType, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
-import { generateReference, generateValidationCode, haversineKm } from '../utils/geo.js';
+import {
+  generateReference,
+  generateTrackingToken,
+  generateValidationCode,
+  haversineKm,
+} from '../utils/geo.js';
 import { calculatePrice } from '../utils/pricing.js';
 import { HttpError } from '../utils/response.js';
 import { emitToUser, emitToUsers } from './notification.service.js';
@@ -85,6 +90,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
   const delivery = await prisma.delivery.create({
     data: {
       reference: generateReference(),
+      trackingToken: generateTrackingToken(),
       senderId: input.senderId,
       packageType: input.packageType,
       packageDescription: input.packageDescription,
@@ -226,6 +232,78 @@ export async function listDeliveries(args: {
       driver: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
     },
   });
+}
+
+/**
+ * Vue publique du suivi a partir du token (sans auth).
+ * Expose UNIQUEMENT les infos non sensibles : statut, positions, livreur
+ * (nom + vehicle + rating), heures, reference. JAMAIS les codes ni les tels.
+ *
+ * Utilise par la page web /track/<token> que le destinataire ouvre depuis un
+ * SMS/WhatsApp partage par le client.
+ */
+export async function getPublicTrackingByToken(token: string) {
+  const delivery = await prisma.delivery.findUnique({
+    where: { trackingToken: token },
+    include: {
+      driver: {
+        select: {
+          fullName: true,
+          avatarUrl: true,
+          ratingAvg: true,
+          driverProfile: {
+            select: {
+              vehicleType: true,
+              currentLat: true,
+              currentLng: true,
+              lastLocationUpdate: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!delivery) {
+    throw new HttpError(404, 'NOT_FOUND', 'Suivi introuvable');
+  }
+
+  // Sanitize : on n'expose QUE ce qui est sur la page tracking
+  return {
+    reference: delivery.reference,
+    status: delivery.status,
+    recipientName: delivery.recipientName,
+    packageType: delivery.packageType,
+    pickupAddress: delivery.pickupAddress,
+    pickupLocation: { latitude: delivery.pickupLat, longitude: delivery.pickupLng },
+    deliveryAddress: delivery.deliveryAddress,
+    deliveryLocation: {
+      latitude: delivery.deliveryLat,
+      longitude: delivery.deliveryLng,
+    },
+    estimatedDistanceKm: delivery.estimatedDistanceKm,
+    acceptedAt: delivery.acceptedAt,
+    pickedUpAt: delivery.pickedUpAt,
+    deliveredAt: delivery.deliveredAt,
+    cancelledAt: delivery.cancelledAt,
+    expiresAt: delivery.expiresAt,
+    driver: delivery.driver
+      ? {
+          fullName: delivery.driver.fullName,
+          avatarUrl: delivery.driver.avatarUrl,
+          ratingAvg: delivery.driver.ratingAvg,
+          vehicleType: delivery.driver.driverProfile?.vehicleType ?? null,
+          currentLocation:
+            delivery.driver.driverProfile?.currentLat != null &&
+            delivery.driver.driverProfile?.currentLng != null
+              ? {
+                  latitude: delivery.driver.driverProfile.currentLat,
+                  longitude: delivery.driver.driverProfile.currentLng,
+                }
+              : null,
+          lastLocationUpdate: delivery.driver.driverProfile?.lastLocationUpdate ?? null,
+        }
+      : null,
+  };
 }
 
 export async function getDeliveryForUser(deliveryId: string, userId: string) {

@@ -12,6 +12,7 @@ import DeliveryDetail from './pages/DeliveryDetail';
 import DriverTracking from './pages/DriverTracking';
 import Settings from './pages/Settings';
 import Transactions from './pages/Transactions';
+import PublicTracking from './pages/PublicTracking';
 import NotificationProvider from './components/NotificationProvider';
 
 export default function App() {
@@ -21,6 +22,19 @@ export default function App() {
     init();
   }, [init]);
 
+  return (
+    <Routes>
+      {/* PUBLIC : page de suivi destinataire, accessible sans login.
+          C'est l'URL que le client partage par SMS/WhatsApp. */}
+      <Route path="/track/:token" element={<PublicTracking />} />
+
+      {/* Tout le reste est gate par l'auth admin */}
+      <Route path="/*" element={<AdminApp loading={loading} user={user} />} />
+    </Routes>
+  );
+}
+
+function AdminApp({ loading, user }: { loading: boolean; user: any }) {
   if (loading) {
     return <div className="login-wrap"><div className="muted">Chargement...</div></div>;
   }

@@ -158,6 +158,11 @@ model DriverProfile {
 model Delivery {
   id                       String         @id @default(uuid()) @db.Uuid
   reference                String         @unique
+  /// Token court pour partager le suivi public (page web sans auth).
+  /// Le destinataire ouvre /track/<token> et voit l'avancement en temps reel
+  /// sans installer l'app. 12 caracteres hex = ~10^14 combinaisons (non
+  /// devinable brute-force).
+  trackingToken            String?        @unique
   senderId                 String         @db.Uuid
   driverId                 String?        @db.Uuid
   packageType              PackageType

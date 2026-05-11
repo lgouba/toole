@@ -14,6 +14,7 @@ import {
   relaunchDelivery,
   rateDelivery,
   estimatePrice,
+  getPublicTrackingByToken,
 } from '../services/delivery.service.js';
 
 const createDeliverySchema = z.object({
@@ -259,6 +260,32 @@ export async function estimateCtrl(req: Request, res: Response, next: NextFuncti
       q.deliveryLng,
     );
     return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Endpoint PUBLIC (sans auth) pour la page de suivi destinataire.
+ * URL : GET /api/track/:token
+ * Le token est cree a la creation de la livraison et partage par le client
+ * au destinataire (SMS, WhatsApp...).
+ */
+export async function publicTrackCtrl(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const token = String(req.params.token ?? '');
+    if (!/^[a-z0-9]{12}$/.test(token)) {
+      return res.status(400).json({
+        data: null,
+        error: { code: 'INVALID_TOKEN', message: 'Token invalide' },
+      });
+    }
+    const data = await getPublicTrackingByToken(token);
+    return success(res, data);
   } catch (err) {
     next(err);
   }

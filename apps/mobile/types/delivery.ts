@@ -22,6 +22,8 @@ export interface Address {
 export interface Delivery {
   id: string;
   reference: string;
+  /** Token court pour partager le suivi public au destinataire. */
+  trackingToken?: string | null;
   senderId: string;
   driverId?: string;
 

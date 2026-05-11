@@ -35,3 +35,17 @@ export function generateReference(): string {
   const rand = Math.floor(1000 + Math.random() * 9000);
   return `TOL-${yyyy}${mm}${dd}-${rand}`;
 }
+
+/**
+ * Token de suivi public (12 caracteres alphanum lowercase).
+ * Non devinable brute-force : ~36^12 = 4.7×10^18 combinaisons.
+ * Sert pour la page /track/:token partagee au destinataire.
+ */
+export function generateTrackingToken(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let token = '';
+  for (let i = 0; i < 12; i++) {
+    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return token;
+}

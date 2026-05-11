@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { shareLocationWhatsApp } from '@/utils/linking';
 import { getDeliveryById } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
+import { TRACKING_BASE_URL } from '@/config/api';
 
 export default function ActiveDeliveryScreen() {
   const router = useRouter();
@@ -258,6 +259,30 @@ export default function ActiveDeliveryScreen() {
             </Text>
           </View>
         ) : null}
+
+        {/* Bouton "Partager le suivi" : le client envoie a son destinataire un
+            lien web qui montre la progression en temps reel sans installer l'app. */}
+        {delivery.trackingToken &&
+        ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(
+          delivery.status,
+        ) ? (
+          <TouchableOpacity
+            style={styles.shareBtn}
+            onPress={async () => {
+              const url = `${TRACKING_BASE_URL}/track/${delivery.trackingToken}`;
+              const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Tolle (réf. ${delivery.reference}) : ${url}`;
+              try {
+                await Share.share({ message, url });
+              } catch (err: any) {
+                Alert.alert('Erreur', err?.message ?? 'Partage impossible');
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="share-social-outline" size={20} color={colors.white} />
+            <Text style={styles.shareBtnText}>Partager le suivi au destinataire</Text>
+          </TouchableOpacity>
+        ) : null}
         </ScrollView>
       </View>
     </View>
@@ -395,5 +420,25 @@ const styles = StyleSheet.create({
   codeHint: {
     ...typography.caption,
     color: colors.primaryDark,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.md,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  shareBtnText: {
+    ...typography.bodyMedium,
+    color: colors.white,
+    fontWeight: '700',
   },
 });
