@@ -180,6 +180,17 @@ export async function broadcastPush(args: {
           sent++;
         } else {
           failed++;
+          // Log detaille pour debug
+          logger.warn(
+            {
+              token: t?.token?.slice(0, 40) + '...',
+              userId: t?.userId,
+              error: r.details?.error,
+              message: (r as any).message,
+              details: r.details,
+            },
+            'Expo push rejected one token',
+          );
           // Nettoyer les tokens invalides
           if (r.details?.error === 'DeviceNotRegistered' && t) {
             await prisma.pushToken
