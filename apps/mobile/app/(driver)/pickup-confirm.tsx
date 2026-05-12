@@ -48,6 +48,15 @@ export default function PickupConfirmScreen() {
   const [uploading, setUploading] = useState(false);
   const [pickupCode, setPickupCode] = useState('');
 
+  // Cet écran est gardé monté en mémoire par le Tabs navigator même quand on
+  // navigue ailleurs. On reset donc l'état local à chaque nouvelle course
+  // pour éviter de réutiliser la photo/code de la précédente.
+  useEffect(() => {
+    setPhoto(null);
+    setPickupCode('');
+    setUploading(false);
+  }, [activeDelivery?.id]);
+
   const hasThirdParty = !!activeDelivery?.senderContactName;
   const photoDone = !!photo;
   const codeDone = pickupCode.length === 4;

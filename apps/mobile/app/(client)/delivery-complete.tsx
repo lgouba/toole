@@ -46,6 +46,15 @@ export default function DeliveryCompleteScreen() {
     null,
   );
 
+  // Reset à chaque nouvelle livraison (l'écran est gardé monté par le Tabs).
+  useEffect(() => {
+    setScore(0);
+    setComment('');
+    setSubmitting(false);
+    setSubmitted(false);
+    setFetchedDriver(null);
+  }, [activeDelivery?.id]);
+
   // Le driver peut avoir été perdu (app relancee, refetch). On le récupéré via API.
   useEffect(() => {
     if (activeDriverFromStore) return;

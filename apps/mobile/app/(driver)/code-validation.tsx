@@ -40,6 +40,14 @@ export default function CodeValidationScreen() {
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
+  // Reset à chaque nouvelle course (l'écran est gardé monté par le Tabs navigator).
+  useEffect(() => {
+    setCode('');
+    setError('');
+    setAttempts(0);
+    setSubmitting(false);
+  }, [activeDelivery?.id]);
+
   const recipientName = activeDelivery?.recipientName;
   const recipientPhone = activeDelivery?.recipientPhone;
   const codeDone = code.length === 4;
