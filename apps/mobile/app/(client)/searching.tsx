@@ -14,10 +14,12 @@ import { Button } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useSettingsStore } from '@/stores/settings.store';
+import { getDeliveryById } from '@/services/delivery.service';
 
 export default function SearchingScreen() {
   const router = useRouter();
-  const { activeDelivery, clear, relaunch, updateStatus } = useDeliveryStore();
+  const { activeDelivery, clear, relaunch, updateStatus, setActiveDelivery } =
+    useDeliveryStore();
   // Durée de recherche pilotée par l'admin (en minutes), convertie en secondes
   const searchTimeoutSeconds = useSettingsStore(
     (s) => s.settings.operations.deliveryExpiryMinutes * 60,
@@ -92,6 +94,45 @@ export default function SearchingScreen() {
       setExpired(true);
     }
   }, [activeDelivery?.id, activeDelivery?.status]);
+
+  // Polling de secours toutes les 4s : si le socket rate l'événement
+  // 'delivery:accepted' (deconnexion reseau, app en background, etc.), on
+  // refetch quand meme la livraison pour decoincer l'ecran.
+  useEffect(() => {
+    if (!activeDelivery?.id) return;
+    if (expired) return;
+    if (hasNavigatedRef.current) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const fresh = await getDeliveryById(activeDelivery.id);
+        if (cancelled || !fresh) return;
+        // Met a jour le store si le statut a change (cela declenchera
+        // l'useEffect au-dessus qui fera la redirection).
+        const current = useDeliveryStore.getState().activeDelivery;
+        if (current && current.id === fresh.id && current.status !== fresh.status) {
+          console.log(
+            '[Searching] polling detected status change',
+            current.status,
+            '->',
+            fresh.status,
+          );
+          setActiveDelivery(fresh);
+        }
+      } catch (err) {
+        console.warn('[Searching] polling failed', err);
+      }
+    };
+    // 1er fetch immediat (au cas ou l'event accepted soit deja passe pendant
+    // le mount), puis toutes les 4s.
+    tick();
+    const id = setInterval(tick, 4_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeDelivery?.id, expired, setActiveDelivery]);
 
   const performCancel = async () => {
     setCancelling(true);
