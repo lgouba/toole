@@ -13,6 +13,7 @@ const menuItems = [
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'document-outline', label: 'Mes documents', route: '/(driver)/kyc' },
   { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
+  { icon: 'notifications-outline', label: 'Diagnostic notifications', route: '/debug-push' },
   { icon: 'information-circle-outline', label: 'A propos', route: null },
 ] as const;
 
