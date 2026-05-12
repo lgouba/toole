@@ -6,7 +6,7 @@ export interface GeocodeSuggestion {
   shortName: string;
   /**
    * true si la suggestion pointe vers une adresse precise (rue, numéro,
-   * batiment) plutot qu'une zone large (ville, departement). Utilise pour
+   * batiment) plutôt qu'une zone large (ville, departement). Utilise pour
    * avertir le livreur si l'adresse est trop floue.
    */
   isPrecise: boolean;
@@ -36,7 +36,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 /**
  * Recherche des adresses pour l'autocompletion.
  * Si `countryCode` est fourni (ISO 2, ex: 'bf', 'fr'), les resultats sont
- * STRICTEMENT limites a ce pays — evite les "Banque mondiale Washington"
+ * STRICTEMENT limites a ce pays — évite les "Banque mondiale Washington"
  * quand l'utilisateur tape "banque" depuis Ouagadougou.
  * Si `biasLocation` est fourni en plus, les resultats proches sont prioritaires.
  */
@@ -57,7 +57,7 @@ export async function searchAddresses(
 
   // Filtre strict par pays = la solution la plus fiable pour des recherches
   // generiques (banque, station, marche). Sans ca Nominatim renvoie des
-  // resultats du monde entier meme avec viewbox.
+  // resultats du monde entier même avec viewbox.
   if (countryCode) {
     params.set('countrycodes', countryCode);
   }
@@ -149,7 +149,7 @@ export async function reverseGeocode(location: LatLng): Promise<string | null> {
 }
 
 /**
- * Construit une adresse detaillee a partir d'une reponse Nominatim reverse.
+ * Construit une adresse detaillee à partir d'une reponse Nominatim reverse.
  * Exemple: "Rue 10.74, Secteur 15, Dassasgho, Ouagadougou"
  */
 function buildFullAddress(d: {

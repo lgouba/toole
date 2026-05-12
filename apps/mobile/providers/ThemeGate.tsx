@@ -10,7 +10,7 @@ import { applyDynamicColors } from '@/theme/colors';
  * PAS automatiquement mis a jour. Les nouvelles couleurs s'appliqueront :
  *   - immediatement via `useColors()` (composants refactores : Button,
  *     Badge, Input, etc.)
- *   - au prochain `StyleSheet.create` d'un nouveau composant monte
+ *   - au prochain `StyleSheet.create` d'un nouveau composant monté
  *   - au prochain redemarrage complet de l'app
  *
  * Pour les composants déjà montes qui utilisent `colors.xxx` directement

@@ -18,7 +18,7 @@ import { useSettingsStore } from '@/stores/settings.store';
 export default function SearchingScreen() {
   const router = useRouter();
   const { activeDelivery, clear, relaunch, updateStatus } = useDeliveryStore();
-  // Duree de recherche pilotee par l'admin (en minutes), convertie en secondes
+  // Durée de recherche pilotée par l'admin (en minutes), convertie en secondes
   const searchTimeoutSeconds = useSettingsStore(
     (s) => s.settings.operations.deliveryExpiryMinutes * 60,
   );
@@ -32,7 +32,7 @@ export default function SearchingScreen() {
   const watchedDeliveryIdRef = useRef<string | null>(null);
 
   // Reset complet a chaque fois qu'on arrive avec une nouvelle livraison.
-  // Sans ca, un screen precedemment monte garde le timer a 0 et les refs a l'ID de l'ancienne livraison.
+  // Sans ca, un screen précédemment monté garde le timer a 0 et les refs a l'ID de l'ancienne livraison.
   useEffect(() => {
     if (!activeDelivery?.id) return;
     if (watchedDeliveryIdRef.current !== activeDelivery.id) {
@@ -76,7 +76,7 @@ export default function SearchingScreen() {
     return () => clearInterval(interval);
   }, [expired]);
 
-  // Reagit aux changements de statut (pending -> accepted | expired | cancelled)
+  // Réagit aux changements de statut (pending -> accepted | expired | cancelled)
   useEffect(() => {
     if (!activeDelivery) return;
     if (watchedDeliveryIdRef.current !== activeDelivery.id) return;
@@ -97,7 +97,7 @@ export default function SearchingScreen() {
     setCancelling(true);
     try {
       if (activeDelivery && activeDelivery.status === 'pending') {
-        // Dit au backend d'annuler + broadcast aux livreurs notifies
+        // Dit au backend d'annuler + broadcast aux livreurs notifiés
         await updateStatus(activeDelivery.id, 'cancelled');
       }
     } finally {
@@ -109,13 +109,13 @@ export default function SearchingScreen() {
 
   const handleCancel = () => {
     if (expired) {
-      // Pas de confirmation necessaire depuis l'ecran "expire"
+      // Pas de confirmation nécessaire depuis l'écran "expiré"
       performCancel();
       return;
     }
     Alert.alert(
       'Annuler la recherche ?',
-      'La demande sera annulee. Vous pourrez en creer une nouvelle.',
+      'La demande sera annulée. Vous pourrez en créer une nouvelle.',
       [
         { text: 'Non, continuer', style: 'cancel' },
         { text: 'Oui, annuler', style: 'destructive', onPress: performCancel },
@@ -151,10 +151,10 @@ export default function SearchingScreen() {
           </View>
           <Text style={styles.title}>Aucun livreur disponible</Text>
           <Text style={styles.subtitle}>
-            Aucun livreur n'a accepte votre course pour le moment. Vous pouvez relancer la recherche.
+            Aucun livreur n'a accepté votre course pour le moment. Vous pouvez relancer la recherche.
           </Text>
           {activeDelivery && (
-            <Text style={styles.infoValueMuted}>Reference : {activeDelivery.reference}</Text>
+            <Text style={styles.infoValueMuted}>Référence : {activeDelivery.reference}</Text>
           )}
         </View>
         <View style={styles.footer}>
@@ -164,7 +164,7 @@ export default function SearchingScreen() {
             loading={relaunching}
           />
           <View style={{ height: 8 }} />
-          <Button title="Retour a l'accueil" variant="outline" onPress={handleCancel} />
+          <Button title="Retour à l'accueil" variant="outline" onPress={handleCancel} />
         </View>
       </SafeAreaView>
     );
@@ -197,24 +197,24 @@ export default function SearchingScreen() {
           </View>
         )}
 
-        {/* Code pickup pour livraison tierce: affiche des la creation pour
+        {/* Code pickup pour livraison tierce: affiche des la création pour
             que le client puisse le transmettre a l'expéditeur en amont. */}
         {activeDelivery?.pickupValidationCode &&
           activeDelivery.senderContactName && (
             <View style={styles.pickupCodeCard}>
               <Text style={styles.pickupCodeLabel}>
-                Code de recuperation
+                Code de récupération
               </Text>
               <Text style={styles.pickupCodeValue}>
                 {activeDelivery.pickupValidationCode}
               </Text>
               <Text style={styles.pickupCodeHint}>
-                Transmettez ce code a{' '}
+                Transmettez ce code à{' '}
                 <Text style={styles.pickupCodeBold}>
                   {activeDelivery.senderContactName}
                 </Text>{' '}
                 (par SMS/WhatsApp). Il le donnera au livreur au moment de la
-                recuperation du colis.
+                récupération du colis.
               </Text>
             </View>
           )}

@@ -29,7 +29,7 @@ interface Props {
 }
 
 /**
- * Modal plein ecran qui liste les contacts du telephone avec recherche.
+ * Modal plein écran qui liste les contacts du téléphone avec recherche.
  * Fonctionne sur iOS + Android (pas de dependance au picker natif iOS qui
  * varie selon version).
  */
@@ -189,7 +189,7 @@ function cleanPhone(raw: string): string {
 }
 
 function formatPhone(raw: string): string {
-  // Affichage simple par paires : +226 70 12 34 56 → fonctionne sur tout numero
+  // Affichage simple par paires : +226 70 12 34 56 → fonctionne sur tout numéro
   const digits = raw.replace(/\D/g, '');
   if (!digits) return raw;
   let formatted = raw.startsWith('+') ? '+' : '';

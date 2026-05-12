@@ -131,7 +131,7 @@ export default function AddressPickerScreen() {
     };
   }, [query]);
 
-  /** Valide la position choisie, met a jour le draft et ferme l'ecran. */
+  /** Valide la position choisie, met a jour le draft et ferme l'écran. */
   const finalizeSelection = (
     loc: LatLng,
     label: string,
@@ -329,7 +329,7 @@ export default function AddressPickerScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Bouton principal carte — la plupart des users BF preferent la carte au texte */}
+        {/* Bouton principal carte — la plupart des users BF préfèrent la carte au texte */}
         <TouchableOpacity style={styles.mapPrimaryBtn} onPress={openMap} activeOpacity={0.9}>
           <Ionicons name="map" size={22} color={colors.white} />
           <Text style={styles.mapPrimaryBtnText}>Sélectionner sur la carte</Text>

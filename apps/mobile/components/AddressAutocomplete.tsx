@@ -73,7 +73,7 @@ export function AddressAutocomplete({
   hasConfirmedLocation = false,
 }: AddressAutocompleteProps) {
   // Si pas de bias explicite, utilise la position GPS connue de l'utilisateur
-  // (fallback Ouagadougou si pas dispo). Permet a l'app d'etre utilisable
+  // (fallback Ouagadougou si pas dispo). Permet a l'app d'être utilisable
   // partout dans le monde sans configuration.
   const userLocation = useLocationStore((s) => s.current);
   const countryCode = useLocationStore((s) => s.countryCode);
@@ -82,7 +82,7 @@ export function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
-  // Indique que l'utilisateur vient de selectionner / effacer -> on cache la dropdown
+  // Indique que l'utilisateur vient de sélectionner / effacer -> on cache la dropdown
   // même si le champ reste focus.
   const [dismissedDropdown, setDismissedDropdown] = useState(false);
 
@@ -93,7 +93,7 @@ export function AddressAutocomplete({
     const q = value.trim();
 
     // Des que l'utilisateur tape, on reactive la dropdown
-    // (sauf s'il vient juste de selectionner exactement la même valeur)
+    // (sauf s'il vient juste de sélectionner exactement la même valeur)
     if (q.length < MIN_CHARS) {
       setSuggestions([]);
       setLoading(false);
@@ -151,10 +151,10 @@ export function AddressAutocomplete({
   };
 
   // La dropdown reste visible tant que :
-  //  - l'utilisateur n'a pas explicitement selectionne une suggestion
+  //  - l'utilisateur n'a pas explicitement sélectionné une suggestion
   //  - il y a du texte (>= MIN_CHARS)
   //  - on a de quoi afficher (loading, suggestions, ou message "aucun resultat")
-  // NOTE : on NE conditionne PAS sur `focused`. Taper ailleurs dans l'ecran
+  // NOTE : on NE conditionne PAS sur `focused`. Taper ailleurs dans l'écran
   // (par ex. l'arriere-plan, le bouton Continuer, etc.) ne doit pas faire
   // disparaitre les suggestions — sinon l'utilisateur les perd involontairement.
   const showDropdown =

@@ -41,8 +41,8 @@ export default function ActiveDeliveryScreen() {
     }
   }, [delivery?.status, delivery?.id]);
 
-  // Quand la livraison devient 'delivered', on bascule sur l'ecran de notation.
-  // L'ecran delivery-complete demande une note + un commentaire, puis clear().
+  // Quand la livraison devient 'delivered', on bascule sur l'écran de notation.
+  // L'écran delivery-complete demande une note + un commentaire, puis clear().
   const hasNavigatedToCompleteRef = useRef(false);
   useEffect(() => {
     if (delivery?.status === 'delivered' && !hasNavigatedToCompleteRef.current) {
@@ -51,7 +51,7 @@ export default function ActiveDeliveryScreen() {
     }
   }, [delivery?.status, router]);
 
-  // Si la livraison est annulée / expiree, on revient a l'accueil proprement.
+  // Si la livraison est annulée / expirée, on revient a l'accueil proprement.
   useEffect(() => {
     if (
       delivery?.status === 'cancelled' ||
@@ -63,7 +63,7 @@ export default function ActiveDeliveryScreen() {
   }, [delivery?.status, router]);
 
   // Refetch la delivery au focus et toutes les 5s (polling backup si un event
-  // socket est perdu). Descendu a 5s car la rapidite de mise a jour de l'ecran
+  // socket est perdu). Descendu a 5s car la rapidite de mise a jour de l'écran
   // client a plus de valeur que l'economie de bande passante.
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
@@ -88,7 +88,7 @@ export default function ActiveDeliveryScreen() {
             );
             setActiveDelivery(fresh);
           }
-          // Si la position du livreur est connue cote backend mais pas encore en store
+          // Si la position du livreur est connue côté backend mais pas encore en store
           if (fresh.driverId && !useDeliveryStore.getState().driverLocation) {
             const d = await getDriverById(fresh.driverId);
             if (d?.driverProfile?.currentLocation) {
@@ -119,7 +119,7 @@ export default function ActiveDeliveryScreen() {
   }, [driverLocation]);
 
   // Position reelle du livreur, interpolee pour une animation fluide
-  // entre chaque heartbeat (~10s). Tant qu'on n'a pas encore recu la
+  // entre chaque heartbeat (~10s). Tant qu'on n'a pas encore reçu la
   // premiere position, on se base sur pickup comme fallback visuel.
   const fallback: LatLng | null = delivery?.pickupLocation ?? null;
   const { position: driverPos } = useAnimatedPosition(
@@ -269,7 +269,7 @@ export default function ActiveDeliveryScreen() {
             <Text style={styles.codeValue}>{delivery.pickupValidationCode}</Text>
             <Text style={styles.codeHint}>
               {delivery.senderContactName
-                ? `Communiquez ce code a ${delivery.senderContactName} pour qu'il le donne au livreur au moment de la recuperation.`
+                ? `Communiquez ce code a ${delivery.senderContactName} pour qu'il le donne au livreur au moment de la récupération.`
                 : "A donner au livreur au moment de la récupération du colis."}
             </Text>
           </View>

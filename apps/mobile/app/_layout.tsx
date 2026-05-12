@@ -39,7 +39,7 @@ export default function RootLayout() {
     if (fontError) throw fontError;
   }, [fontError]);
 
-  // Refresh public settings au demarrage + toutes les 5 min
+  // Refresh public settings au démarrage + toutes les 5 min
   const refreshSettings = useSettingsStore((s) => s.refresh);
   useEffect(() => {
     refreshSettings();
@@ -49,8 +49,8 @@ export default function RootLayout() {
     return () => clearInterval(interval);
   }, [refreshSettings]);
 
-  // Recupere la position GPS de l'utilisateur des le demarrage (apres login)
-  // pour que les ecrans de carte / autocomplete soient deja prets.
+  // Récupère la position GPS de l'utilisateur dès le démarrage (après login)
+  // pour que les écrans de carte / autocomplete soient déjà prêts.
   const refreshLocation = useLocationStore((s) => s.refresh);
   useEffect(() => {
     if (isAuthenticated) {
@@ -58,9 +58,9 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, refreshLocation]);
 
-  // Quand le refresh token echoue, on force un logout propre.
-  // Évite les états zombie ou l'utilisateur est "loggue" cote cache
-  // mais plus aucun appel ne passe (typique apres un wipe DB).
+  // Quand le refresh token échoue, on force un logout propre.
+  // Évite les états zombie où l'utilisateur est "loggué" côté cache
+  // mais plus aucun appel ne passe (typique après un wipe DB).
   useEffect(() => {
     setAuthExpiredHandler(() => {
       console.warn('[Auth] session expired, logging out');
@@ -75,8 +75,8 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  // Au demarrage et a chaque transition auth->logged, rafraichir le user depuis le backend
-  // pour éviter d'utiliser un userType obsolete du cache AsyncStorage.
+  // Au démarrage et à chaque transition auth->logged, rafraîchir le user depuis le backend
+  // pour éviter d'utiliser un userType obsolète du cache AsyncStorage.
   useEffect(() => {
     if (isAuthenticated && fontsLoaded) {
       // Catch explicite pour éviter "unhandled promise rejection"
@@ -117,7 +117,7 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais ecran)
+  // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais écran)
   if (isAuthenticated && !user) {
     return (
       <View style={styles.loader}>

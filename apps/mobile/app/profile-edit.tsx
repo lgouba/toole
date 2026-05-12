@@ -50,7 +50,7 @@ export default function ProfileEditScreen() {
     if (uploaded) {
       setAvatarUrl(uploaded.url);
     } else {
-      Alert.alert('Erreur', 'Upload de l\'avatar echoue.');
+      Alert.alert('Erreur', 'Upload de l\'avatar échoué.');
     }
   };
 
@@ -105,7 +105,7 @@ export default function ProfileEditScreen() {
         </TouchableOpacity>
 
         <Text style={styles.phoneDisplay}>{formatPhone(user.phone)}</Text>
-        <Text style={styles.phoneHint}>Le numéro de téléphone ne peut pas etre modifie</Text>
+        <Text style={styles.phoneHint}>Le numéro de téléphone ne peut pas être modifié</Text>
 
         <View style={{ height: spacing.lg }} />
 

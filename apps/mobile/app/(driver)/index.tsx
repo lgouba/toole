@@ -16,7 +16,7 @@ export default function DriverHomeScreen() {
   const toggleOnline = useDriverStore((s) => s.toggleOnline);
   const currentLocation = useDriverStore((s) => s.currentLocation);
   const activeDelivery = useDriverStore((s) => s.activeDelivery);
-  // Position GPS globale (recuperee au lancement de l'app, partagee avec le client)
+  // Position GPS globale (récupérée au lancement de l'app, partagee avec le client)
   const userLocation = useLocationStore((s) => s.current);
   const refreshLocation = useLocationStore((s) => s.refresh);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);

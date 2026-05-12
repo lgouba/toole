@@ -37,7 +37,7 @@ interface LocationPickerProps {
  * Picker d'adresse beau et rapide.
  *
  * Design:
- *  - Input autocomplete principal, tres visible
+ *  - Input autocomplete principal, très visible
  *  - 2 chips compactes en dessous : "Lien WhatsApp" et "Carte"
  *  - (pickup seulement) : au premier montage, si autoUseGpsOnMount=true,
  *    on essaye la position GPS automatiquement. Sinon l'utilisateur fait

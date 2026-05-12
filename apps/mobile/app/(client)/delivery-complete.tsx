@@ -105,7 +105,7 @@ export default function DeliveryCompleteScreen() {
           Haptics.NotificationFeedbackType.Success,
         ).catch(() => {});
       }
-      // Auto-retour apres 1.8s
+      // Auto-retour après 1.8s
       setTimeout(() => handleDone(), 1800);
     } catch (err: any) {
       Alert.alert(
@@ -122,7 +122,7 @@ export default function DeliveryCompleteScreen() {
     console.log('[DeliveryComplete] handleSkip clicked');
     Alert.alert(
       'Passer sans noter ?',
-      'Votre avis aide les autres utilisateurs a choisir un livreur de confiance.',
+      'Votre avis aide les autres utilisateurs à choisir un livreur de confiance.',
       [
         { text: 'Continuer', style: 'cancel' },
         {
@@ -142,7 +142,7 @@ export default function DeliveryCompleteScreen() {
     ? resolveUploadUrl(activeDriver.avatarUrl ?? null)
     : null;
 
-  // --- Vue confirmation apres envoi ---
+  // --- Vue confirmation après envoi ---
   if (submitted) {
     return (
       <SafeAreaView style={styles.container}>
@@ -156,12 +156,12 @@ export default function DeliveryCompleteScreen() {
           <Text style={styles.thanksTitle}>Merci pour votre avis !</Text>
           <Text style={styles.thanksText}>
             {score === 5
-              ? 'Top ! Ca aide vraiment la communaute.'
+              ? 'Top ! Ça aide vraiment la communauté.'
               : score >= 4
                 ? 'Super, on transmet au livreur.'
                 : score === 3
-                  ? 'Noted. Vos retours nous aident a progresser.'
-                  : 'Desole pour cette experience. On va regarder ca.'}
+                  ? 'Noté. Vos retours nous aident à progresser.'
+                  : 'Désolé pour cette expérience. On va regarder ça.'}
           </Text>
         </View>
       </SafeAreaView>
@@ -170,7 +170,7 @@ export default function DeliveryCompleteScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Confettis declenches a l'arrivee sur l'ecran (moment "wow") */}
+      {/* Confettis declenches a l'arrivee sur l'écran (moment "wow") */}
       {useSettingsStore.getState().settings.confettiEnabled ? (
         <Confetti />
       ) : null}
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'center', // centre verticalement sur grands ecrans
+    justifyContent: 'center', // centre verticalement sur grands écrans
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,

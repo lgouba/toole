@@ -124,8 +124,8 @@ export default function DriverKycScreen() {
     if (updated) {
       setKyc(updated);
       Alert.alert(
-        'Dossier envoye',
-        'Vos informations ont été envoyees pour vérification. Vous pouvez commencer a recevoir des courses des que votre dossier sera approuve.',
+        'Dossier envoyé',
+        'Vos informations ont été envoyées pour vérification. Vous pouvez commencer à recevoir des courses dès que votre dossier sera approuvé.',
         [
           {
             text: 'Continuer',

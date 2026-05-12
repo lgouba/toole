@@ -58,7 +58,7 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * Formate une duree ETA en texte lisible :
+ * Formate une durée ETA en texte lisible :
  *   < 1 min   -> "< 1 min"
  *   < 1 h     -> "12 min"
  *   >= 1 h    -> "1 h 15"

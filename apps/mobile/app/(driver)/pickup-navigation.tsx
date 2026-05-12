@@ -22,9 +22,9 @@ export default function PickupNavigationScreen() {
   const [showCancel, setShowCancel] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-  // Au mount + toutes les 10s, on verifie que la livraison existe encore
-  // cote backend. Si elle a ete annulee/supprimee/expiree, on degage le
-  // livreur de cet ecran (sinon il reste bloque sur une course fantome).
+  // Au mount + toutes les 10s, on vérifie que la livraison existe encore
+  // côté backend. Si elle a été annulée/supprimée/expirée, on dégage le
+  // livreur de cet écran (sinon il reste bloque sur une course fantome).
   useEffect(() => {
     if (!activeDelivery?.id) return;
     let cancelled = false;
@@ -42,7 +42,7 @@ export default function PickupNavigationScreen() {
         useDriverStore.setState({ activeDelivery: null, currentRequest: null });
         router.replace('/(driver)');
       } else {
-        // Synchronise avec le backend (au cas ou une autre etape a avance)
+        // Synchronise avec le backend (au cas ou une autre étape a avance)
         useDriverStore.setState({ activeDelivery: fresh });
       }
     };
@@ -175,7 +175,7 @@ export default function PickupNavigationScreen() {
           title={
             cooldownRemaining > 0
               ? `Annuler la course (${cooldownRemaining}s)`
-              : 'Delai d\'annulation écoulé'
+              : 'Délai d\'annulation écoulé'
           }
           variant="outline"
           onPress={() => setShowCancel(true)}

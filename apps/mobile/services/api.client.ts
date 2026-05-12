@@ -64,8 +64,8 @@ api.interceptors.response.use(
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
-// Callback invoque quand le refresh token echoue aussi (session invalide)
-// -> l'app peut logout + renvoyer sur l'ecran de connexion.
+// Callback invoque quand le refresh token échoué aussi (session invalide)
+// -> l'app peut logout + renvoyer sur l'écran de connexion.
 let onAuthExpiredCb: (() => void) | null = null;
 export function setAuthExpiredHandler(cb: (() => void) | null) {
   onAuthExpiredCb = cb;

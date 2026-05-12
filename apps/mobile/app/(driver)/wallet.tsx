@@ -57,7 +57,7 @@ export default function WalletScreen() {
   const balance = wallet?.balance ?? 0;
   const hasDebt = debt > 0;
   // Le livreur peut reverser seulement si la dette nette est > 0
-  // (sinon tout est deja en attente de validation)
+  // (sinon tout est déjà en attente de validation)
   const canPay = effectiveDebt > 0;
   const canWithdraw = balance > 0;
 
@@ -133,7 +133,7 @@ export default function WalletScreen() {
                   {formatCFA(effectiveDebt)}
                 </Text>
 
-                {/* Detail dette totale + en attente */}
+                {/* Détail dette totale + en attente */}
                 {pending > 0 ? (
                   <View style={styles.debtBreakdown}>
                     <View style={styles.breakdownRow}>

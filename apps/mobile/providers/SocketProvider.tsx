@@ -184,7 +184,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             const prevStatus = activeDelivery.status;
             setActiveDelivery(delivery);
             // Transition scheduled -> pending : la course programmée vient
-            // d'etre diffusee aux livreurs, on envoie le client sur l'ecran
+            // d'être diffusée aux livreurs, on envoie le client sur l'écran
             // de recherche pour qu'il voie la progression en temps reel.
             if (prevStatus === 'scheduled' && delivery.status === 'pending') {
               console.log('[Socket] scheduled delivery activated -> searching screen');
@@ -227,7 +227,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
-        // Le livreur a annule: la livraison est remise en pending, on revient a l'ecran recherche
+        // Le livreur a annule: la livraison est remise en pending, on revient a l'écran recherche
         socket.on('delivery:driver_cancelled', (payload: any) => {
           console.log('[Socket] delivery:driver_cancelled', payload);
           const raw = payload?.delivery ?? payload;
@@ -236,7 +236,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           if (activeDelivery && activeDelivery.id === delivery.id) {
             setActiveDelivery(delivery);
             haptic.warning();
-            // Retour a l'ecran de recherche (le livreur a été retire, on recherche un autre)
+            // Retour a l'écran de recherche (le livreur a été retire, on recherche un autre)
             routerRef.current.replace('/(client)/searching');
           }
         });
@@ -298,7 +298,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             // Retour au dashboard driver (safe, marche toujours)
             routerRef.current.replace('/(driver)');
           }
-          // Reset dedup pour que cette demande puisse etre re-proposee si relance
+          // Reset dedup pour que cette demande puisse être re-proposee si relance
           if (lastHandledRequestIdRef.current === payload?.deliveryId) {
             lastHandledRequestIdRef.current = null;
           }

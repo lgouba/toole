@@ -18,7 +18,7 @@ export default function DeliveryNavigationScreen() {
   const [showCancel, setShowCancel] = useState(false);
 
   // Verifie au mount et toutes les 10s que la livraison existe toujours
-  // cote backend. Si elle a ete supprimee/annulee/expiree, on degage.
+  // côté backend. Si elle a été supprimée/annulée/expirée, on dégage.
   useEffect(() => {
     if (!activeDelivery?.id) return;
     let cancelled = false;
@@ -128,9 +128,9 @@ export default function DeliveryNavigationScreen() {
           onPress={() => router.replace('/(driver)/code-validation')}
         />
         <View style={{ height: 8 }} />
-        {/* Une fois le colis recupere (status >= picked_up), l'annulation
+        {/* Une fois le colis récupère (status >= picked_up), l'annulation
             n'est plus possible librement: le livreur s'est engage en validant
-            la photo + le code de recuperation. Pour annuler il doit passer
+            la photo + le code de récupération. Pour annuler il doit passer
             par le support. Le bouton est grise pour le signaler clairement. */}
         <Button
           title="Annulation impossible (colis récupéré)"

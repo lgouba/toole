@@ -10,7 +10,7 @@ import { LatLng } from '@/types';
  * l'ancienne et la nouvelle position sur ~1.2s, ce qui donne un deplacement
  * visuellement fluide, tout en restant fidele a la vraie position GPS.
  *
- * Retourne { position } — la coordonnee interpolee a afficher a l'ecran.
+ * Retourne { position } — la coordonnee interpolee a afficher a l'écran.
  */
 export function useAnimatedPosition(
   target: LatLng | null,

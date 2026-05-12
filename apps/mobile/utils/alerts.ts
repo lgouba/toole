@@ -7,7 +7,7 @@ import { useSettingsStore } from '@/stores/settings.store';
  * même téléphone en poche / silencieux :
  *  - Vibration longue et rythmee (~2s sur Android avec pattern natif)
  *  - Haptic repete (iOS)
- *  - Le SON est gere par expo-notifications (son systeme par defaut)
+ *  - Le SON est gere par expo-notifications (son système par defaut)
  */
 export function alertNewRequest() {
   const settings = useSettingsStore.getState().settings;
@@ -21,7 +21,7 @@ export function alertNewRequest() {
     // Android : pattern [wait, vibrate, wait, vibrate, ...] — non-repetitif
     Vibration.vibrate([0, 600, 180, 400, 180, 400, 180, 600], false);
   } else {
-    // iOS : pas de pattern avec duree variable, on enchaine les haptic heavy
+    // iOS : pas de pattern avec durée variable, on enchaine les haptic heavy
     Vibration.vibrate();
     haptic.heavy();
     setTimeout(() => haptic.heavy(), 200);
@@ -32,8 +32,8 @@ export function alertNewRequest() {
 }
 
 /**
- * Feedback "action critique reussie" (accepter course, valider code...).
- * Double tap tactile court qui se ressent bien même sans regarder l'ecran.
+ * Feedback "action critique réussie" (accepter course, valider code...).
+ * Double tap tactile court qui se ressent bien même sans regarder l'écran.
  */
 export function alertConfirmSuccess() {
   haptic.success();

@@ -57,9 +57,9 @@ const REACTIONS: {
   bg: string;
 }[] = [
   { score: 1, emoji: '😡', label: 'Terrible', color: '#dc2626', bg: '#fee2e2' },
-  { score: 2, emoji: '😕', label: 'Decevant', color: '#ea580c', bg: '#ffedd5' },
+  { score: 2, emoji: '😕', label: 'Décevant', color: '#ea580c', bg: '#ffedd5' },
   { score: 3, emoji: '😐', label: 'Correct', color: '#ca8a04', bg: '#fef3c7' },
-  { score: 4, emoji: '😊', label: 'Tres bien', color: '#65a30d', bg: '#ecfccb' },
+  { score: 4, emoji: '😊', label: 'Très bien', color: '#65a30d', bg: '#ecfccb' },
   { score: 5, emoji: '🤩', label: 'Excellent !', color: '#16a34a', bg: '#dcfce7' },
 ];
 

@@ -12,8 +12,8 @@ interface AddressFieldProps {
 }
 
 /**
- * Affichage compact d'une adresse dans un formulaire. Au tap, ouvre l'ecran
- * plein ecran `/address-picker` pour saisir / modifier.
+ * Affichage compact d'une adresse dans un formulaire. Au tap, ouvre l'écran
+ * plein écran `/address-picker` pour saisir / modifier.
  */
 export function AddressField({ variant, address, location }: AddressFieldProps) {
   const router = useRouter();

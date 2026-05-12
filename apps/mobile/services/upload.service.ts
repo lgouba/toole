@@ -50,7 +50,7 @@ export async function uploadImage(
     const mime = 'image/jpeg';
     const name = `photo-${Date.now()}.jpg`;
 
-    // React Native accepte { uri, name, type } dans un FormData (non typé standard)
+    // React Native accepté { uri, name, type } dans un FormData (non typé standard)
     const fileDescriptor = {
       uri:
         Platform.OS === 'android'

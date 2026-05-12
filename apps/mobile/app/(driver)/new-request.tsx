@@ -143,7 +143,7 @@ export default function NewRequestScreen() {
             </View>
           </View>
 
-          {/* Badge expediteur tiers si applicable */}
+          {/* Badge expéditeur tiers si applicable */}
           {isThirdParty ? (
             <Animated.View
               entering={FadeInDown.duration(350).delay(150)}

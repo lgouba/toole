@@ -19,7 +19,7 @@ export default function ClientHomeScreen() {
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   useEffect(() => {
-    // Recupere la position GPS au montage si pas deja faite, puis cherche
+    // Récupère la position GPS au montage si pas déjà faite, puis cherche
     // les livreurs proches autour de la position reelle de l'utilisateur.
     (async () => {
       const pos = userLocation ?? (await refreshLocation());

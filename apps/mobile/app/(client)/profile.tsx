@@ -13,7 +13,7 @@ const menuItems = [
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'cube-outline', label: 'Mes envois', route: '/(client)/shipments' },
   { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
-  { icon: 'information-circle-outline', label: 'A propos', route: null },
+  { icon: 'information-circle-outline', label: 'À propos', route: null },
 ] as const;
 
 export default function ProfileScreen() {
@@ -54,7 +54,7 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.logoutButton} onPress={logout}>
           <Ionicons name="log-out-outline" size={22} color={colors.error} />
-          <Text style={styles.logoutText}>Se deconnecter</Text>
+          <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

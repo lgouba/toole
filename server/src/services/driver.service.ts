@@ -156,8 +156,8 @@ export async function notifyPendingDeliveriesToDriver(
       userId,
       'Demandes en attente',
       count === 1
-        ? 'Une course est disponible pres de vous'
-        : `${count} courses sont disponibles pres de vous`,
+        ? 'Une course est disponible près de vous'
+        : `${count} courses sont disponibles près de vous`,
       { type: 'pending_batch', count },
     ).catch(() => {});
   }

@@ -38,7 +38,7 @@ import { openPhone } from '@/utils/linking';
  *   4. Bouton "Confirmer la récupération"
  *
  * Chaque étape s'anime a l'apparition. L'étape en cours est mise en avant
- * par une bordure accentuee et une pastille verte de "valide" apparait au
+ * par une bordure accentuee et une pastille verte de "validé" apparait au
  * fur et a mesure.
  */
 export default function PickupConfirmScreen() {

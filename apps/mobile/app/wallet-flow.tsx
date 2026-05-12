@@ -48,7 +48,7 @@ export default function WalletFlowScreen() {
   const user = useAuthStore((s) => s.user);
 
   // Si montant verrouille (cas du reglement de dette), on saute directement
-  // a l'etape 2 (phone). Sinon on demarre par la saisie du montant.
+  // a l'étape 2 (phone). Sinon on démarré par la saisie du montant.
   const [step, setStep] = useState<Step>(amountLocked ? 'phone' : 'amount');
   const [amount, setAmount] = useState(initialAmount);
   const [operator, setOperator] = useState<'orange_money' | 'moov_money' | null>(
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     minWidth: 80,
     maxWidth: '100%',
     textAlign: 'center',
-    // Pas de border pour un effet "display" plutot que input
+    // Pas de border pour un effet "display" plutôt que input
     borderWidth: 0,
   },
   amountCurrency: {

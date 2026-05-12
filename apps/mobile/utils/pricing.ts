@@ -2,12 +2,12 @@ import { PackageType, PriceEstimate } from '@/types';
 import { useSettingsStore } from '@/stores/settings.store';
 
 /**
- * Calcule le prix estime d'une livraison cote mobile.
+ * Calcule le prix estimé d'une livraison côté mobile.
  *
  * Les valeurs (base, km, commission) sont lues depuis le `settingsStore`
  * synchronise avec l'admin via `/api/settings`. Refresh automatique toutes les
- * 5 min + au demarrage de l'app. Le backend reste source de verite lors de la
- * creation reelle de la livraison.
+ * 5 min + au démarrage de l'app. Le backend reste source de verite lors de la
+ * création reelle de la livraison.
  */
 export function calculatePrice(
   packageType: PackageType,

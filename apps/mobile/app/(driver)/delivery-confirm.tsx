@@ -27,7 +27,7 @@ export default function DeliveryConfirmScreen() {
           <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
         </View>
 
-        <Text style={styles.title}>Livraison terminee !</Text>
+        <Text style={styles.title}>Livraison terminée !</Text>
 
         {activeDelivery && (
           <Card style={styles.earnings}>
@@ -56,7 +56,7 @@ export default function DeliveryConfirmScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button title="Retour a l'accueil" onPress={handleDone} />
+        <Button title="Retour à l'accueil" onPress={handleDone} />
       </View>
     </SafeAreaView>
   );

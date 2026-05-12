@@ -32,7 +32,7 @@ export function SchedulePicker({
   onChange,
   onEnabledChange,
 }: SchedulePickerProps) {
-  // Delai min pilote par l'admin (settings.operations.scheduledMinDelayMinutes)
+  // Délai min pilote par l'admin (settings.operations.scheduledMinDelayMinutes)
   const minDelayMinutes = useSettingsStore(
     (s) => s.settings.operations.scheduledMinDelayMinutes,
   );
@@ -98,7 +98,7 @@ export function SchedulePicker({
     const dt = new Date(yN, moN - 1, dN, hN, miN);
     if (dt.getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
       return reject(
-        `La date doit etre dans plus de ${minDelayMinutes} min apres maintenant`,
+        `La date doit être dans plus de ${minDelayMinutes} min après maintenant`,
       );
     }
     setError(null);
@@ -146,7 +146,7 @@ export function SchedulePicker({
             <Text style={styles.title}>Programmer la livraison</Text>
             <Text style={styles.hint}>
               {enabled
-                ? 'La course sera diffusee aux livreurs au moment choisi'
+                ? 'La course sera diffusée aux livreurs au moment choisi'
                 : 'Par defaut, recherche immediate'}
             </Text>
           </View>

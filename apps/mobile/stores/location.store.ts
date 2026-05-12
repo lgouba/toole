@@ -5,8 +5,8 @@ import { OUAGADOUGOU_CENTER } from '@/utils/geo';
 
 /**
  * Reverse geocode minimaliste qui renvoie uniquement le code pays ISO 2.
- * Utilise expo-location.reverseGeocodeAsync (Apple/Google natif) plutot que
- * Nominatim pour eviter un round-trip reseau au demarrage.
+ * Utilise expo-location.reverseGeocodeAsync (Apple/Google natif) plutôt que
+ * Nominatim pour éviter un round-trip reseau au démarrage.
  */
 async function detectCountryCode(loc: LatLng): Promise<string | null> {
   try {
@@ -23,14 +23,14 @@ async function detectCountryCode(loc: LatLng): Promise<string | null> {
 
 /**
  * Position GPS courante de l'utilisateur (client ou livreur).
- * Recuperee une fois au demarrage de l'app puis rafraichie a la demande.
+ * Recuperee une fois au démarrage de l'app puis rafraichie a la demande.
  *
  * Utilisee pour :
  *  - Centre par defaut de la carte (au lieu de OUAGADOUGOU_CENTER hardcode)
  *  - Bias des recherches Nominatim (priorise les adresses proches)
- *  - Recherche des livreurs proches (cote client)
+ *  - Recherche des livreurs proches (côté client)
  *
- * Si la permission est refusee ou que le GPS n'est pas dispo, on retombe
+ * Si la permission est refusée ou que le GPS n'est pas dispo, on retombe
  * sur OUAGADOUGOU_CENTER comme fallback raisonnable (l'app est BF-first
  * mais fonctionne partout).
  */

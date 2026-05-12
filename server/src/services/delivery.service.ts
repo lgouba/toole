@@ -160,8 +160,8 @@ async function notifyRecipientNewDelivery(delivery: Delivery): Promise<void> {
 
   // SMS court (160 caracteres GSM idealement pour eviter le multi-segment)
   const parts: string[] = [
-    `Tolle: un colis vous est envoye.`,
-    `Code a donner au livreur a l'arrivee: ${code}.`,
+    `Tolle : un colis vous est envoyé.`,
+    `Code à donner au livreur à l'arrivée : ${code}.`,
   ];
   if (trackingUrl) parts.push(`Suivi: ${trackingUrl}`);
   const message = parts.join(' ');
@@ -209,8 +209,8 @@ export async function processScheduledDeliveries() {
       emitToUser(updated.senderId, 'delivery:status_update', updated);
       void sendPushToUser(
         updated.senderId,
-        'Course programmee',
-        'Nous recherchons un livreur pour votre course planifiee.',
+        'Course programmée',
+        'Nous recherchons un livreur pour votre course planifiée.',
         { type: 'scheduled_started', deliveryId: updated.id },
       ).catch(() => {});
       void notifyNearbyDrivers(updated).catch(() => {});
@@ -234,7 +234,7 @@ async function notifyNearbyDrivers(delivery: Delivery) {
 
     // Push notification (pour livreurs avec app fermee)
     const title = 'Nouvelle course Tolle';
-    const body = `Recuperation: ${delivery.pickupAddress}`;
+    const body = `Récupération : ${delivery.pickupAddress}`;
     for (const userId of ids) {
       void sendPushToUser(userId, title, body, {
         type: 'new_request',
@@ -497,7 +497,7 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
   void sendPushToUser(
     updated.senderId,
     'Livreur en route',
-    `${driver?.fullName ?? 'Un livreur'} a accepte votre course`,
+    `${driver?.fullName ?? 'Un livreur'} a accepté votre course`,
     { type: 'delivery_accepted', deliveryId: updated.id },
   ).catch(() => {});
 
@@ -644,7 +644,7 @@ export async function confirmPickup(
   // Push au client: colis recupere
   void sendPushToUser(
     updated.senderId,
-    'Colis recupere',
+    'Colis récupéré',
     'Votre colis est en route vers le destinataire',
     { type: 'delivery_picked_up', deliveryId: updated.id },
   ).catch(() => {});
@@ -741,8 +741,8 @@ export async function validateCode(
   // Push au client: livraison terminee (incite a noter)
   void sendPushToUser(
     updated.senderId,
-    'Livraison terminee',
-    'Votre colis a ete livre. Notez votre livreur !',
+    'Livraison terminée',
+    'Votre colis a été livré. Notez votre livreur !',
     { type: 'delivery_delivered', deliveryId: updated.id },
   ).catch(() => {});
 

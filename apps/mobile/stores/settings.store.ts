@@ -12,14 +12,14 @@ export interface PricingSettings {
 }
 
 export interface OperationSettings {
-  /** Duree de recherche d'un livreur avant expiration cote client (en minutes) */
+  /** Durée de recherche d'un livreur avant expiration côté client (en minutes) */
   deliveryExpiryMinutes: number;
-  /** Délai avant que le livreur puisse annuler apres acceptation (en secondes) */
+  /** Délai avant que le livreur puisse annuler après acceptation (en secondes) */
   driverCancelCooldownSeconds: number;
   /** Rayon de diffusion aux livreurs (km) — informatif pour le mobile */
   nearbyRadiusKm: number;
-  /** Delai minimum entre maintenant et l'heure choisie pour qu'une livraison
-   *  soit acceptee comme programmee (en minutes). En dessous, immediate. */
+  /** Délai minimum entre maintenant et l'heure choisie pour qu'une livraison
+   *  soit acceptée comme programmée (en minutes). En dessous, immediate. */
   scheduledMinDelayMinutes: number;
 }
 

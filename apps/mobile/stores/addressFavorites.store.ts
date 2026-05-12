@@ -36,7 +36,7 @@ interface State {
   update: (id: string, patch: Partial<AddressFavorite>) => void;
   remove: (id: string) => void;
   clear: () => void;
-  /** Helper: recupere l'adresse Maison si elle existe */
+  /** Helper: récupère l'adresse Maison si elle existe */
   getHome: () => AddressFavorite | undefined;
   getWork: () => AddressFavorite | undefined;
 }

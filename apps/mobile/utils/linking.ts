@@ -47,7 +47,7 @@ export async function openNavigation(
       ? `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`
       : `google.navigation:q=${latitude},${longitude}&mode=d`;
   const wazeUrl = `waze://?ll=${latitude},${longitude}&navigate=yes`;
-  // Fallback cross-platform (ouvre dans le navigateur ou l'app par defaut du systeme)
+  // Fallback cross-platform (ouvre dans le navigateur ou l'app par defaut du système)
   const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving&destination_name=${labelEncoded}`;
 
   // Vérifié quelles apps sont installees

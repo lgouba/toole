@@ -50,7 +50,7 @@ export default function OtpScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Vérification</Text>
           <Text style={styles.subtitle}>
-            Entrez le code a 4 chiffres envoye au{'\n'}
+            Entrez le code à 4 chiffres envoyé au{'\n'}
             <Text style={styles.phone}>{formatPhone(phoneNumber)}</Text>
           </Text>
           <Text style={styles.devHint}>Code test: 1234</Text>

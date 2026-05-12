@@ -80,7 +80,7 @@ export default function DeliveryDetailScreen() {
     (isSender || user?.id === delivery.driverId);
 
   const handleCancel = () => {
-    Alert.alert('Annuler cette livraison ?', 'Cette action est irreversible.', [
+    Alert.alert('Annuler cette livraison ?', 'Cette action est irréversible.', [
       { text: 'Non', style: 'cancel' },
       {
         text: 'Oui, annuler',
@@ -172,7 +172,7 @@ export default function DeliveryDetailScreen() {
         </Card>
 
         {/* Destinataire : numéro et bouton appel masques une fois la livraison
-            terminee / annulée / expiree (confidentialite) */}
+            terminée / annulée / expirée (confidentialité) */}
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Destinataire</Text>
           <View style={styles.recipientRow}>
@@ -193,7 +193,7 @@ export default function DeliveryDetailScreen() {
           </View>
         </Card>
 
-        {/* Code de validation (seulement visible si sender et non livre) */}
+        {/* Code de validation (seulement visible si sender et non livré) */}
         {isSender && delivery.validationCode && delivery.status !== 'delivered' ? (
           <View style={styles.codeCard}>
             <Text style={styles.codeLabel}>Code de validation</Text>

@@ -38,7 +38,7 @@ const roles: {
     type: 'driver',
     icon: 'bicycle-outline',
     title: 'Livreur',
-    subtitle: 'Je livre des colis',
+    subtitle: 'Je livré des colis',
     description:
       "Inscrivez-vous comme livreur indépendant, fixez vos horaires et gagnez de l'argent.",
   },
@@ -208,7 +208,7 @@ export default function RegisterScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.stepIndicator}>
-          Etape {currentStepIndex}/{totalSteps}
+          Étape {currentStepIndex}/{totalSteps}
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -311,7 +311,7 @@ export default function RegisterScreen() {
 
               <View style={styles.form}>
                 <Input
-                  label="Prenom *"
+                  label="Prénom *"
                   placeholder="Aminata"
                   value={firstName}
                   onChangeText={setFirstName}
@@ -475,7 +475,7 @@ export default function RegisterScreen() {
           )}
           {step === 'identity' && (
             <Button
-              title={selectedRole === 'driver' ? 'Continuer' : 'Creer mon compte'}
+              title={selectedRole === 'driver' ? 'Continuer' : 'Créer mon compte'}
               onPress={handleIdentityNext}
               loading={isLoading}
             />

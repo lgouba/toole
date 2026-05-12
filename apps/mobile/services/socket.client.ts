@@ -55,7 +55,7 @@ export async function connectSocket(): Promise<Socket> {
         socket.connect();
       }
     } catch {
-      // Refresh a echoue - utilisateur deconnecte, laisse l'app gerer
+      // Refresh a échoué - utilisateur déconnecté, laisse l'app gérer
     } finally {
       isReconnecting = false;
     }

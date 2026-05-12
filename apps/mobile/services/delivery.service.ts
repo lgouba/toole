@@ -79,8 +79,8 @@ export async function searchNearbyDrivers(
 }
 
 export async function autoSearchDriver(_deliveryId: string): Promise<DriverWithProfile | null> {
-  // Avec backend reel, la notification est envoyee automatiquement via Socket.IO
-  // au moment du POST /deliveries. Le livreur accepte de son cote.
+  // Avec backend reel, la notification est envoyée automatiquement via Socket.IO
+  // au moment du POST /deliveries. Le livreur accepté de son côté.
   // Cette fonction est gardee pour compatibilite - elle ne fait plus rien ici.
   return null;
 }
@@ -104,7 +104,7 @@ export async function getDeliveries(
  * Statuts actifs selon le role :
  *  - Client : 'pending' (recherche en cours) + statuts livraison en cours
  *  - Livreur : statuts livraison en cours uniquement (une demande 'pending'
- *    n'est pas "sa" livraison tant qu'il n'a pas accepte)
+ *    n'est pas "sa" livraison tant qu'il n'a pas accepté)
  */
 const CLIENT_ACTIVE_STATUSES: DeliveryStatus[] = [
   'pending',
@@ -123,7 +123,7 @@ const DRIVER_ACTIVE_STATUSES: DeliveryStatus[] = [
 /**
  * Récupéré la livraison active courante de l'utilisateur. Utilise pour la
  * navigation guard : si une livraison est en cours et que l'utilisateur est
- * perdu sur un autre ecran, on le ramene automatiquement.
+ * perdu sur un autre écran, on le ramene automatiquement.
  */
 export async function getActiveDelivery(
   role: 'client' | 'driver',

@@ -42,26 +42,26 @@ export default function NewDeliveryScreen() {
   // de bloquer la soumission si l'utilisateur a active le toggle mais que la
   // date saisie est invalide (auquel cas draft.scheduledFor est undefined).
   const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
-  // Modal contact picker : 'recipient' = destinataire, 'sender' = expediteur tiers
+  // Modal contact picker : 'recipient' = destinataire, 'sender' = expéditeur tiers
   const [contactPickerTarget, setContactPickerTarget] = useState<
     null | 'recipient' | 'sender'
   >(null);
 
   const refreshSettings = useSettingsStore((s) => s.refresh);
-  // Flag qui indique si on a déjà initialise le wizard pour cette session.
+  // Flag qui indique si on a déjà initialisé le wizard pour cette session.
   // On veut reset SEULEMENT la premiere fois qu'on entre (depuis l'accueil),
-  // pas quand on revient d'un sous-ecran comme address-picker.
+  // pas quand on revient d'un sous-écran comme address-picker.
   const initializedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      // Toujours rafraichir les settings (tarifs eventuellement modifies)
+      // Toujours rafraîchir les settings (tarifs éventuellement modifiés)
       refreshSettings();
 
-      // Si le draft est totalement vide (entre fresh depuis l'accueil, ou
-      // retour apres une livraison reussie/annulee qui a vide le draft),
-      // on remet le wizard a l'etape 0. Sinon, on garde l'etat (utile si
-      // on revient d'address-picker avec une position deja saisie).
+      // Si le draft est totalement vide (entré fresh depuis l'accueil, ou
+      // retour après une livraison réussie/annulée qui a vidé le draft),
+      // on remet le wizard à l'étape 0. Sinon, on garde l'état (utile si
+      // on revient d'address-picker avec une position déjà saisie).
       const currentDraft = useDeliveryStore.getState().draft;
       const draftIsEmpty =
         !currentDraft.packageType &&
@@ -79,7 +79,7 @@ export default function NewDeliveryScreen() {
     }, []),
   );
 
-  // Quand le composant est unmount (retour a l'accueil par exemple),
+  // Quand le composant est unmount (retour à l'accueil par exemple),
   // on remet le flag pour que la prochaine ouverture reparte de zero.
   React.useEffect(() => {
     return () => {
@@ -101,14 +101,14 @@ export default function NewDeliveryScreen() {
     if (!draft.pickupLocation) {
       Alert.alert(
         'Position de récupération manquante',
-        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de récupération.',
+        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour définir le point de récupération.',
       );
       return;
     }
     if (!draft.deliveryLocation) {
       Alert.alert(
         'Position de livraison manquante',
-        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour definir le point de livraison.',
+        'Utilisez "Coller lien", "Ma position" ou "Sur la carte" pour définir le point de livraison.',
       );
       return;
     }
@@ -116,8 +116,8 @@ export default function NewDeliveryScreen() {
       Alert.alert('Destinataire manquant', 'Renseignez le nom et le téléphone du destinataire.');
       return;
     }
-    // Toggle "Programmer" active mais aucune date valide -> on empeche le submit
-    // pour eviter qu'une mauvaise saisie soit silencieusement ignoree.
+    // Toggle "Programmer" active mais aucune date validé -> on empêche le submit
+    // pour éviter qu'une mauvaise saisie soit silencieusement ignorée.
     if (scheduleEnabled && !draft.scheduledFor) {
       Alert.alert(
         'Heure de livraison invalide',
@@ -154,7 +154,7 @@ export default function NewDeliveryScreen() {
       if (isTimeout) {
         Alert.alert(
           'Connexion lente',
-          'La demande met du temps a etre envoyee. Vérifiez votre réseau et réessayez.',
+          'La demande met du temps à être envoyée. Vérifiez votre réseau et réessayez.',
         );
       } else {
         const msg =
@@ -406,22 +406,22 @@ export default function NewDeliveryScreen() {
                 if (step === 1) {
                   if (!draft.pickupLocation) {
                     Alert.alert(
-                      'Position de recuperation manquante',
-                      'Selectionnez une adresse dans les suggestions, utilisez "Ma position", un lien WhatsApp, ou la carte.',
+                      'Position de récupération manquante',
+                      'Sélectionnez une adresse dans les suggestions, utilisez "Ma position", un lien WhatsApp, ou la carte.',
                     );
                     return;
                   }
                   if (!draft.deliveryLocation) {
                     Alert.alert(
                       'Position de livraison manquante',
-                      'Selectionnez une adresse dans les suggestions, utilisez un lien WhatsApp, ou la carte.',
+                      'Sélectionnez une adresse dans les suggestions, utilisez un lien WhatsApp, ou la carte.',
                     );
                     return;
                   }
                 }
                 if (step === 2) {
                   if (!draft.recipientName?.trim() || !draft.recipientPhone?.trim()) {
-                    Alert.alert('Destinataire incomplet', 'Renseignez le nom et le telephone.');
+                    Alert.alert('Destinataire incomplet', 'Renseignez le nom et le téléphone.');
                     return;
                   }
                   if (
@@ -430,7 +430,7 @@ export default function NewDeliveryScreen() {
                       !draft.senderContactPhone?.trim())
                   ) {
                     Alert.alert(
-                      'Expediteur incomplet',
+                      'Expéditeur incomplet',
                       "Renseignez le nom et le téléphone de la personne qui detient le colis.",
                     );
                     return;
@@ -445,7 +445,7 @@ export default function NewDeliveryScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Modal selection contact (destinataire OU expediteur tiers) */}
+      {/* Modal selection contact (destinataire OU expéditeur tiers) */}
       <ContactPickerModal
         visible={contactPickerTarget !== null}
         onClose={() => setContactPickerTarget(null)}

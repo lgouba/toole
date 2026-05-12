@@ -37,7 +37,7 @@ const slides = [
     icon: 'shield-checkmark-outline' as const,
     title: 'Livraison sécurisée',
     subtitle:
-      'Un code à 4 chiffres confirme chaque étape. Photo, contact et preuve à chaque livraison.',
+      'Un code à 4 chiffres confirmé chaque étape. Photo, contact et preuve à chaque livraison.',
     color: colors.success,
   },
 ];

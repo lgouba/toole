@@ -104,7 +104,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       try {
         await driverService.setOnlineStatus(false);
       } catch {
-        // ok on passe quand même offline cote UI
+        // ok on passe quand même offline côté UI
       }
       // On garde la derniere currentLocation connue pour centrer la carte
       // même quand le livreur est hors ligne (récupération GPS hors-line

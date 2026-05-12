@@ -27,7 +27,7 @@ export default function SettingsScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
-      'Cette action est definitive. Toutes vos données seront effacees.',
+      'Cette action est définitive. Toutes vos données seront effacées.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -64,13 +64,13 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionLabel}>Preferences</Text>
+        <Text style={styles.sectionLabel}>Préférences</Text>
         <Card style={styles.section}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>Notifications</Text>
               <Text style={styles.rowHint}>
-                Recevoir les alertes de course et mises a jour
+                Recevoir les alertes de course et mises à jour
               </Text>
             </View>
             <Switch
@@ -83,7 +83,7 @@ export default function SettingsScreen() {
           <View style={styles.separator} />
           <View style={styles.row}>
             <Text style={styles.rowTitle}>Langue</Text>
-            <Text style={styles.rowValue}>Francais</Text>
+            <Text style={styles.rowValue}>Français</Text>
           </View>
         </Card>
 
@@ -100,7 +100,7 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.row} activeOpacity={0.6}>
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>
-              Politique de confidentialite
+              Politique de confidentialité
             </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
             activeOpacity={0.6}
           >
             <Ionicons name="log-out-outline" size={20} color={colors.textPrimary} />
-            <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>Se deconnecter</Text>
+            <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>Se déconnecter</Text>
           </TouchableOpacity>
           <View style={styles.separator} />
           <TouchableOpacity

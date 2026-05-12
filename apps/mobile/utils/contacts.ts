@@ -7,8 +7,8 @@ export interface PickedContact {
 }
 
 /**
- * Ouvre le picker natif de contacts du systeme et renvoie le {name, phone}
- * choisi par l'utilisateur. Retourne null si l'utilisateur annule ou refuse
+ * Ouvre le picker natif de contacts du système et renvoie le {name, phone}
+ * choisi par l'utilisateur. Retourne null si l'utilisateur annule ou refusé
  * la permission.
  *
  * Note: si le contact a plusieurs numeros, on prend le premier (mobile en
@@ -66,7 +66,7 @@ function extractContact(c: any): PickedContact | null {
     Alert.alert('Pas de numéro', "Ce contact n'a pas de numéro de téléphone.");
     return null;
   }
-  // Priorise un numero mobile
+  // Priorise un numéro mobile
   const mobile = phones.find((p) => /mobile|cell/i.test(p.label ?? ''));
   const phone = (mobile ?? phones[0]).number || (mobile ?? phones[0]).digits || '';
   return { name, phone: cleanPhone(phone) };

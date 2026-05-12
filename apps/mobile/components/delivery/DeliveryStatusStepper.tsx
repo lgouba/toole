@@ -7,9 +7,9 @@ import { DeliveryStatus } from '@/types';
 /**
  * Étapes affichees au client. On a volontairement simplifie le parcours
  * pour coller aux statuts reellement produits par le backend :
- *   - accepted   : le livreur a accepte, il est en route pour récupérer
+ *   - accepted   : le livreur a accepté, il est en route pour récupérer
  *   - picked_up  : le colis est récupéré, il est en route pour livrer
- *   - delivered  : colis livre
+ *   - delivered  : colis livré
  * (les statuts intermediaires picking_up / delivering ne sont plus utilises)
  */
 type StepKey = 'accepted' | 'picked_up' | 'delivered';

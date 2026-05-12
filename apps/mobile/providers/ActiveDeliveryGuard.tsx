@@ -8,8 +8,8 @@ import { getActiveDelivery } from '@/services/delivery.service';
 
 /**
  * Garde de navigation : au lancement de l'app, au retour en foreground ou
- * apres login, vérifié s'il y a une livraison active et ramene l'utilisateur
- * sur l'ecran approprie s'il s'est retrouve ailleurs par inadvertance.
+ * après login, vérifié s'il y a une livraison active et ramene l'utilisateur
+ * sur l'écran approprie s'il s'est retrouve ailleurs par inadvertance.
  *
  * Regles :
  *  - Client avec livraison 'pending' -> /(client)/searching
@@ -18,7 +18,7 @@ import { getActiveDelivery } from '@/services/delivery.service';
  *  - Livreur avec delivery 'accepted' -> /(driver)/pickup-navigation
  *  - Livreur avec delivery 'picked_up' / 'delivering' -> /(driver)/delivery-navigation
  *
- * La garde n'interrompt JAMAIS une saisie normale — elle n'agit qu'au demarrage
+ * La garde n'interrompt JAMAIS une saisie normale — elle n'agit qu'au démarrage
  * ou au retour d'un state background. Elle laisse passer si l'utilisateur est
  * déjà dans le bon sous-arbre de l'app.
  */
@@ -54,10 +54,10 @@ export function ActiveDeliveryGuard() {
       const topSegment0 = segments[0] as string | undefined;
       const currentPath0 = '/' + segments.join('/');
 
-      // Si aucune livraison active cote backend mais qu'on est encore sur un
-      // ecran lie a une livraison (store en cache stale), on force le retour
+      // Si aucune livraison active côté backend mais qu'on est encore sur un
+      // écran lie a une livraison (store en cache stale), on force le retour
       // a l'accueil. Sinon le livreur reste bloque sur pickup-navigation
-      // alors que la course a ete annulee/expiree/supprimee.
+      // alors que la course a été annulée/expirée/supprimée.
       if (!active) {
         const stalePaths = [
           'pickup-navigation',
@@ -82,7 +82,7 @@ export function ActiveDeliveryGuard() {
         return;
       }
 
-      // Met a jour les stores pour que les ecrans cibles trouvent leurs données
+      // Met a jour les stores pour que les écrans cibles trouvent leurs données
       if (role === 'client') {
         useDeliveryStore.getState().setActiveDelivery(active);
       } else {
@@ -109,8 +109,8 @@ export function ActiveDeliveryGuard() {
         'settings',
         'kyc',
         'address-picker',
-        // Ecrans de confirmation / validation cote livreur - il est dans l'étape
-        // "je suis arrive / je prends la photo / je valide le code", même si le
+        // Ecrans de confirmation / validation côté livreur - il est dans l'étape
+        // "je suis arrive / je prends la photo / je validé le code", même si le
         // statut DB est encore "accepted" / "picked_up"
         'pickup-navigation',
         'pickup-confirm',
@@ -140,7 +140,7 @@ export function ActiveDeliveryGuard() {
     }
   };
 
-  // Check au demarrage + quand auth change
+  // Check au démarrage + quand auth change
   useEffect(() => {
     runCheck();
     // eslint-disable-next-line react-hooks/exhaustive-deps

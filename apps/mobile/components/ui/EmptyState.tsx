@@ -42,7 +42,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   const toneColors = TONE_MAP[tone];
 
-  // Mini-animation : leger flottement vertical pour donner vie a l'ecran
+  // Mini-animation : leger flottement vertical pour donner vie a l'écran
   const float = useSharedValue(0);
   useEffect(() => {
     if (!animated) return;

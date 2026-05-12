@@ -466,14 +466,14 @@ export function Map({
     [zoom, structureKey, interactive, fitToContent],
   );
 
-  // Detecte un changement significatif du center (ex: GPS qui arrive apres
+  // Detecte un changement significatif du center (ex: GPS qui arrive après
   // un fallback Ouagadougou) et fait un setView via injection JS — sans
   // rebuild du HTML, donc pas de tremblement.
   useEffect(() => {
     const prev = prevCenterRef.current;
     const distLat = Math.abs(prev.latitude - center.latitude);
     const distLng = Math.abs(prev.longitude - center.longitude);
-    // Seuil ~1km : evite les recentrages a chaque heartbeat (~10m) du
+    // Seuil ~1km : évite les recentrages a chaque heartbeat (~10m) du
     // livreur, mais capture les sauts type "Ouaga -> Paris".
     const SIGNIFICANT = 0.01; // ~1.1km
     if (distLat > SIGNIFICANT || distLng > SIGNIFICANT) {

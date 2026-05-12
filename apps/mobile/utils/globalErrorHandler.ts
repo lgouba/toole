@@ -2,7 +2,7 @@
  * Attache un handler global pour les "unhandled promise rejections" afin d'éviter
  * qu'une erreur axios oubliee n'affiche un bandeau rouge bloquant dans l'app.
  *
- * A importer une seule fois au demarrage de l'app (dans app/_layout.tsx).
+ * A importer une seule fois au démarrage de l'app (dans app/_layout.tsx).
  */
 
 type GlobalWithPromiseHandler = typeof globalThis & {

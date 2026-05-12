@@ -28,8 +28,8 @@ import { openPhone } from '@/utils/linking';
 /**
  * Ecran de saisie du code de livraison.
  *
- * Meme charte visuelle que pickup-confirm : header, encart destinataire,
- * step-card avec OtpInput. Le code est valide cote serveur, et apres succes
+ * Même charte visuelle que pickup-confirm : header, encart destinataire,
+ * step-card avec OtpInput. Le code est validé côté serveur, et après succès
  * on redirige vers delivery-confirm pour la photo + confirmation finale.
  */
 export default function CodeValidationScreen() {
@@ -72,7 +72,7 @@ export default function CodeValidationScreen() {
     }
   };
 
-  // Validation automatique des que les 4 chiffres sont saisis
+  // Validation automatique dès que les 4 chiffres sont saisis
   useEffect(() => {
     if (codeDone && !submitting && !blocked) {
       handleSubmit();
@@ -119,7 +119,7 @@ export default function CodeValidationScreen() {
           </Animated.View>
         )}
 
-        {/* Etape unique - Code de livraison */}
+        {/* Étape unique - Code de livraison */}
         <Animated.View
           entering={FadeInDown.duration(350).delay(120)}
           style={[
@@ -135,8 +135,8 @@ export default function CodeValidationScreen() {
           </View>
           <Text style={styles.stepHint}>
             {recipientName
-              ? `Demandez a ${recipientName} le code a 4 chiffres recu lors de la creation de la commande.`
-              : 'Demandez au destinataire le code a 4 chiffres recu lors de la creation de la commande.'}
+              ? `Demandez a ${recipientName} le code a 4 chiffres reçu lors de la création de la commande.`
+              : 'Demandez au destinataire le code a 4 chiffres reçu lors de la création de la commande.'}
           </Text>
           <View style={styles.otpWrap}>
             <OtpInput
