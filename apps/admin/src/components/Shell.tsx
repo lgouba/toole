@@ -236,6 +236,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </span>
             <span>Transactions</span>
           </NavLink>
+          <NavLink
+            to="/notifications"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Icon name="bell" />
+            </span>
+            <span>Notifications</span>
+          </NavLink>
 
           <div className="nav-section">Configuration</div>
           <NavLink

@@ -12,6 +12,7 @@ import DeliveryDetail from './pages/DeliveryDetail';
 import DriverTracking from './pages/DriverTracking';
 import Settings from './pages/Settings';
 import Transactions from './pages/Transactions';
+import Notifications from './pages/Notifications';
 import PublicTracking from './pages/PublicTracking';
 import NotificationProvider from './components/NotificationProvider';
 
@@ -59,6 +60,7 @@ function AdminApp({ loading, user }: { loading: boolean; user: any }) {
           <Route path="/drivers/:id/tracking" element={<DriverTracking />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/deliveries/:id" element={<DeliveryDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -26,6 +26,8 @@ import {
   listDeliveriesAdminCtrl,
   getDeliveryAdminCtrl,
   forceCancelDeliveryCtrl,
+  broadcastNotificationCtrl,
+  listNotificationsCtrl,
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -72,5 +74,9 @@ router.post('/users/:id/wallet-adjust', adjustWalletCtrl);
 router.get('/deliveries', listDeliveriesAdminCtrl);
 router.get('/deliveries/:id', getDeliveryAdminCtrl);
 router.post('/deliveries/:id/force-cancel', forceCancelDeliveryCtrl);
+
+// Notifications push (broadcast)
+router.get('/notifications', listNotificationsCtrl);
+router.post('/notifications/broadcast', broadcastNotificationCtrl);
 
 export default router;

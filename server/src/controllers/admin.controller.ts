@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { AuthedRequest } from '../middleware/auth.js';
 import { success } from '../utils/response.js';
 import * as adminService from '../services/admin.service.js';
+import { prisma } from '../lib/prisma.js';
+import { broadcastPush, type BroadcastTarget } from '../services/push.service.js';
+import { logger } from '../lib/logger.js';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -492,6 +495,81 @@ export async function forceCancelDeliveryCtrl(
       body.note,
     );
     return success(res, delivery);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ============================================================
+// Notifications push (broadcast)
+// ============================================================
+
+const broadcastSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  body: z.string().trim().min(1).max(300),
+  target: z.enum(['all', 'clients', 'drivers']),
+});
+
+/**
+ * POST /api/admin/notifications/broadcast
+ * Envoie une notification push a tous les users selon la cible.
+ * Enregistre la campagne en DB pour historique + audit.
+ */
+export async function broadcastNotificationCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = broadcastSchema.parse(req.body);
+    const result = await broadcastPush({
+      title: body.title,
+      body: body.body,
+      target: body.target as BroadcastTarget,
+    });
+
+    const campaign = await prisma.pushCampaign.create({
+      data: {
+        title: body.title,
+        body: body.body,
+        target: body.target,
+        sentCount: result.sent,
+        failedCount: result.failed,
+        createdBy: req.user?.id ?? null,
+      },
+    });
+
+    logger.info(
+      {
+        campaignId: campaign.id,
+        target: body.target,
+        sent: result.sent,
+        failed: result.failed,
+      },
+      'Push campaign sent by admin',
+    );
+
+    return success(res, { ...campaign, tokenCount: result.tokenCount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/admin/notifications
+ * Liste les campagnes envoyees (historique).
+ */
+export async function listNotificationsCtrl(
+  _req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const campaigns = await prisma.pushCampaign.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    return success(res, campaigns);
   } catch (err) {
     next(err);
   }

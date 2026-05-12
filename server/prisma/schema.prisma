@@ -344,6 +344,25 @@ model AppSettings {
   updatedBy String?  @db.Uuid
 }
 
+/// Historique des campagnes de notifications push envoyees par l'admin.
+/// Permet de retrouver ce qui a ete envoye, a qui, et le taux de livraison.
+model PushCampaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  body        String
+  /// Cible : 'all' | 'clients' | 'drivers'
+  target      String
+  /// Nombre de tokens push successfully envoyes
+  sentCount   Int      @default(0)
+  /// Nombre de tokens invalides / supprimes apres l'envoi
+  failedCount Int      @default(0)
+  /// Admin qui a declenche la campagne (pour audit)
+  createdBy   String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model Transaction {
   id               String            @id @default(uuid()) @db.Uuid
   userId           String            @db.Uuid
