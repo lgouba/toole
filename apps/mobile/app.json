@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "bf.tolle.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1D9E75"
