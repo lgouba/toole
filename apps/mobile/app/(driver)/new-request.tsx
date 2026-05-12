@@ -21,6 +21,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { alertConfirmSuccess, alertRejection, stopAlert } from '@/utils/alerts';
 import { formatCFA, formatDistance } from '@/utils/format';
 import { PACKAGE_LABELS, PackageType } from '@/types';
+import { getDeliveryById } from '@/services/delivery.service';
 
 const TIMEOUT_SECONDS = 120;
 
@@ -49,6 +50,49 @@ export default function NewRequestScreen() {
   useEffect(() => {
     if (!currentRequest) router.replace('/(driver)');
   }, [currentRequest, router]);
+
+  // Polling de secours toutes les 5s : si la course a ete annulee/expiree
+  // ou prise par un autre livreur entre temps, le socket peut avoir rate
+  // l'event 'delivery:invalidated'. On verifie cote backend pour eviter
+  // qu'un livreur perde du temps a accepter une course deja partie.
+  useEffect(() => {
+    const id = currentRequest?.id;
+    if (!id) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const fresh = await getDeliveryById(id);
+        if (cancelled) return;
+        // Si l'API ne retourne rien (404) ou que le statut n'est plus 'pending'
+        // (acceptee par un autre, annulee, expiree), on degage proprement.
+        if (
+          !fresh ||
+          (fresh.status !== 'pending' && fresh.status !== 'scheduled')
+        ) {
+          console.log(
+            '[NewRequest] polling: request no longer available, status =',
+            fresh?.status ?? '<not found>',
+          );
+          stopAlert();
+          useDriverStore.setState({ currentRequest: null });
+          router.replace('/(driver)');
+        }
+      } catch (err) {
+        // 404 -> requete disparue, on degage. Autres erreurs : on retry.
+        const status = (err as any)?.response?.status;
+        if (status === 404 || status === 403) {
+          stopAlert();
+          useDriverStore.setState({ currentRequest: null });
+          router.replace('/(driver)');
+        }
+      }
+    };
+    const intervalId = setInterval(tick, 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [currentRequest?.id, router]);
 
   // Pulse subtil sur le bouton accepter pour attirer l'œil
   const pulse = useSharedValue(1);

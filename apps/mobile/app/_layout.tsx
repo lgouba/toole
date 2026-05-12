@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
+import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
 import { setAuthExpiredHandler } from '@/services/api.client';
@@ -130,6 +131,7 @@ export default function RootLayout() {
     <ThemeGate>
       <SocketProvider>
         <ActiveDeliveryGuard />
+        <ConnectionBanner />
         <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />

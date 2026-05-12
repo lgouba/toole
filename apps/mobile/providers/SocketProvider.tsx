@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useDriverStore } from '@/stores/driver.store';
+import { useConnectionStore } from '@/stores/connection.store';
 import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.client';
 import { syncPushTokenToBackend } from '@/services/push.service';
 import { Delivery, DriverWithProfile } from '@/types';
@@ -136,6 +137,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated || !user) {
       disconnectSocket();
+      // Reset l'etat de connexion quand on se deconnecte (sinon le banner
+      // resterait visible en arrivant sur l'ecran de login)
+      useConnectionStore.getState().reset();
       return;
     }
 
@@ -147,6 +151,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
 
         console.log('[Socket] Connected, user:', user.fullName, '(', user.userType, ')');
+
+        // Met a jour le store de connexion (lu par <ConnectionBanner />)
+        useConnectionStore.getState().setConnected(true);
+        socket.on('disconnect', (reason) => {
+          console.log('[Socket] disconnected:', reason);
+          useConnectionStore.getState().setConnected(false);
+        });
+        socket.io.on('reconnect', () => {
+          console.log('[Socket] reconnected');
+          useConnectionStore.getState().setConnected(true);
+        });
+        socket.io.on('reconnect_attempt', (n) => {
+          console.log('[Socket] reconnect_attempt', n);
+        });
 
         // Detacher d'abord tous les handlers (évite double inscription si reconnection)
         socket.off('delivery:accepted');
