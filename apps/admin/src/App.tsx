@@ -15,6 +15,7 @@ import Transactions from './pages/Transactions';
 import Notifications from './pages/Notifications';
 import PublicTracking from './pages/PublicTracking';
 import NotificationProvider from './components/NotificationProvider';
+import DialogProvider from './components/DialogProvider';
 
 export default function App() {
   const { user, loading, init } = useAuth();
@@ -24,14 +25,16 @@ export default function App() {
   }, [init]);
 
   return (
-    <Routes>
-      {/* PUBLIC : page de suivi destinataire, accessible sans login.
-          C'est l'URL que le client partage par SMS/WhatsApp. */}
-      <Route path="/track/:token" element={<PublicTracking />} />
+    <DialogProvider>
+      <Routes>
+        {/* PUBLIC : page de suivi destinataire, accessible sans login.
+            C'est l'URL que le client partage par SMS/WhatsApp. */}
+        <Route path="/track/:token" element={<PublicTracking />} />
 
-      {/* Tout le reste est gate par l'auth admin */}
-      <Route path="/*" element={<AdminApp loading={loading} user={user} />} />
-    </Routes>
+        {/* Tout le reste est gate par l'auth admin */}
+        <Route path="/*" element={<AdminApp loading={loading} user={user} />} />
+      </Routes>
+    </DialogProvider>
   );
 }
 

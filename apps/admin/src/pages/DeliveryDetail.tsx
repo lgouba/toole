@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, unwrap, resolveUploadUrl } from '../api';
 import { formatCFA, formatDate, formatPhone } from '../utils';
 import { StatusBadge } from './Dashboard';
+import { useDialog } from '../components/DialogProvider';
 
 interface DeliveryDetail {
   id: string;
@@ -34,6 +35,7 @@ interface DeliveryDetail {
 
 export default function DeliveryDetail() {
   const { id } = useParams<{ id: string }>();
+  const dialog = useDialog();
   const [d, setD] = useState<DeliveryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -59,8 +61,21 @@ export default function DeliveryDetail() {
   const canCancel = !['delivered', 'cancelled', 'expired'].includes(d.status);
 
   const forceCancel = async () => {
-    const note = window.prompt('Raison de l\'annulation forcee (optionnel) :') ?? '';
-    if (!window.confirm('Confirmer l\'annulation ?')) return;
+    const note = await dialog.prompt({
+      title: 'Annuler cette livraison',
+      message:
+        "Indiquez la raison de l'annulation forcée (sera visible dans l'historique).",
+      placeholder: 'Ex : Demande client',
+      multiline: true,
+    });
+    if (note === null) return;
+    const ok = await dialog.confirm({
+      title: "Confirmer l'annulation",
+      message: 'La livraison sera annulée définitivement et le livreur prévenu.',
+      confirmLabel: 'Annuler la livraison',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await api.post(`/admin/deliveries/${id}/force-cancel`, { note });

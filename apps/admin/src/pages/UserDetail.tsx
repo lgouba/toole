@@ -4,6 +4,7 @@ import { api, unwrap, resolveUploadUrl } from '../api';
 import { formatDate, formatPhone } from '../utils';
 import { StatusBadge } from './Dashboard';
 import { KycBadge } from './UsersList';
+import { useDialog } from '../components/DialogProvider';
 
 interface UserDetailData {
   user: {
@@ -52,6 +53,7 @@ interface UserDetailData {
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const dialog = useDialog();
   const [data, setData] = useState<UserDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -81,7 +83,13 @@ export default function UserDetail() {
   const isDriver = user.userType === 'driver';
 
   const suspend = async () => {
-    const reason = window.prompt('Motif de suspension (optionnel):') ?? '';
+    const reason = await dialog.prompt({
+      title: 'Suspendre cet utilisateur',
+      message: 'Indiquez un motif (visible dans l\'historique).',
+      placeholder: 'Ex : comportement abusif',
+      multiline: true,
+    });
+    if (reason === null) return;
     setBusy(true);
     try {
       await api.post(`/admin/users/${id}/suspend`, { reason });
@@ -102,24 +110,45 @@ export default function UserDetail() {
   };
 
   const resetOtp = async () => {
-    if (!window.confirm('Reinitialiser l\'OTP et deconnecter cet utilisateur ?')) return;
+    const ok = await dialog.confirm({
+      title: "Réinitialiser l'OTP ?",
+      message:
+        "L'utilisateur sera déconnecté de tous ses appareils et devra demander un nouveau code OTP pour se reconnecter.",
+      confirmLabel: 'Réinitialiser',
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await api.post(`/admin/users/${id}/reset-otp`);
-      alert('OTP reinitialise. L\'utilisateur devra se reconnecter.');
+      await dialog.alert({
+        title: 'OTP réinitialisé',
+        message: "L'utilisateur devra se reconnecter.",
+        type: 'success',
+      });
     } finally {
       setBusy(false);
     }
   };
 
   const deleteUser = async () => {
-    if (!window.confirm('Supprimer definitivement cet utilisateur ?')) return;
+    const ok = await dialog.confirm({
+      title: 'Supprimer définitivement ?',
+      message:
+        'Cette action est irréversible. Toutes les données associées (livraisons, transactions) seront conservées mais anonymisées.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await api.delete(`/admin/users/${id}`);
       nav(isDriver ? '/drivers' : '/clients');
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Echec');
+      await dialog.alert({
+        title: 'Échec',
+        message: err?.response?.data?.error?.message ?? 'Suppression impossible.',
+        type: 'error',
+      });
     } finally {
       setBusy(false);
     }

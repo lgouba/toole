@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api';
 import { formatCFA, formatDate } from '../utils';
 import { BarChart } from '../components/BarChart';
+import { useDialog } from '../components/DialogProvider';
 
 interface Stats {
   users: { clients: number; drivers: number; newLast7d: number };
@@ -190,6 +191,7 @@ interface HotZone {
 }
 
 export default function Dashboard() {
+  const dialog = useDialog();
   const [stats, setStats] = useState<Stats | null>(null);
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [hotZones, setHotZones] = useState<HotZone[]>([]);
@@ -224,13 +226,23 @@ export default function Dashboard() {
   }, [chartPeriod]);
 
   const handleActivate = async (userId: string) => {
-    if (!confirm('Activer ce livreur ? Il pourra recevoir des courses immediatement.')) return;
+    const ok = await dialog.confirm({
+      title: 'Activer ce livreur ?',
+      message:
+        'Il pourra recevoir des courses immédiatement après activation.',
+      confirmLabel: 'Activer',
+    });
+    if (!ok) return;
     setActivating(userId);
     try {
       await api.post(`/admin/users/${userId}/reactivate`);
       await fetchStats();
-    } catch (err) {
-      alert('Echec de l\'activation.');
+    } catch {
+      await dialog.alert({
+        title: 'Échec',
+        message: "Impossible d'activer ce livreur.",
+        type: 'error',
+      });
     } finally {
       setActivating(null);
     }

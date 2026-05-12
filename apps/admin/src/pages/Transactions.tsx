@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
 import { formatCFA, formatDate } from '../utils';
+import { useDialog } from '../components/DialogProvider';
 
 interface Transaction {
   id: string;
@@ -49,6 +50,7 @@ function formatPhone(phone: string | null | undefined): string {
 }
 
 export default function Transactions() {
+  const dialog = useDialog();
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -75,9 +77,20 @@ export default function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeFilter, statusFilter]);
 
+  const showError = async (err: any) =>
+    dialog.alert({
+      title: 'Échec',
+      message: err?.response?.data?.error?.message ?? 'Une erreur est survenue.',
+      type: 'error',
+    });
+
   const markPaid = async (id: string) => {
-    if (!confirm('Confirmer que ce retrait a bien été payé via Mobile Money ?'))
-      return;
+    const ok = await dialog.confirm({
+      title: 'Marquer ce retrait comme payé ?',
+      message: 'Confirmer que le paiement Mobile Money a bien été envoyé au livreur.',
+      confirmLabel: 'Marquer payé',
+    });
+    if (!ok) return;
     setBusy(id);
     try {
       await api.post(`/admin/transactions/${id}/mark-paid`, {
@@ -85,28 +98,40 @@ export default function Transactions() {
       });
       await load();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Échec');
+      await showError(err);
     } finally {
       setBusy(null);
     }
   };
 
   const rejectWithdraw = async (id: string) => {
-    const note = prompt('Motif du rejet (optionnel)') ?? '';
-    if (!confirm('Rejeter cette demande et rembourser le solde ?')) return;
+    const note = await dialog.prompt({
+      title: 'Rejeter cette demande',
+      message:
+        'Le solde sera remboursé au livreur. Indiquez le motif (optionnel).',
+      placeholder: 'Ex : compte non vérifié',
+      multiline: true,
+    });
+    if (note === null) return;
     setBusy(id);
     try {
       await api.post(`/admin/transactions/${id}/reject`, { note });
       await load();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Échec');
+      await showError(err);
     } finally {
       setBusy(null);
     }
   };
 
   const confirmTopup = async (id: string) => {
-    if (!confirm('Confirmer avoir reçu le paiement du livreur ?')) return;
+    const ok = await dialog.confirm({
+      title: 'Confirmer la réception ?',
+      message:
+        'Vous confirmez avoir reçu le paiement du livreur. La dette commission sera régularisée.',
+      confirmLabel: 'Confirmer',
+    });
+    if (!ok) return;
     setBusy(id);
     try {
       await api.post(`/admin/transactions/${id}/confirm-topup`, {
@@ -114,21 +139,26 @@ export default function Transactions() {
       });
       await load();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Échec');
+      await showError(err);
     } finally {
       setBusy(null);
     }
   };
 
   const rejectTopup = async (id: string) => {
-    const note = prompt('Motif du rejet (optionnel)') ?? '';
-    if (!confirm('Rejeter ce paiement ?')) return;
+    const note = await dialog.prompt({
+      title: 'Rejeter ce paiement',
+      message: 'Indiquez le motif du rejet (optionnel).',
+      placeholder: 'Ex : montant ne correspond pas',
+      multiline: true,
+    });
+    if (note === null) return;
     setBusy(id);
     try {
       await api.post(`/admin/transactions/${id}/reject-topup`, { note });
       await load();
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Échec');
+      await showError(err);
     } finally {
       setBusy(null);
     }

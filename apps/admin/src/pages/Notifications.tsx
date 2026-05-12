@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
+import { useDialog } from '../components/DialogProvider';
 
 interface Campaign {
   id: string;
@@ -24,6 +25,7 @@ const TARGET_COLOR: Record<Campaign['target'], string> = {
 };
 
 export default function Notifications() {
+  const dialog = useDialog();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [target, setTarget] = useState<Campaign['target']>('all');
@@ -55,13 +57,18 @@ export default function Notifications() {
 
   const handleSend = async () => {
     if (!canSend) return;
-    if (
-      !window.confirm(
-        `Confirmer l'envoi à « ${TARGET_LABEL[target]} » ?\n\nTitre : ${title}\nMessage : ${body}`,
-      )
-    ) {
-      return;
-    }
+    const ok = await dialog.confirm({
+      title: `Envoyer à « ${TARGET_LABEL[target]} » ?`,
+      message: (
+        <span>
+          <strong>Titre :</strong> {title}
+          {'\n'}
+          <strong>Message :</strong> {body}
+        </span>
+      ),
+      confirmLabel: 'Envoyer maintenant',
+    });
+    if (!ok) return;
     setSending(true);
     setLastResult(null);
     try {
@@ -80,10 +87,13 @@ export default function Notifications() {
       setBody('');
       await loadHistory();
     } catch (err: any) {
-      alert(
-        err?.response?.data?.error?.message ??
+      await dialog.alert({
+        title: 'Erreur',
+        message:
+          err?.response?.data?.error?.message ??
           "Erreur lors de l'envoi de la notification.",
-      );
+        type: 'error',
+      });
     } finally {
       setSending(false);
     }

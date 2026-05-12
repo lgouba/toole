@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
+import { useDialog } from '../components/DialogProvider';
 
 interface AppSettings {
   appName: string;
@@ -28,6 +29,7 @@ interface AppSettings {
 }
 
 export default function Settings() {
+  const dialog = useDialog();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,7 +57,13 @@ export default function Settings() {
       setToast('Parametres enregistres');
       setTimeout(() => setToast(null), 2500);
     } catch (err: any) {
-      alert(err?.response?.data?.error?.message ?? 'Echec');
+      await dialog.alert({
+        title: 'Échec',
+        message:
+          err?.response?.data?.error?.message ??
+          "Impossible d'enregistrer les paramètres.",
+        type: 'error',
+      });
     } finally {
       setSaving(false);
     }
