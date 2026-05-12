@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "bf.tolle.app",
+      "bundleIdentifier": "com.android.tolle",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Tolle utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
         "NSCameraUsageDescription": "Tolle utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
@@ -23,7 +23,7 @@
       }
     },
     "android": {
-      "package": "bf.tolle.app",
+      "package": "com.android.tolle",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
