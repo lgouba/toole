@@ -70,6 +70,15 @@ export interface Delivery {
   // Status
   status: DeliveryStatus;
 
+  // ETA temps reel (calcule cote serveur via OSRM en fonction du statut)
+  // - null si on ne peut pas l'estimer (livreur hors zone, OSRM down, etc.)
+  // - durationSeconds : temps trajet voiture pour atteindre la prochaine etape
+  //   (pickup si en route pour la recup, delivery si en route pour la livraison)
+  eta?: {
+    durationSeconds: number;
+    distanceMeters: number;
+  } | null;
+
   // Timestamps
   acceptedAt?: string;
   pickedUpAt?: string;

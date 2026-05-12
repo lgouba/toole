@@ -56,3 +56,18 @@ export function formatDuration(seconds: number): string {
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Formate une duree ETA en texte lisible :
+ *   < 1 min   -> "< 1 min"
+ *   < 1 h     -> "12 min"
+ *   >= 1 h    -> "1 h 15"
+ */
+export function formatEta(seconds: number): string {
+  if (seconds < 60) return '< 1 min';
+  const totalMinutes = Math.round(seconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return mins === 0 ? `${hours} h` : `${hours} h ${mins}`;
+}

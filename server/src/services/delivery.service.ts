@@ -14,6 +14,9 @@ import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 import { logDriverLocation } from './location-log.service.js';
 import { getAppSettings } from './settings.service.js';
+import { sendSms } from '../lib/sms.js';
+import { env } from '../config/env.js';
+import { computeRouteEta } from '../lib/osrm.js';
 
 /**
  * Valeur par defaut si AppSettings ne renvoie rien. Lu dynamiquement via
@@ -127,7 +130,54 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     );
   }
 
+  // Informer le destinataire par SMS (code de livraison + lien suivi).
+  // Fire-and-forget : on n'echoue pas la creation si le SMS plante.
+  void notifyRecipientNewDelivery(delivery).catch((err) =>
+    logger.warn(
+      { err, deliveryId: delivery.id },
+      'Failed to notify recipient via SMS',
+    ),
+  );
+
   return delivery;
+}
+
+/**
+ * Envoie un SMS au destinataire d'une nouvelle livraison contenant :
+ *   - le code de validation a 4 chiffres a donner au livreur a l'arrivee
+ *   - un lien de suivi public (si PUBLIC_TRACKING_BASE_URL configure)
+ *
+ * Sans effet en mode SMS_PROVIDER=dev (le contenu est juste log).
+ */
+async function notifyRecipientNewDelivery(delivery: Delivery): Promise<void> {
+  if (!delivery.recipientPhone) return;
+
+  const code = delivery.validationCode;
+  const base = env.PUBLIC_TRACKING_BASE_URL?.replace(/\/+$/, '');
+  const trackingUrl = base
+    ? `${base}/track/${delivery.trackingToken}`
+    : null;
+
+  // SMS court (160 caracteres GSM idealement pour eviter le multi-segment)
+  const parts: string[] = [
+    `Tolle: un colis vous est envoye.`,
+    `Code a donner au livreur a l'arrivee: ${code}.`,
+  ];
+  if (trackingUrl) parts.push(`Suivi: ${trackingUrl}`);
+  const message = parts.join(' ');
+
+  try {
+    await sendSms(delivery.recipientPhone, message);
+    logger.info(
+      { deliveryId: delivery.id, to: delivery.recipientPhone },
+      'Recipient SMS sent for new delivery',
+    );
+  } catch (err) {
+    logger.warn(
+      { err, deliveryId: delivery.id },
+      'sendSms to recipient failed',
+    );
+  }
 }
 
 /**
@@ -267,8 +317,20 @@ export async function getPublicTrackingByToken(token: string) {
     throw new HttpError(404, 'NOT_FOUND', 'Suivi introuvable');
   }
 
+  // ETA via OSRM (driver -> pickup ou delivery selon statut)
+  const eta = await computeDeliveryEta(
+    delivery.status,
+    delivery.driver?.driverProfile?.currentLat ?? null,
+    delivery.driver?.driverProfile?.currentLng ?? null,
+    delivery.pickupLat,
+    delivery.pickupLng,
+    delivery.deliveryLat,
+    delivery.deliveryLng,
+  );
+
   // Sanitize : on n'expose QUE ce qui est sur la page tracking
   return {
+    eta,
     reference: delivery.reference,
     status: delivery.status,
     recipientName: delivery.recipientName,
@@ -306,6 +368,39 @@ export async function getPublicTrackingByToken(token: string) {
   };
 }
 
+/**
+ * Calcule l'ETA pertinent pour la livraison en cours :
+ *   - accepted / picking_up : driver -> pickup
+ *   - picked_up / delivering : driver -> delivery
+ *   - autres statuts : pas d'ETA (null)
+ *
+ * Retourne null si la position du livreur n'est pas connue ou si l'API OSRM
+ * echoue. Le caller doit gracefully cacher l'ETA dans l'UI dans ce cas.
+ */
+async function computeDeliveryEta(
+  status: DeliveryStatus,
+  driverLat: number | null | undefined,
+  driverLng: number | null | undefined,
+  pickupLat: number,
+  pickupLng: number,
+  deliveryLat: number,
+  deliveryLng: number,
+): Promise<{ durationSeconds: number; distanceMeters: number } | null> {
+  if (driverLat == null || driverLng == null) return null;
+  let destLat: number;
+  let destLng: number;
+  if (status === 'accepted' || status === 'picking_up') {
+    destLat = pickupLat;
+    destLng = pickupLng;
+  } else if (status === 'picked_up' || status === 'delivering') {
+    destLat = deliveryLat;
+    destLng = deliveryLng;
+  } else {
+    return null;
+  }
+  return computeRouteEta(driverLat, driverLng, destLat, destLng);
+}
+
 export async function getDeliveryForUser(deliveryId: string, userId: string) {
   const delivery = await prisma.delivery.findUnique({
     where: { id: deliveryId },
@@ -335,11 +430,23 @@ export async function getDeliveryForUser(deliveryId: string, userId: string) {
   if (delivery.senderId !== userId && delivery.driverId !== userId) {
     throw new HttpError(403, 'FORBIDDEN', 'Access denied');
   }
+
+  // ETA calcule via OSRM (cache 15s) pour les statuts "en route"
+  const eta = await computeDeliveryEta(
+    delivery.status,
+    delivery.driver?.driverProfile?.currentLat ?? null,
+    delivery.driver?.driverProfile?.currentLng ?? null,
+    delivery.pickupLat,
+    delivery.pickupLng,
+    delivery.deliveryLat,
+    delivery.deliveryLng,
+  );
+
   // Only sender should see validation codes (delivery + pickup)
   if (delivery.senderId !== userId) {
-    return { ...delivery, validationCode: null, pickupValidationCode: null };
+    return { ...delivery, validationCode: null, pickupValidationCode: null, eta };
   }
-  return delivery;
+  return { ...delivery, eta };
 }
 
 export async function acceptDelivery(deliveryId: string, driverId: string) {

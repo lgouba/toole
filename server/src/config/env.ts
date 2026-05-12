@@ -37,6 +37,11 @@ const envSchema = z.object({
 
   // Adresse qui recoit les alertes admin (ex: nouvelle inscription livreur)
   ADMIN_ALERT_EMAIL: z.string().email().optional(),
+
+  // URL publique utilisee pour les liens de suivi destinataire dans les SMS.
+  // Ex: "https://admin.tolle.bf" -> les SMS contiendront https://admin.tolle.bf/track/<token>
+  // Si vide, les SMS destinataire n'incluent pas de lien de suivi.
+  PUBLIC_TRACKING_BASE_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

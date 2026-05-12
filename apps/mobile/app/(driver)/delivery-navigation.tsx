@@ -10,6 +10,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 import { getDeliveryById } from '@/services/delivery.service';
+import { formatEta, formatDistance } from '@/utils/format';
 
 export default function DeliveryNavigationScreen() {
   const router = useRouter();
@@ -73,6 +74,16 @@ export default function DeliveryNavigationScreen() {
         <Text style={styles.address}>{activeDelivery.deliveryAddress}</Text>
         {activeDelivery.deliveryDetails && (
           <Text style={styles.details}>{activeDelivery.deliveryDetails}</Text>
+        )}
+
+        {activeDelivery.eta && (
+          <View style={styles.etaPill}>
+            <Ionicons name="time-outline" size={16} color={colors.primaryDark} />
+            <Text style={styles.etaPillText}>
+              ~{formatEta(activeDelivery.eta.durationSeconds)} ·{' '}
+              {formatDistance(activeDelivery.eta.distanceMeters / 1000)}
+            </Text>
+          </View>
         )}
 
         <View style={styles.actions}>
@@ -226,5 +237,21 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.bodySmall,
     color: colors.textPrimary,
+  },
+  etaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+    marginTop: spacing.sm,
+  },
+  etaPillText: {
+    ...typography.bodySmall,
+    color: colors.primaryDark,
+    fontWeight: '700',
   },
 });

@@ -310,6 +310,13 @@ function normalizeDelivery(raw: any): Delivery {
     tip: raw.tip ?? 0,
     validationCode: raw.validationCode,
     pickupValidationCode: raw.pickupValidationCode ?? null,
+    eta:
+      raw.eta && typeof raw.eta.durationSeconds === 'number'
+        ? {
+            durationSeconds: raw.eta.durationSeconds,
+            distanceMeters: raw.eta.distanceMeters,
+          }
+        : null,
     status: raw.status,
     acceptedAt: raw.acceptedAt ?? undefined,
     pickedUpAt: raw.pickedUpAt ?? undefined,

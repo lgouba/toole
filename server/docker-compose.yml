@@ -49,6 +49,12 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL:-}
+      # URL publique utilisee dans le SMS destinataire pour le lien de suivi.
+      # Ex: https://admin.tolle.qalitylabs.fr -> .../track/<token>
+      PUBLIC_TRACKING_BASE_URL: ${PUBLIC_TRACKING_BASE_URL:-}
+      # OSRM (routing pour ETA). Defaut: instance publique de demo (rate-limitee).
+      # Pour la prod, deployer une instance dediee et pointer dessus.
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
 
       # nginx-proxy + acme-companion (auto HTTPS)
       VIRTUAL_HOST: api.tolle.qalitylabs.fr

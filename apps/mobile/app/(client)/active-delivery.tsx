@@ -11,6 +11,7 @@ import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { shareLocationWhatsApp } from '@/utils/linking';
+import { formatEta, formatDistance } from '@/utils/format';
 import { getDeliveryById } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
@@ -231,6 +232,29 @@ export default function ActiveDeliveryScreen() {
           </View>
         )}
 
+        {/* ETA temps reel (OSRM) - visible uniquement quand le livreur est en route */}
+        {delivery.eta &&
+          ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(
+            delivery.status,
+          ) && (
+            <View style={styles.etaCard}>
+              <Ionicons name="time-outline" size={20} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.etaLabel}>
+                  {delivery.status === 'accepted' ||
+                  delivery.status === 'picking_up'
+                    ? 'Arrivée au point de récupération'
+                    : 'Arrivée au point de livraison'}
+                </Text>
+                <Text style={styles.etaValue}>
+                  Dans {formatEta(delivery.eta.durationSeconds)}
+                  {'  ·  '}
+                  {formatDistance(delivery.eta.distanceMeters / 1000)}
+                </Text>
+              </View>
+            </View>
+          )}
+
         {/* Status stepper */}
         <DeliveryStatusStepper
           status={delivery.status}
@@ -389,6 +413,25 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
+  },
+  etaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  etaLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  etaValue: {
+    ...typography.bodyMedium,
+    color: colors.primaryDark,
+    fontWeight: '700',
+    marginTop: 2,
   },
   infoCard: {
     flexDirection: 'row',

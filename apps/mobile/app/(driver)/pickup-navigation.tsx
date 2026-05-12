@@ -11,6 +11,7 @@ import { useDriverStore } from '@/stores/driver.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 import { getDeliveryById } from '@/services/delivery.service';
+import { formatEta, formatDistance } from '@/utils/format';
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
@@ -98,6 +99,16 @@ export default function PickupNavigationScreen() {
         <Text style={styles.address}>{activeDelivery.pickupAddress}</Text>
         {activeDelivery.pickupDetails && (
           <Text style={styles.details}>{activeDelivery.pickupDetails}</Text>
+        )}
+
+        {activeDelivery.eta && (
+          <View style={styles.etaPill}>
+            <Ionicons name="time-outline" size={16} color={colors.primaryDark} />
+            <Text style={styles.etaPillText}>
+              ~{formatEta(activeDelivery.eta.durationSeconds)} ·{' '}
+              {formatDistance(activeDelivery.eta.distanceMeters / 1000)}
+            </Text>
+          </View>
         )}
 
         {activeDelivery.senderContactName && (
@@ -282,5 +293,21 @@ const styles = StyleSheet.create({
   senderBannerValue: {
     ...typography.bodyMedium,
     color: colors.primaryDark,
+  },
+  etaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primaryLight,
+    marginTop: spacing.sm,
+  },
+  etaPillText: {
+    ...typography.bodySmall,
+    color: colors.primaryDark,
+    fontWeight: '700',
   },
 });
