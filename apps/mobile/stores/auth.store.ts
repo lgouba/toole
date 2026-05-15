@@ -19,7 +19,14 @@ interface AuthState {
     phone: string,
     channel?: 'sms' | 'whatsapp',
   ) => Promise<{ success: boolean; error?: string }>;
-  verifyOtp: (code: string) => Promise<{ success: boolean; isNewUser: boolean }>;
+  verifyOtp: (
+    code: string,
+  ) => Promise<{
+    success: boolean;
+    isNewUser: boolean;
+    errorCode?: string;
+    errorMessage?: string;
+  }>;
   register: (payload: {
     firstName: string;
     lastName: string;
@@ -87,7 +94,12 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set({ isLoading: false });
           }
-          return { success: result.success, isNewUser: result.isNewUser };
+          return {
+            success: result.success,
+            isNewUser: result.isNewUser,
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+          };
         } catch {
           set({ isLoading: false });
           return { success: false, isNewUser: false };

@@ -84,6 +84,23 @@ export async function verifyOtpFlow(phone: string, code: string) {
   if (!user) {
     return { user: null, tokens: null, isNewUser: true as const };
   }
+
+  // Compte suspendu / desactive par l'admin : on bloque la connexion.
+  // Message volontairement generique pour ne pas indiquer a un attaquant
+  // si le numero est valide / suspendu / autre — on dit juste "compte
+  // indisponible, contactez le support".
+  if (!user.isActive) {
+    logger.warn(
+      { userId: user.id, phone, userType: user.userType },
+      'Login attempt on inactive/suspended account',
+    );
+    throw new HttpError(
+      403,
+      'ACCOUNT_UNAVAILABLE',
+      'Compte indisponible. Veuillez contacter le support.',
+    );
+  }
+
   const tokens = await issueTokens(user.id, user.userType);
   return { user, tokens, isNewUser: false as const };
 }

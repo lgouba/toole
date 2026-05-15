@@ -20,7 +20,23 @@ export default function OtpScreen() {
     const result = await verifyOtp(otpCode);
 
     if (!result.success) {
-      setError('Code incorrect. Utilisez 1234 pour le test.');
+      // Compte suspendu / desactive par l'admin -> message generique
+      // (on ne dit pas a un attaquant si le compte est suspendu vs autre)
+      if (result.errorCode === 'ACCOUNT_UNAVAILABLE') {
+        Alert.alert(
+          'Compte indisponible',
+          result.errorMessage ??
+            'Votre compte n\'est pas accessible pour le moment. Veuillez contacter le support.',
+        );
+        setCode('');
+        return;
+      }
+      // Code OTP incorrect / expire
+      if (result.errorCode === 'EXPIRED_OTP') {
+        setError('Code expiré. Demandez un nouveau code.');
+      } else {
+        setError(result.errorMessage ?? 'Code incorrect.');
+      }
       setCode('');
       return;
     }

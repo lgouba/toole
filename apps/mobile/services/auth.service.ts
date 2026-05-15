@@ -39,6 +39,10 @@ export async function verifyOtp(
   isNewUser: boolean;
   accessToken?: string;
   refreshToken?: string;
+  /** Code d'erreur API si success=false (ex: ACCOUNT_UNAVAILABLE, INVALID_OTP). */
+  errorCode?: string;
+  /** Message d'erreur affichable si success=false. */
+  errorMessage?: string;
 }> {
   try {
     const res = await api.post('/auth/verify-otp', { phone, code });
@@ -60,8 +64,10 @@ export async function verifyOtp(
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
     };
-  } catch {
-    return { success: false, isNewUser: false };
+  } catch (err: any) {
+    const errorCode = err?.response?.data?.error?.code as string | undefined;
+    const errorMessage = err?.response?.data?.error?.message as string | undefined;
+    return { success: false, isNewUser: false, errorCode, errorMessage };
   }
 }
 
