@@ -18,6 +18,7 @@ import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
 import { setAuthExpiredHandler } from '@/services/api.client';
+import { useAutoUpdate } from '@/hooks/useAutoUpdate';
 import { colors } from '@/theme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -25,6 +26,11 @@ export { ErrorBoundary } from 'expo-router';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  // Verifie automatiquement les OTA Expo au demarrage + au retour en foreground.
+  // Sans ce hook, l'utilisateur doit force-close l'app 2 fois pour qu'un nouvel
+  // update soit applique. Avec, c'est transparent (reload auto).
+  useAutoUpdate();
+
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,

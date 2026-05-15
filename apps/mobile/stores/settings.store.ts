@@ -6,6 +6,8 @@ import { api, unwrap } from '@/services/api.client';
 export interface PricingSettings {
   basePriceEnvelope: number;
   basePriceSmall: number;
+  /** Bundle 2 : prix pour les colis 5-20 kg. */
+  basePriceMedium: number;
   basePriceLarge: number;
   pricePerKm: number;
   platformCommissionPct: number;
@@ -48,7 +50,8 @@ const DEFAULT_SETTINGS: PublicSettings = {
   pricing: {
     basePriceEnvelope: 500,
     basePriceSmall: 800,
-    basePriceLarge: 1200,
+    basePriceMedium: 1500,
+    basePriceLarge: 2500,
     pricePerKm: 100,
     platformCommissionPct: 15,
   },

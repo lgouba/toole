@@ -2,6 +2,54 @@ import { LatLng } from './user';
 
 export type PackageType = 'envelope' | 'small' | 'large';
 
+/** Nouvelle categorie de colis (Bundle 2). Info pour le livreur, pas pour le prix. */
+export type PackageCategory =
+  | 'meal'
+  | 'cake'
+  | 'fresh'
+  | 'grocery'
+  | 'pharmacy'
+  | 'cosmetics'
+  | 'gift'
+  | 'other';
+
+/** Nouvelle taille de colis (Bundle 2). Drive le prix de base. */
+export type PackageSize = 'small' | 'medium' | 'large';
+
+export const PACKAGE_CATEGORY_META: Record<
+  PackageCategory,
+  { emoji: string; label: string }
+> = {
+  meal: { emoji: '🍽️', label: 'Repas & Nourriture' },
+  cake: { emoji: '🍰', label: 'Gâteaux & Pâtisseries' },
+  fresh: { emoji: '🧊', label: 'Produits frais & Surgelés' },
+  grocery: { emoji: '🛒', label: 'Épicerie & Autres courses' },
+  pharmacy: { emoji: '💊', label: 'Pharmacie & Produits sensibles' },
+  cosmetics: { emoji: '💄', label: 'Cosmétiques & Beauté' },
+  gift: { emoji: '🎁', label: 'Cadeaux & Objets fragiles' },
+  other: { emoji: '📦', label: 'Colis & Divers' },
+};
+
+export const PACKAGE_SIZE_META: Record<
+  PackageSize,
+  { label: string; weight: string }
+> = {
+  small: { label: 'Petit', weight: '< 5 kg' },
+  medium: { label: 'Moyen', weight: '5-20 kg' },
+  large: { label: 'Grand', weight: '+ 20 kg' },
+};
+
+/**
+ * Mapping legacy PackageType -> nouvelle PackageSize. Permet d'envoyer
+ * packageType au serveur (back compat) tout en utilisant la nouvelle taille
+ * cote UI.
+ */
+export const SIZE_TO_LEGACY_TYPE: Record<PackageSize, PackageType> = {
+  small: 'small',
+  medium: 'small',
+  large: 'large',
+};
+
 export type DeliveryStatus =
   | 'scheduled'
   | 'pending'
@@ -29,6 +77,8 @@ export interface Delivery {
 
   // Package
   packageType: PackageType;
+  packageCategory?: PackageCategory | null;
+  packageSize?: PackageSize | null;
   packageDescription?: string;
   packagePhotoPickupUrl?: string;
   packagePhotoDeliveryUrl?: string;
@@ -36,6 +86,10 @@ export interface Delivery {
   declaredValue?: number | null;
   /** Le colis est marqué fragile par le client. */
   isFragile?: boolean;
+  /** Code promo applique (snapshot). */
+  promoCode?: string | null;
+  /** Montant de la remise appliquee (FCFA). */
+  promoDiscount?: number | null;
   /** Montant additionnel applique pour le tarif de nuit (snapshot). */
   nightSurchargeApplied?: number | null;
 
@@ -98,11 +152,17 @@ export interface Delivery {
 
 export interface DeliveryDraft {
   packageType?: PackageType;
+  /** Nouvelle catégorie (Bundle 2). */
+  packageCategory?: PackageCategory;
+  /** Nouvelle taille (Bundle 2). Drive le prix. */
+  packageSize?: PackageSize;
   packageDescription?: string;
   /** Valeur déclarée du colis en FCFA (optionnel). */
   declaredValue?: number;
   /** Toggle "colis fragile". */
   isFragile?: boolean;
+  /** Code promo saisi par le client (sera applique au submit). */
+  promoCode?: string;
   pickupAddress?: string;
   pickupDetails?: string;
   pickupLocation?: LatLng;

@@ -1,25 +1,40 @@
-import { PackageType, PriceEstimate } from '@/types';
+import { PackageSize, PackageType, PriceEstimate } from '@/types';
 import { useSettingsStore } from '@/stores/settings.store';
 
 /**
- * Calcule le prix estimé d'une livraison côté mobile.
+ * Calcule le prix estime d'une livraison cote mobile.
  *
  * Les valeurs (base, km, commission) sont lues depuis le `settingsStore`
  * synchronise avec l'admin via `/api/settings`. Refresh automatique toutes les
- * 5 min + au démarrage de l'app. Le backend reste source de verite lors de la
- * création reelle de la livraison.
+ * 5 min + au demarrage. Le backend reste source de verite lors de la creation
+ * reelle de la livraison.
+ *
+ * @param packageType  ancien type de colis (fallback compat)
+ * @param distanceKm   distance vol-d'oiseau en km
+ * @param packageSize  nouvelle taille (Bundle 2). Si fournie, prend le pas sur
+ *                     packageType pour le prix de base.
  */
 export function calculatePrice(
   packageType: PackageType,
   distanceKm: number,
+  packageSize?: PackageSize,
 ): PriceEstimate {
   const { pricing } = useSettingsStore.getState().settings;
 
-  const basePrice =
-    packageType === 'envelope'
-      ? pricing.basePriceEnvelope
+  // Resoud la taille effective (Bundle 2) avec fallback sur packageType.
+  const size: PackageSize = packageSize
+    ? packageSize
+    : packageType === 'envelope'
+      ? 'small'
       : packageType === 'small'
-        ? pricing.basePriceSmall
+        ? 'medium'
+        : 'large';
+
+  const basePrice =
+    size === 'small'
+      ? pricing.basePriceSmall
+      : size === 'medium'
+        ? (pricing.basePriceMedium ?? pricing.basePriceSmall)
         : pricing.basePriceLarge;
 
   const distancePrice = Math.ceil(distanceKm) * pricing.pricePerKm;

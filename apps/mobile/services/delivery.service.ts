@@ -39,11 +39,16 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
 
   const payload = {
     packageType: draft.packageType,
+    ...(draft.packageCategory ? { packageCategory: draft.packageCategory } : {}),
+    ...(draft.packageSize ? { packageSize: draft.packageSize } : {}),
     ...(draft.packageDescription ? { packageDescription: draft.packageDescription } : {}),
     ...(typeof draft.declaredValue === 'number' && draft.declaredValue > 0
       ? { declaredValue: draft.declaredValue }
       : {}),
     ...(draft.isFragile ? { isFragile: true } : {}),
+    ...(draft.promoCode?.trim()
+      ? { promoCode: draft.promoCode.trim().toUpperCase() }
+      : {}),
     recipientName: draft.recipientName.trim(),
     recipientPhone: cleanPhone(draft.recipientPhone),
     ...(draft.senderContactName?.trim()
@@ -65,6 +70,29 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
 
   const res = await api.post('/deliveries', payload);
   return normalizeDelivery(unwrap<any>(res));
+}
+
+/**
+ * Valide un code promo cote serveur AVANT submit. Retourne le montant de
+ * remise applicable pour le prix donne, ou throw si invalide / expire.
+ *
+ * Utilise dans le form pour donner un feedback immediat ("-1500 FCFA applique").
+ */
+export async function validatePromoCode(
+  code: string,
+  orderAmount: number,
+): Promise<{
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  discountAmount: number;
+  description: string | null;
+}> {
+  const res = await api.post('/promo/validate', {
+    code: code.trim().toUpperCase(),
+    orderAmount,
+  });
+  return unwrap<any>(res);
 }
 
 export async function searchNearbyDrivers(
@@ -291,12 +319,16 @@ function normalizeDelivery(raw: any): Delivery {
     senderId: raw.senderId,
     driverId: raw.driverId ?? undefined,
     packageType: raw.packageType,
+    packageCategory: raw.packageCategory ?? null,
+    packageSize: raw.packageSize ?? null,
     packageDescription: raw.packageDescription ?? undefined,
     packagePhotoPickupUrl: raw.packagePhotoPickupUrl ?? undefined,
     packagePhotoDeliveryUrl: raw.packagePhotoDeliveryUrl ?? undefined,
     declaredValue: raw.declaredValue ?? null,
     isFragile: !!raw.isFragile,
     nightSurchargeApplied: raw.nightSurchargeApplied ?? null,
+    promoCode: raw.promoCode ?? null,
+    promoDiscount: raw.promoDiscount ?? null,
     recipientName: raw.recipientName,
     recipientPhone: raw.recipientPhone,
     senderContactName: raw.senderContactName ?? undefined,

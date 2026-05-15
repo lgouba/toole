@@ -1,4 +1,11 @@
-import { Delivery, DeliveryStatus, PackageType, Prisma } from '@prisma/client';
+import {
+  Delivery,
+  DeliveryStatus,
+  PackageCategory,
+  PackageSize,
+  PackageType,
+  Prisma,
+} from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import {
   generateReference,
@@ -17,6 +24,10 @@ import { getAppSettings } from './settings.service.js';
 import { sendSms } from '../lib/sms.js';
 import { env } from '../config/env.js';
 import { computeRouteEta } from '../lib/osrm.js';
+import {
+  validatePromoCode,
+  consumePromoCode,
+} from './promo.service.js';
 
 /**
  * Valeur par defaut si AppSettings ne renvoie rien. Lu dynamiquement via
@@ -53,11 +64,17 @@ async function getNearbyRadiusKm(): Promise<number> {
 export interface CreateDeliveryInput {
   senderId: string;
   packageType: PackageType;
+  /** Nouvelle categorie de colis (info pour le livreur). */
+  packageCategory?: PackageCategory;
+  /** Nouvelle taille de colis (drive le prix de base). */
+  packageSize?: PackageSize;
   packageDescription?: string;
   /** Valeur declaree du colis en FCFA (optionnel). */
   declaredValue?: number;
   /** Indique au livreur que le colis est fragile. */
   isFragile?: boolean;
+  /** Code promo a appliquer (insensible a la casse). */
+  promoCode?: string;
   recipientName: string;
   recipientPhone: string;
   /** Si le colis est detenu par une autre personne que le client qui commande */
@@ -91,7 +108,35 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     input.packageType,
     distanceKm,
     pricingAt,
+    input.packageSize, // Bundle 2 : prix base sur la taille si fournie
   );
+
+  // Bundle 3 : code promo. On valide AVANT de creer la livraison (throw si
+  // invalide / expire / quota epuise). consume() est appele apres creation
+  // pour avoir l'ID a tracer.
+  let promoCodeValue: string | null = null;
+  let promoDiscount = 0;
+  let priceAfterPromo = pricing.price;
+  let driverCommissionAfterPromo = pricing.driverCommission;
+  if (input.promoCode?.trim()) {
+    const validation = await validatePromoCode(
+      input.promoCode,
+      input.senderId,
+      pricing.price,
+    );
+    promoCodeValue = validation.code;
+    promoDiscount = validation.discountAmount;
+    priceAfterPromo = Math.max(0, pricing.price - promoDiscount);
+    // La remise est entierement portee par la plateforme : le livreur garde
+    // sa commission, on diminue platformFee (qui peut devenir negatif = la
+    // plateforme paie pour la course). Si ca devient negatif, on clamp la
+    // commission a min(driverCommission, priceAfterPromo) pour eviter de
+    // payer le livreur plus que ce que le client paye.
+    driverCommissionAfterPromo = Math.min(
+      pricing.driverCommission,
+      priceAfterPromo,
+    );
+  }
   const expiryMs = await getDeliveryExpiryMs();
 
   // Si la date programmee est dans plus de `scheduledMinDelayMinutes` min,
@@ -109,6 +154,8 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       trackingToken: generateTrackingToken(),
       senderId: input.senderId,
       packageType: input.packageType,
+      packageCategory: input.packageCategory ?? null,
+      packageSize: input.packageSize ?? null,
       packageDescription: input.packageDescription,
       declaredValue: input.declaredValue ?? null,
       isFragile: input.isFragile ?? false,
@@ -126,9 +173,13 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       deliveryLat: input.deliveryLat,
       deliveryLng: input.deliveryLng,
       estimatedDistanceKm: new Prisma.Decimal(pricing.distanceKm),
-      price: pricing.price,
-      driverCommission: pricing.driverCommission,
-      platformFee: pricing.platformFee,
+      price: priceAfterPromo,
+      driverCommission: driverCommissionAfterPromo,
+      // Plateforme absorbe la remise : platformFee peut etre 0 ou negatif si
+      // la remise est grosse. On stocke tel quel pour l'audit.
+      platformFee: priceAfterPromo - driverCommissionAfterPromo,
+      promoCode: promoCodeValue,
+      promoDiscount: promoDiscount || null,
       validationCode: generateValidationCode(),
       pickupValidationCode: generateValidationCode(),
       status: isScheduled ? 'scheduled' : 'pending',
@@ -138,6 +189,23 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
         : new Date(now + expiryMs),
     },
   });
+
+  // Bundle 3 : marque le code promo comme consomme (incremente le compteur +
+  // cree une entry PromoCodeUsage). Fire-and-forget : si ca echoue, la
+  // livraison est tout de meme creee (l'admin peut nettoyer manuellement).
+  if (promoCodeValue && promoDiscount > 0) {
+    void consumePromoCode({
+      code: promoCodeValue,
+      userId: input.senderId,
+      deliveryId: delivery.id,
+      discountAmount: promoDiscount,
+    }).catch((err) =>
+      logger.warn(
+        { err, deliveryId: delivery.id, code: promoCodeValue },
+        'consumePromoCode failed (delivery already created)',
+      ),
+    );
+  }
 
   // Si pas programme, notifier les livreurs immediatement
   if (!isScheduled) {
@@ -1016,7 +1084,8 @@ export async function estimatePrice(
   pickupLng: number,
   deliveryLat: number,
   deliveryLng: number,
+  packageSize?: PackageSize,
 ) {
   const distanceKm = haversineKm(pickupLat, pickupLng, deliveryLat, deliveryLng);
-  return calculatePrice(packageType, distanceKm);
+  return calculatePrice(packageType, distanceKm, new Date(), packageSize);
 }

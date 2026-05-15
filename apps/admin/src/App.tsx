@@ -13,6 +13,7 @@ import DriverTracking from './pages/DriverTracking';
 import Settings from './pages/Settings';
 import Transactions from './pages/Transactions';
 import Notifications from './pages/Notifications';
+import PromoCodes from './pages/PromoCodes';
 import PublicTracking from './pages/PublicTracking';
 import NotificationProvider from './components/NotificationProvider';
 import DialogProvider from './components/DialogProvider';
@@ -64,6 +65,7 @@ function AdminApp({ loading, user }: { loading: boolean; user: any }) {
           <Route path="/settings" element={<Settings />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/promo-codes" element={<PromoCodes />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/deliveries/:id" element={<DeliveryDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -34,6 +34,26 @@ enum PackageType {
   large
 }
 
+/// Categorie du colis : info contextuelle pour le livreur (gestion specifique
+/// selon le type de contenu). N'impacte PAS le prix (le prix depend de la taille).
+enum PackageCategory {
+  meal          // Repas & Nourriture
+  cake          // Gateaux & Patisseries
+  fresh         // Produits frais & surgeles (necessite froid)
+  grocery       // Epicerie & Autres courses
+  pharmacy      // Pharmacie & produits sensibles
+  cosmetics     // Cosmetiques & Beaute
+  gift          // Cadeaux & objets fragiles
+  other         // Colis & Divers (defaut)
+}
+
+/// Taille du colis. C'est ce qui determine le prix de base (via AppSettings).
+enum PackageSize {
+  small   // < 5 kg
+  medium  // 5-20 kg
+  large   // > 20 kg
+}
+
 enum DeliveryStatus {
   scheduled  // programmee pour plus tard, pas encore diffusee aux livreurs
   pending
@@ -166,6 +186,12 @@ model Delivery {
   senderId                 String         @db.Uuid
   driverId                 String?        @db.Uuid
   packageType              PackageType
+  /// Categorie selectionnee par le client (info pour le livreur). Optionnel
+  /// pour les anciennes courses creees avant l'ajout de cette colonne.
+  packageCategory          PackageCategory?
+  /// Taille du colis : drive le prix de base via AppSettings. Optionnel pour
+  /// les courses pre-migration ; le serveur fallback sur packageType si null.
+  packageSize              PackageSize?
   packageDescription       String?
   packagePhotoPickupUrl    String?
   packagePhotoDeliveryUrl  String?
@@ -177,6 +203,10 @@ model Delivery {
   /// Montant additionnel applique pour le tarif de nuit (snapshot du surcharge
   /// applique au moment de la creation, pour audit). 0 ou null si pas de nuit.
   nightSurchargeApplied    Int?
+  /// Code promo utilise (snapshot du code en majuscules) pour audit.
+  promoCode                String?
+  /// Montant de la remise appliquee (FCFA, valeur positive). Null si pas de promo.
+  promoDiscount            Int?
   recipientName            String
   recipientPhone           String
   /// Contact de la personne qui detient physiquement le colis au point de
@@ -306,10 +336,14 @@ model AppSettings {
   currency             String @default("FCFA")
   currencyLocale       String @default("fr-BF")
 
-  // Pricing (FCFA par defaut)
+  // Pricing (FCFA par defaut). basePriceEnvelope est conserve pour
+  // compatibilite avec les anciennes courses (PackageType.envelope) mais
+  // n'est plus expose dans le form client. Les nouveaux prix sont bases
+  // sur PackageSize (small/medium/large).
   basePriceEnvelope    Int    @default(500)
-  basePriceSmall       Int    @default(800)
-  basePriceLarge       Int    @default(1200)
+  basePriceSmall       Int    @default(800)  // < 5 kg
+  basePriceMedium      Int    @default(1500) // 5-20 kg
+  basePriceLarge       Int    @default(2500) // > 20 kg
   pricePerKm           Int    @default(100)
   platformCommissionPct Int   @default(15)
 
@@ -362,6 +396,70 @@ model AppSettings {
 
   updatedAt DateTime @updatedAt
   updatedBy String?  @db.Uuid
+}
+
+// ============================================================
+// PROMO CODES (Bundle 3)
+// ============================================================
+
+enum PromoDiscountType {
+  percentage  // ex: 10% de reduction
+  fixed       // ex: -500 FCFA
+}
+
+/// Code promo cree par l'admin et utilisable par les clients lors de la
+/// creation d'une livraison. La remise s'applique sur le prix client final
+/// (apres tarif de nuit). La commission plateforme est calculee sur le prix
+/// effectivement encaisse (le livreur ne perd pas de commission).
+model PromoCode {
+  id               String            @id @default(uuid()) @db.Uuid
+  /// Code saisi par l'utilisateur (case-insensitive cote API, stocke en majuscules).
+  code             String            @unique
+  /// Type de remise : pourcentage ou montant fixe.
+  discountType     PromoDiscountType
+  /// Si discountType=percentage : entier 1-100. Si fixed : montant en FCFA.
+  discountValue    Int
+  /// Montant minimum de commande pour appliquer ce code (FCFA). Null = pas de min.
+  minOrderAmount   Int?
+  /// Nombre total d'utilisations autorisees. Null = illimite.
+  maxUses          Int?
+  /// Nombre d'utilisations deja consommees (incremente atomiquement).
+  currentUses      Int               @default(0)
+  /// Nombre max d'utilisations par utilisateur unique. Null = illimite.
+  maxUsesPerUser   Int?
+  /// Date de debut de validite (peut etre dans le futur pour un code planifie).
+  validFrom        DateTime          @default(now())
+  /// Date d'expiration. Null = pas de date limite.
+  validTo          DateTime?
+  /// Toggle on/off : si false, le code est refuse meme s'il est dans sa periode.
+  isActive         Boolean           @default(true)
+  /// Description interne (pour l'admin, non affichee au client).
+  description      String?
+  createdBy        String?           @db.Uuid
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  usages           PromoCodeUsage[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+/// Une utilisation d'un code promo par un user sur une livraison donnee.
+/// Permet d'auditer + de comptabiliser per-user.
+model PromoCodeUsage {
+  id           String   @id @default(uuid()) @db.Uuid
+  promoCodeId  String   @db.Uuid
+  promoCode    PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  userId       String   @db.Uuid
+  deliveryId   String   @db.Uuid
+  /// Montant de la remise effectivement appliquee (FCFA).
+  discountAmount Int
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([promoCodeId])
+  @@index([deliveryId])
 }
 
 /// Historique des campagnes de notifications push envoyees par l'admin.

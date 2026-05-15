@@ -206,6 +206,7 @@ const settingsUpdateSchema = z.object({
   currencyLocale: z.string().trim().min(2).max(20).optional(),
   basePriceEnvelope: z.number().int().min(0).optional(),
   basePriceSmall: z.number().int().min(0).optional(),
+  basePriceMedium: z.number().int().min(0).optional(),
   basePriceLarge: z.number().int().min(0).optional(),
   pricePerKm: z.number().int().min(0).optional(),
   platformCommissionPct: z.number().int().min(0).max(100).optional(),

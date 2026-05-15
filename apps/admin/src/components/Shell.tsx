@@ -245,6 +245,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </span>
             <span>Notifications</span>
           </NavLink>
+          <NavLink
+            to="/promo-codes"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">🎟️</span>
+            <span>Codes promo</span>
+          </NavLink>
 
           <div className="nav-section">Configuration</div>
           <NavLink

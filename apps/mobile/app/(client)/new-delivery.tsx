@@ -21,14 +21,29 @@ import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useDeliveryPrice } from '@/hooks/useDeliveryPrice';
-import { PackageType, PACKAGE_LABELS } from '@/types';
+import {
+  PackageCategory,
+  PackageSize,
+  PACKAGE_CATEGORY_META,
+  PACKAGE_SIZE_META,
+  SIZE_TO_LEGACY_TYPE,
+} from '@/types';
 import { OUAGADOUGOU_CENTER } from '@/utils/geo';
+import { validatePromoCode as apiValidatePromoCode } from '@/services/delivery.service';
 
-const packageTypes: { type: PackageType; icon: string }[] = [
-  { type: 'envelope', icon: 'mail-outline' },
-  { type: 'small', icon: 'cube-outline' },
-  { type: 'large', icon: 'archive-outline' },
+// Ordre d'affichage des categories dans la grille (2 colonnes).
+const CATEGORY_ORDER: PackageCategory[] = [
+  'meal',
+  'cake',
+  'fresh',
+  'grocery',
+  'pharmacy',
+  'cosmetics',
+  'gift',
+  'other',
 ];
+
+const SIZE_ORDER: PackageSize[] = ['small', 'medium', 'large'];
 
 export default function NewDeliveryScreen() {
   const router = useRouter();
@@ -92,6 +107,7 @@ export default function NewDeliveryScreen() {
     draft.packageType,
     draft.pickupLocation,
     draft.deliveryLocation,
+    draft.packageSize,
   );
 
   const handleSubmit = async () => {
@@ -167,36 +183,82 @@ export default function NewDeliveryScreen() {
   };
 
   const steps = [
-    // Step 0: Package type
+    // Step 0: Colis (taille + categorie + valeur + fragile + description)
     <View key="type" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Type de colis</Text>
-      <View style={styles.packageTypes}>
-        {packageTypes.map((pkg) => (
-          <TouchableOpacity
-            key={pkg.type}
-            style={[
-              styles.packageCard,
-              draft.packageType === pkg.type && styles.packageCardSelected,
-            ]}
-            onPress={() => setDraftField('packageType', pkg.type)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={pkg.icon as any}
-              size={32}
-              color={draft.packageType === pkg.type ? colors.primary : colors.textSecondary}
-            />
-            <Text
+      <Text style={styles.stepTitle}>Parlons de votre colis</Text>
+      <Text style={styles.stepHint}>
+        Quelques détails pour préparer le livreur.
+      </Text>
+
+      {/* TAILLE — 3 cards */}
+      <Text style={styles.sectionTitle}>Quelle est la taille de votre colis ?</Text>
+      <View style={styles.sizesRow}>
+        {SIZE_ORDER.map((size) => {
+          const selected = draft.packageSize === size;
+          const meta = PACKAGE_SIZE_META[size];
+          return (
+            <TouchableOpacity
+              key={size}
               style={[
-                styles.packageLabel,
-                draft.packageType === pkg.type && styles.packageLabelSelected,
+                styles.sizeCard,
+                selected && styles.sizeCardSelected,
               ]}
+              onPress={() => {
+                setDraftField('packageSize', size);
+                // Bridge legacy packageType pour back-compat backend
+                setDraftField('packageType', SIZE_TO_LEGACY_TYPE[size]);
+              }}
+              activeOpacity={0.7}
             >
-              {PACKAGE_LABELS[pkg.type]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.sizeEmoji}>📦</Text>
+              <Text
+                style={[
+                  styles.sizeLabel,
+                  selected && styles.sizeLabelSelected,
+                ]}
+              >
+                {meta.label}
+              </Text>
+              <Text style={styles.sizeWeight}>{meta.weight}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+
+      {/* CATEGORIE — grille 2 colonnes */}
+      <Text style={styles.sectionTitle}>Que souhaitez-vous envoyer ?</Text>
+      <Text style={styles.sectionHint}>
+        Cela aide à mieux organiser la livraison
+      </Text>
+      <View style={styles.categoryGrid}>
+        {CATEGORY_ORDER.map((cat) => {
+          const selected = draft.packageCategory === cat;
+          const meta = PACKAGE_CATEGORY_META[cat];
+          return (
+            <TouchableOpacity
+              key={cat}
+              style={[
+                styles.categoryCard,
+                selected && styles.categoryCardSelected,
+              ]}
+              onPress={() => setDraftField('packageCategory', cat)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.categoryEmoji}>{meta.emoji}</Text>
+              <Text
+                style={[
+                  styles.categoryLabel,
+                  selected && styles.categoryLabelSelected,
+                ]}
+                numberOfLines={2}
+              >
+                {meta.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <Input
         label="Description (optionnel)"
         placeholder="Ex: Téléphone portable"
@@ -361,12 +423,24 @@ export default function NewDeliveryScreen() {
       <Text style={styles.stepTitle}>Recapitulatif</Text>
       {estimate && <PriceEstimate estimate={estimate} />}
       <Card style={styles.summaryCard}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Colis</Text>
-          <Text style={styles.summaryValue}>
-            {draft.packageType ? PACKAGE_LABELS[draft.packageType] : '-'}
-          </Text>
-        </View>
+        {draft.packageSize && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Taille</Text>
+            <Text style={styles.summaryValue}>
+              {PACKAGE_SIZE_META[draft.packageSize].label} ·{' '}
+              {PACKAGE_SIZE_META[draft.packageSize].weight}
+            </Text>
+          </View>
+        )}
+        {draft.packageCategory && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Catégorie</Text>
+            <Text style={styles.summaryValue}>
+              {PACKAGE_CATEGORY_META[draft.packageCategory].emoji}{' '}
+              {PACKAGE_CATEGORY_META[draft.packageCategory].label}
+            </Text>
+          </View>
+        )}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Récupération</Text>
           <Text style={styles.summaryValue} numberOfLines={1}>
@@ -406,6 +480,13 @@ export default function NewDeliveryScreen() {
           </View>
         ) : null}
       </Card>
+
+      {/* Code promo */}
+      <PromoCodeBlock
+        code={draft.promoCode ?? ''}
+        onChange={(v) => setDraftField('promoCode', v)}
+        orderAmount={estimate?.price ?? 0}
+      />
 
       {/* Programmer la livraison */}
       <SchedulePicker
@@ -453,9 +534,21 @@ export default function NewDeliveryScreen() {
               title="Continuer"
               onPress={() => {
                 // Validation par étape
-                if (step === 0 && !draft.packageType) {
-                  Alert.alert('Type de colis manquant', 'Choisissez un type de colis.');
-                  return;
+                if (step === 0) {
+                  if (!draft.packageSize) {
+                    Alert.alert(
+                      'Taille manquante',
+                      'Sélectionnez la taille de votre colis (Petit / Moyen / Grand).',
+                    );
+                    return;
+                  }
+                  if (!draft.packageCategory) {
+                    Alert.alert(
+                      'Catégorie manquante',
+                      'Sélectionnez le type de contenu (Repas, Cadeau, Pharmacie, etc.).',
+                    );
+                    return;
+                  }
                 }
                 if (step === 1) {
                   if (!draft.pickupLocation) {
@@ -606,6 +699,146 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     marginTop: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  sectionHint: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginBottom: spacing.sm,
+  },
+  sizesRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  sizeCard: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    gap: 4,
+  },
+  sizeCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  sizeEmoji: {
+    fontSize: 28,
+  },
+  sizeLabel: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  sizeLabelSelected: {
+    color: colors.primary,
+  },
+  sizeWeight: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  categoryCard: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  categoryCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  categoryEmoji: {
+    fontSize: 22,
+  },
+  categoryLabel: {
+    ...typography.captionMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    flex: 1,
+  },
+  categoryLabelSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  promoBlock: {
+    marginTop: spacing.md,
+  },
+  promoLabel: {
+    ...typography.captionMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  promoInputWrap: {
+    flex: 1,
+  },
+  promoApplyBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+    height: 48,
+  },
+  promoApplyText: {
+    ...typography.bodySmall,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  promoError: {
+    ...typography.caption,
+    color: colors.error,
+    marginTop: spacing.xs,
+  },
+  promoApplied: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginTop: spacing.md,
+  },
+  promoAppliedTitle: {
+    ...typography.bodyMedium,
+    color: colors.success,
+    fontWeight: '700',
+  },
+  promoAppliedAmount: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   body: {
     flex: 1,
@@ -842,6 +1075,116 @@ function StepsIndicator({
           </React.Fragment>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * Bloc "Code promo" : champ texte + bouton "Appliquer". Au submit, appelle
+ * l'API /promo/validate pour valider le code et afficher la remise.
+ *
+ * Si valide -> chip vert "Code XXXX applique : -1500 FCFA"
+ * Si invalide -> message d'erreur rouge sous le champ
+ */
+function PromoCodeBlock({
+  code,
+  onChange,
+  orderAmount,
+}: {
+  code: string;
+  onChange: (v: string) => void;
+  orderAmount: number;
+}) {
+  const [input, setInput] = useState(code);
+  const [applied, setApplied] = useState<{
+    code: string;
+    discountAmount: number;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const apply = async () => {
+    const trimmed = input.trim().toUpperCase();
+    if (!trimmed) return;
+    if (!orderAmount) {
+      setError(
+        "Veuillez d'abord remplir les autres étapes pour qu'on connaisse le prix.",
+      );
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiValidatePromoCode(trimmed, orderAmount);
+      setApplied({ code: result.code, discountAmount: result.discountAmount });
+      onChange(result.code);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error?.message ?? 'Code promo invalide.';
+      setError(msg);
+      setApplied(null);
+      onChange('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clear = () => {
+    setInput('');
+    setApplied(null);
+    setError(null);
+    onChange('');
+  };
+
+  if (applied) {
+    return (
+      <View style={styles.promoApplied}>
+        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.promoAppliedTitle}>
+            Code {applied.code} appliqué
+          </Text>
+          <Text style={styles.promoAppliedAmount}>
+            -{applied.discountAmount.toLocaleString('fr-FR')} FCFA de remise
+          </Text>
+        </View>
+        <TouchableOpacity onPress={clear}>
+          <Ionicons name="close-circle" size={22} color={colors.textTertiary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.promoBlock}>
+      <Text style={styles.promoLabel}>Code promo</Text>
+      <View style={styles.promoRow}>
+        <View style={styles.promoInputWrap}>
+          <Input
+            value={input}
+            onChangeText={(v) => {
+              setInput(v.toUpperCase());
+              if (error) setError(null);
+            }}
+            placeholder="Entrez un code promo"
+            autoCapitalize="characters"
+            containerStyle={{ marginBottom: 0 }}
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.promoApplyBtn, !input.trim() && { opacity: 0.5 }]}
+          onPress={apply}
+          disabled={!input.trim() || loading}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.promoApplyText}>
+            {loading ? '...' : 'Appliquer'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {error ? (
+        <Text style={styles.promoError}>{error}</Text>
+      ) : null}
     </View>
   );
 }

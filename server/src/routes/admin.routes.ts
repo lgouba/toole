@@ -29,6 +29,12 @@ import {
   broadcastNotificationCtrl,
   listNotificationsCtrl,
 } from '../controllers/admin.controller.js';
+import {
+  adminListPromoCtrl,
+  adminCreatePromoCtrl,
+  adminUpdatePromoCtrl,
+  adminDeletePromoCtrl,
+} from '../controllers/promo.controller.js';
 
 const router = Router();
 
@@ -78,5 +84,11 @@ router.post('/deliveries/:id/force-cancel', forceCancelDeliveryCtrl);
 // Notifications push (broadcast)
 router.get('/notifications', listNotificationsCtrl);
 router.post('/notifications/broadcast', broadcastNotificationCtrl);
+
+// Codes promo (Bundle 3)
+router.get('/promo-codes', adminListPromoCtrl);
+router.post('/promo-codes', adminCreatePromoCtrl);
+router.put('/promo-codes/:id', adminUpdatePromoCtrl);
+router.delete('/promo-codes/:id', adminDeletePromoCtrl);
 
 export default router;

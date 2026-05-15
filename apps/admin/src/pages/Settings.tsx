@@ -10,6 +10,7 @@ interface AppSettings {
   currencyLocale: string;
   basePriceEnvelope: number;
   basePriceSmall: number;
+  basePriceMedium: number;
   basePriceLarge: number;
   pricePerKm: number;
   platformCommissionPct: number;
@@ -349,18 +350,7 @@ function PricingTab({
               }}
             >
               <label>
-                Prix de base — Enveloppe ({settings.currency})
-                <input
-                  type="number"
-                  value={settings.basePriceEnvelope}
-                  onChange={(e) =>
-                    update('basePriceEnvelope', parseInt(e.target.value || '0', 10))
-                  }
-                  min={0}
-                />
-              </label>
-              <label>
-                Prix de base — Petit colis ({settings.currency})
+                Petit colis &lt; 5kg ({settings.currency})
                 <input
                   type="number"
                   value={settings.basePriceSmall}
@@ -371,7 +361,18 @@ function PricingTab({
                 />
               </label>
               <label>
-                Prix de base — Gros colis ({settings.currency})
+                Moyen 5-20kg ({settings.currency})
+                <input
+                  type="number"
+                  value={settings.basePriceMedium}
+                  onChange={(e) =>
+                    update('basePriceMedium', parseInt(e.target.value || '0', 10))
+                  }
+                  min={0}
+                />
+              </label>
+              <label>
+                Grand +20kg ({settings.currency})
                 <input
                   type="number"
                   value={settings.basePriceLarge}
@@ -382,6 +383,17 @@ function PricingTab({
                 />
               </label>
             </div>
+            <p
+              style={{
+                fontSize: 12,
+                color: 'var(--text-tertiary)',
+                margin: 0,
+              }}
+            >
+              💡 Le prix dépend de la <b>taille</b> du colis (et de la distance).
+              La catégorie (Repas, Pharmacie, etc.) est juste une info pour le
+              livreur.
+            </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label>

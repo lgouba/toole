@@ -19,11 +19,28 @@ import {
 
 const createDeliverySchema = z.object({
   packageType: z.enum(['envelope', 'small', 'large']),
+  /** Nouvelle categorie (Bundle 2). Optionnel pour compat ancien client. */
+  packageCategory: z
+    .enum([
+      'meal',
+      'cake',
+      'fresh',
+      'grocery',
+      'pharmacy',
+      'cosmetics',
+      'gift',
+      'other',
+    ])
+    .optional(),
+  /** Nouvelle taille (Bundle 2). Optionnel pour compat ancien client. */
+  packageSize: z.enum(['small', 'medium', 'large']).optional(),
   packageDescription: z.string().max(500).optional(),
   /** Valeur declaree du colis en FCFA (optionnel, max 10M pour eviter les abus). */
   declaredValue: z.number().int().min(0).max(10_000_000).optional(),
   /** Toggle "colis fragile" pour signaler au livreur. */
   isFragile: z.boolean().optional(),
+  /** Code promo a appliquer (insensible a la casse, 3-30 caracteres). */
+  promoCode: z.string().trim().min(3).max(30).optional(),
   recipientName: z.string().min(1).max(100),
   recipientPhone: z.string().regex(/^\+?[0-9]{8,15}$/),
   senderContactName: z.string().trim().min(1).max(100).optional(),
@@ -247,6 +264,8 @@ export async function rateCtrl(
 
 const estimateSchema = z.object({
   packageType: z.enum(['envelope', 'small', 'large']),
+  /** Taille (Bundle 2). Si fournie, prend le pas sur packageType pour le prix. */
+  packageSize: z.enum(['small', 'medium', 'large']).optional(),
   pickupLat: z.coerce.number().min(-90).max(90),
   pickupLng: z.coerce.number().min(-180).max(180),
   deliveryLat: z.coerce.number().min(-90).max(90),
@@ -262,6 +281,7 @@ export async function estimateCtrl(req: Request, res: Response, next: NextFuncti
       q.pickupLng,
       q.deliveryLat,
       q.deliveryLng,
+      q.packageSize,
     );
     return success(res, result);
   } catch (err) {

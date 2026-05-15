@@ -38,6 +38,7 @@ export async function updateAppSettings(
     currencyLocale: string;
     basePriceEnvelope: number;
     basePriceSmall: number;
+    basePriceMedium: number;
     basePriceLarge: number;
     pricePerKm: number;
     platformCommissionPct: number;
@@ -91,6 +92,7 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
     pricing: {
       basePriceEnvelope: s.basePriceEnvelope,
       basePriceSmall: s.basePriceSmall,
+      basePriceMedium: s.basePriceMedium,
       basePriceLarge: s.basePriceLarge,
       pricePerKm: s.pricePerKm,
       platformCommissionPct: s.platformCommissionPct,
