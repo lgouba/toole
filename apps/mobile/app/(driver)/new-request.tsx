@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,6 +50,15 @@ export default function NewRequestScreen() {
   useEffect(() => {
     if (!currentRequest) router.replace('/(driver)');
   }, [currentRequest, router]);
+
+  // Bloque le bouton "retour" Android tant qu'une demande est en cours :
+  // le livreur doit accepter ou refuser explicitement, sinon il peut perdre
+  // la course par un appui accidentel et ne pas savoir comment revenir dessus.
+  useEffect(() => {
+    if (!currentRequest) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, [currentRequest]);
 
   // Polling de secours toutes les 5s : si la course a ete annulee/expiree
   // ou prise par un autre livreur entre temps, le socket peut avoir rate
@@ -164,6 +173,29 @@ export default function NewRequestScreen() {
           entering={SlideInDown.duration(450).springify().damping(18)}
           style={styles.sheet}
         >
+          {/* BANNIERE FRAGILE — bien visible pour que le livreur puisse
+              decider de refuser s'il ne peut pas garantir un transport
+              sans casse. Apparait avant tout le reste. */}
+          {currentRequest.isFragile && (
+            <Animated.View
+              entering={FadeIn.duration(300)}
+              style={styles.fragileBanner}
+            >
+              <View style={styles.fragileBannerIcon}>
+                <Text style={styles.fragileBannerEmoji}>⚠️</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fragileBannerTitle}>
+                  COLIS FRAGILE
+                </Text>
+                <Text style={styles.fragileBannerSubtitle}>
+                  Manipulation délicate requise — refusez si vous ne pouvez pas
+                  garantir un transport sans casse.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Hero gain */}
           <View style={styles.gainHero}>
             <Text style={styles.gainLabel}>Votre gain</Text>
@@ -203,26 +235,19 @@ export default function NewRequestScreen() {
             </Animated.View>
           ) : null}
 
-          {/* Infos colis additionnelles : fragile + valeur declaree */}
-          {(currentRequest.isFragile || currentRequest.declaredValue) && (
+          {/* Valeur declaree (fragile est deja en banniere principale) */}
+          {currentRequest.declaredValue ? (
             <Animated.View
               entering={FadeInDown.duration(350).delay(170)}
               style={styles.colisInfoRow}
             >
-              {currentRequest.isFragile && (
-                <View style={[styles.colisInfoChip, styles.fragileChip]}>
-                  <Text style={styles.fragileChipText}>🍷 Fragile</Text>
-                </View>
-              )}
-              {currentRequest.declaredValue ? (
-                <View style={styles.colisInfoChip}>
-                  <Text style={styles.colisInfoChipText}>
-                    Valeur ~{formatCFA(currentRequest.declaredValue)}
-                  </Text>
-                </View>
-              ) : null}
+              <View style={styles.colisInfoChip}>
+                <Text style={styles.colisInfoChipText}>
+                  Valeur ~{formatCFA(currentRequest.declaredValue)}
+                </Text>
+              </View>
             </Animated.View>
-          )}
+          ) : null}
 
           {/* Trajet */}
           <Animated.View
@@ -561,14 +586,43 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
   },
-  fragileChip: {
+  fragileBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
     backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    borderWidth: 2,
+    borderColor: '#DC2626',
+    shadowColor: '#DC2626',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
-  fragileChipText: {
-    ...typography.captionMedium,
+  fragileBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FECACA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fragileBannerEmoji: {
+    fontSize: 24,
+  },
+  fragileBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#991B1B',
+    letterSpacing: 1.5,
+  },
+  fragileBannerSubtitle: {
+    ...typography.caption,
     color: '#B91C1C',
-    fontWeight: '700',
+    marginTop: 2,
+    lineHeight: 16,
   },
   routeBox: {
     padding: spacing.md,

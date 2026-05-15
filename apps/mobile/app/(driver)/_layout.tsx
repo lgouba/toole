@@ -51,7 +51,16 @@ export default function DriverLayout() {
         }}
       />
       {/* Hidden screens */}
-      <Tabs.Screen name="new-request" options={{ href: null }} />
+      <Tabs.Screen
+        name="new-request"
+        options={{
+          href: null,
+          // Cache la tab bar quand une demande de course arrive : le livreur
+          // doit accepter ou refuser explicitement, il ne peut pas s'echapper
+          // de la modale par un tap accidentel sur un autre tab.
+          tabBarStyle: { display: 'none' },
+        }}
+      />
       <Tabs.Screen name="pickup-navigation" options={{ href: null }} />
       <Tabs.Screen name="pickup-confirm" options={{ href: null }} />
       <Tabs.Screen name="delivery-navigation" options={{ href: null }} />
