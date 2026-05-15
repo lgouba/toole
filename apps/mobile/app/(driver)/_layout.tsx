@@ -1,9 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
+import { NewRequestModal } from '@/components/NewRequestModal';
 
 export default function DriverLayout() {
   return (
+    <>
+    <NewRequestModal />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -68,5 +71,6 @@ export default function DriverLayout() {
       <Tabs.Screen name="delivery-confirm" options={{ href: null }} />
       <Tabs.Screen name="kyc" options={{ href: null }} />
     </Tabs>
+    </>
   );
 }

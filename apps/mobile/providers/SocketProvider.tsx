@@ -117,7 +117,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             const data = response.notification.request.content.data as any;
             if (data?.type === 'new_request' || data?.type === 'pending_batch') {
               if (user.userType === 'driver') {
-                routerRef.current.push('/(driver)/new-request');
+                // Pas besoin de navigation : la <NewRequestModal /> dans
+                // (driver)/_layout.tsx s'affiche automatiquement des que
+                // currentRequest est defini. On va juste sur le tab driver
+                // pour s'assurer que le livreur est bien dans son contexte.
+                routerRef.current.push('/(driver)');
               }
             } else if (data?.type === 'status_update' && user.userType === 'client') {
               routerRef.current.push('/(client)/active-delivery');
@@ -298,13 +302,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          // Pas de demande en cours -> on affiche celle-ci
+          // Pas de demande en cours -> on affiche celle-ci. La modal
+          // <NewRequestModal /> s'affiche automatiquement des que
+          // currentRequest est defini, plus besoin de naviguer.
           lastHandledRequestIdRef.current = delivery.id;
           useDriverStore.getState().receiveRequest(delivery);
           // Alerte forte : vibration longue + haptic repete pour attirer
           // l'attention même quand l'app est en arriere-plan / tel en poche.
           alertNewRequest();
-          routerRef.current.push('/(driver)/new-request');
         });
 
         socket.on('delivery:invalidated', (payload: any) => {
@@ -313,8 +318,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           if (currentRequest && currentRequest.id === payload?.deliveryId) {
             stopAlert();
             useDriverStore.setState({ currentRequest: null });
-            // Retour au dashboard driver (safe, marche toujours)
-            routerRef.current.replace('/(driver)');
+            // La modal se ferme toute seule via currentRequest = null.
           }
           // Reset dedup pour que cette demande puisse être re-proposee si relance
           if (lastHandledRequestIdRef.current === payload?.deliveryId) {
@@ -332,7 +336,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const { currentRequest } = useDriverStore.getState();
           if (currentRequest && currentRequest.id === delivery.id) {
             useDriverStore.setState({ currentRequest: null });
-            routerRef.current.replace('/(driver)');
+            // La modal se ferme toute seule via currentRequest = null.
           }
           if (lastHandledRequestIdRef.current === delivery.id) {
             lastHandledRequestIdRef.current = null;
