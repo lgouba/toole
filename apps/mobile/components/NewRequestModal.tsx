@@ -28,7 +28,6 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { alertConfirmSuccess, alertRejection, stopAlert } from '@/utils/alerts';
 import { formatCFA, formatDistance } from '@/utils/format';
 import { PACKAGE_LABELS, PackageType } from '@/types';
-import { getDeliveryById } from '@/services/delivery.service';
 
 const TIMEOUT_SECONDS = 120;
 
@@ -75,42 +74,19 @@ export function NewRequestModal() {
     return () => sub.remove();
   }, [currentRequest]);
 
-  // Polling de secours toutes les 5s : si la course a ete annulee/expiree
-  // ou prise par un autre livreur entre temps, le socket peut avoir rate
-  // l'event 'delivery:invalidated'.
-  useEffect(() => {
-    const id = currentRequest?.id;
-    if (!id) return;
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const fresh = await getDeliveryById(id);
-        if (cancelled) return;
-        if (
-          !fresh ||
-          (fresh.status !== 'pending' && fresh.status !== 'scheduled')
-        ) {
-          console.log(
-            '[NewRequestModal] polling: request no longer available, status =',
-            fresh?.status ?? '<not found>',
-          );
-          stopAlert();
-          useDriverStore.setState({ currentRequest: null });
-        }
-      } catch (err) {
-        const status = (err as any)?.response?.status;
-        if (status === 404 || status === 403) {
-          stopAlert();
-          useDriverStore.setState({ currentRequest: null });
-        }
-      }
-    };
-    const intervalId = setInterval(tick, 5_000);
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [currentRequest?.id]);
+  // ⚠️ PAS DE POLLING ICI.
+  //
+  // Tentation precedente : poller GET /deliveries/:id toutes les 5s pour
+  // detecter si la course a ete annulee/expiree/prise. PROBLEME : l'endpoint
+  // renvoie 403 tant que le livreur n'est ni sender ni driver de la course,
+  // ce qui est le cas tant qu'il n'a pas accepte. getDeliveryById catch
+  // l'erreur et retourne null -> le polling croit que la course n'existe
+  // plus -> il ferme la modal. BUG.
+  //
+  // On compte donc UNIQUEMENT sur :
+  //   - socket 'delivery:invalidated' (acceptee par un autre, annulee client)
+  //   - socket 'delivery:expired' (expiration cote serveur)
+  //   - le timer local de 2 minutes (rejet auto en dernier recours)
 
   // Pulse subtil sur le bouton accepter pour attirer l'œil
   const pulse = useSharedValue(1);
