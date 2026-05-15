@@ -69,8 +69,15 @@ export async function setOnline(userId: string, isOnline: boolean) {
   // Si le livreur vient de passer en ligne et qu'il a une position connue,
   // on lui envoie les livraisons pending dans sa zone (creees il y a moins de 30 min).
   if (isOnline && profile.currentLat != null && profile.currentLng != null) {
-    void notifyPendingDeliveriesToDriver(userId, profile.currentLat, profile.currentLng).catch(
-      (err) => logger.error({ err, userId }, 'Failed to notify pending deliveries'),
+    // Transition online -> push autorise pour informer le livreur des
+    // courses dispo dans sa zone.
+    void notifyPendingDeliveriesToDriver(
+      userId,
+      profile.currentLat,
+      profile.currentLng,
+      { sendPush: true },
+    ).catch((err) =>
+      logger.error({ err, userId }, 'Failed to notify pending deliveries'),
     );
   }
 
@@ -122,6 +129,12 @@ export async function notifyPendingDeliveriesToDriver(
   userId: string,
   lat: number,
   lng: number,
+  /**
+   * Si true, envoie un push notification recapitulatif ("X courses disponibles
+   * près de vous"). A reserver au moment ou le livreur passe online — sinon
+   * on spam le livreur a chaque update de location (toutes les 10s).
+   */
+  options: { sendPush?: boolean } = {},
 ) {
   const cutoff = new Date(Date.now() - PENDING_LOOKBACK_MS);
   const radiusKm = await getRadiusKm();
@@ -150,16 +163,22 @@ export async function notifyPendingDeliveriesToDriver(
   }
 
   if (count > 0) {
-    logger.info({ userId, count }, 'Sent pending deliveries to online driver');
-    // Push unique: "X demandes vous attendent"
-    void sendPushToUser(
-      userId,
-      'Demandes en attente',
-      count === 1
-        ? 'Une course est disponible près de vous'
-        : `${count} courses sont disponibles près de vous`,
-      { type: 'pending_batch', count },
-    ).catch(() => {});
+    logger.info(
+      { userId, count, withPush: !!options.sendPush },
+      'Sent pending deliveries to online driver',
+    );
+    // Push UNIQUEMENT au transition online (sendPush=true). Sinon on
+    // spammerait le livreur a chaque heartbeat de position.
+    if (options.sendPush) {
+      void sendPushToUser(
+        userId,
+        'Demandes en attente',
+        count === 1
+          ? 'Une course est disponible près de vous'
+          : `${count} courses sont disponibles près de vous`,
+        { type: 'pending_batch', count },
+      ).catch(() => {});
+    }
   }
 }
 

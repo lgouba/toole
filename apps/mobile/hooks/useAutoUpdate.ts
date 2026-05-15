@@ -1,19 +1,18 @@
 import { useEffect } from 'react';
-import { AppState } from 'react-native';
 import Constants from 'expo-constants';
 
 /**
  * Hook qui verifie automatiquement la presence d'un update OTA Expo et le
  * telecharge + applique sans demander a l'utilisateur (transparent).
  *
- * Comportement :
- *   - Au mount (app demarre)
- *   - A chaque retour en foreground (l'utilisateur revient sur l'app apres
- *     l'avoir minimisee)
+ * **Comportement** : check UNIQUEMENT au cold start (mount de l'app).
+ * On NE check PAS sur le retour en foreground car cela peut declencher un
+ * reload de l'app au milieu d'une action critique (modal de course active,
+ * formulaire en cours, etc.) et faire perdre du contexte a l'utilisateur.
  *
- * Si un update est trouve, il est telecharge en BG puis Updates.reloadAsync()
- * relance l'app instantanement avec le nouveau bundle. Plus besoin pour
- * l'utilisateur de force-close l'app 2 fois.
+ * Si un update est publie pendant que l'app tourne, il sera applique au
+ * prochain demarrage complet de l'app — donc pas immediat mais sans risque
+ * d'interruption.
  *
  * Skip en dev (Expo Go ou Metro) ou si expo-updates n'est pas dispo.
  */
@@ -26,7 +25,7 @@ export function useAutoUpdate() {
 
     let cancelled = false;
 
-    const check = async () => {
+    (async () => {
       try {
         const Updates = await import('expo-updates');
         if (!Updates.isEnabled) return;
@@ -37,26 +36,17 @@ export function useAutoUpdate() {
           await Updates.fetchUpdateAsync();
           if (cancelled) return;
           console.log('[AutoUpdate] update fetched, reloading app');
-          // Reload immediate : l'utilisateur voit l'app rebooter brievement
-          // (~1s) avec le nouveau code. Sans ca il faut force-close 2x.
+          // Reload immediate au cold start : l'utilisateur n'est pas encore
+          // engage dans une action, donc safe.
           await Updates.reloadAsync();
         }
       } catch (err) {
         console.warn('[AutoUpdate] check failed', err);
       }
-    };
-
-    // 1er check au demarrage
-    check();
-
-    // Re-check a chaque retour en foreground
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') check();
-    });
+    })();
 
     return () => {
       cancelled = true;
-      sub.remove();
     };
   }, []);
 }
