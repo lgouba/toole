@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
 import { formatCFA, formatDate } from '../utils';
 import { useDialog } from '../components/DialogProvider';
+import { Tabs, type TabDef } from '../components/Tabs';
+
+// Le tab '' = "Toutes" (pas de filtre type cote API)
+type TxTabId = '' | 'topup' | 'withdrawal' | 'commission' | 'adjustment';
 
 interface Transaction {
   id: string;
@@ -53,7 +57,8 @@ export default function Transactions() {
   const dialog = useDialog();
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [tab, setTab] = useState<TxTabId>('');
+  const typeFilter = tab; // alias pour rester compatible avec le useEffect
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [busy, setBusy] = useState<string | null>(null);
   const [noteById, setNoteById] = useState<Record<string, string>>({});
@@ -166,6 +171,31 @@ export default function Transactions() {
 
   const pendingCount = items.filter((t) => t.status === 'pending').length;
 
+  // Compteurs "en attente" pour les badges des onglets. On les laisse vides
+  // pour les autres tabs car ils n'ont pas d'action urgente associée.
+  const pendingByType = items.reduce<Record<string, number>>((acc, t) => {
+    if (t.status === 'pending') acc[t.type] = (acc[t.type] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const TABS: ReadonlyArray<TabDef<TxTabId>> = [
+    { id: '', label: 'Toutes', icon: '📋' },
+    {
+      id: 'topup',
+      label: 'Recharges',
+      icon: '💰',
+      badge: pendingByType.topup ?? 0,
+    },
+    {
+      id: 'withdrawal',
+      label: 'Retraits',
+      icon: '🏦',
+      badge: pendingByType.withdrawal ?? 0,
+    },
+    { id: 'commission', label: 'Commissions', icon: '📈' },
+    { id: 'adjustment', label: 'Ajustements', icon: '⚙️' },
+  ];
+
   return (
     <>
       <div className="page-header">
@@ -180,28 +210,28 @@ export default function Transactions() {
         </div>
       </div>
 
-      <div className="searchbar">
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">Tous les types</option>
-          <option value="withdrawal">Retraits</option>
-          <option value="topup">Règlements (topup)</option>
-          <option value="commission">Commissions livreur</option>
-          <option value="commission_debt">Dettes plateforme</option>
-          <option value="adjustment">Ajustements</option>
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">Tous statuts</option>
-          <option value="pending">En attente</option>
-          <option value="completed">Complétées</option>
-          <option value="failed">Échouées</option>
-        </select>
-      </div>
+      <Tabs
+        tabs={TABS}
+        value={tab}
+        onChange={setTab}
+        rightSlot={
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              fontSize: 13,
+            }}
+          >
+            <option value="">Tous statuts</option>
+            <option value="pending">En attente</option>
+            <option value="completed">Complétées</option>
+            <option value="failed">Échouées</option>
+          </select>
+        }
+      />
 
       <div className="card">
         {loading ? (

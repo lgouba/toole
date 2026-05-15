@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
 import { useDialog } from '../components/DialogProvider';
+import { Tabs, type TabDef } from '../components/Tabs';
+
+type TabId = 'new' | 'history';
 
 interface Campaign {
   id: string;
@@ -37,6 +40,7 @@ export default function Notifications() {
     failed: number;
     tokenCount: number;
   } | null>(null);
+  const [tab, setTab] = useState<TabId>('new');
 
   const loadHistory = async () => {
     try {
@@ -99,6 +103,16 @@ export default function Notifications() {
     }
   };
 
+  const TABS: ReadonlyArray<TabDef<TabId>> = [
+    { id: 'new', label: 'Nouvelle', icon: '✉️' },
+    {
+      id: 'history',
+      label: 'Historique',
+      icon: '📋',
+      badge: campaigns.length,
+    },
+  ];
+
   return (
     <div style={s.page}>
       <h1 style={s.h1}>Notifications</h1>
@@ -107,10 +121,12 @@ export default function Notifications() {
         Réception instantanée sur les appareils.
       </div>
 
+      <Tabs tabs={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'new' && (
+      <>
       {/* Form d'envoi */}
       <div style={s.formCard}>
-        <div style={s.formTitle}>Nouvelle notification</div>
-
         <label style={s.label}>
           Cible
           <div style={s.targetRow}>
@@ -203,10 +219,11 @@ export default function Notifications() {
           </div>
         ) : null}
       </div>
+      </>
+      )}
 
-      {/* Historique */}
+      {tab === 'history' && (
       <div style={s.historyCard}>
-        <div style={s.formTitle}>Historique</div>
         {loading ? (
           <div style={s.muted}>Chargement…</div>
         ) : campaigns.length === 0 ? (
@@ -243,6 +260,7 @@ export default function Notifications() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

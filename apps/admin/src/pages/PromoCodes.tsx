@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api, unwrap } from '../api';
 import { useDialog } from '../components/DialogProvider';
+import { Tabs, type TabDef } from '../components/Tabs';
+
+type PromoTabId = 'active' | 'inactive' | 'all';
 
 interface PromoCode {
   id: string;
@@ -49,6 +52,7 @@ export default function PromoCodes() {
   const dialog = useDialog();
   const [list, setList] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<PromoTabId>('active');
   const [editing, setEditing] = useState<PromoCode | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -229,18 +233,59 @@ export default function PromoCodes() {
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="loading-wrap">
-          <div className="spinner"></div>
-          Chargement...
-        </div>
-      ) : list.length === 0 ? (
-        <div className="empty">
-          Aucun code promo pour le moment.
-          <br />
-          Cliquez sur "Nouveau code" pour en créer un.
-        </div>
-      ) : (
+      {/* Tabs filter */}
+      {(() => {
+        const activeCount = list.filter(
+          (p) =>
+            p.isActive &&
+            (!p.validTo || new Date(p.validTo) >= new Date()) &&
+            (p.maxUses == null || p.currentUses < p.maxUses),
+        ).length;
+        const inactiveCount = list.length - activeCount;
+        const TABS: ReadonlyArray<TabDef<PromoTabId>> = [
+          { id: 'active', label: 'Actifs', icon: '✅', badge: activeCount },
+          {
+            id: 'inactive',
+            label: 'Inactifs / expirés',
+            icon: '⏸️',
+            badge: inactiveCount,
+          },
+          { id: 'all', label: 'Tous', icon: '📋', badge: list.length },
+        ];
+        return <Tabs tabs={TABS} value={tab} onChange={setTab} />;
+      })()}
+
+      {(() => {
+        const now = new Date();
+        const filtered = list.filter((p) => {
+          const expired = p.validTo && new Date(p.validTo) < now;
+          const quotaReached =
+            p.maxUses != null && p.currentUses >= p.maxUses;
+          const isActiveNow = p.isActive && !expired && !quotaReached;
+          if (tab === 'active') return isActiveNow;
+          if (tab === 'inactive') return !isActiveNow;
+          return true;
+        });
+        if (loading) {
+          return (
+            <div className="loading-wrap">
+              <div className="spinner"></div>
+              Chargement...
+            </div>
+          );
+        }
+        if (filtered.length === 0) {
+          return (
+            <div className="empty">
+              {tab === 'active'
+                ? "Aucun code promo actif. Cliquez sur 'Nouveau code' pour en créer un."
+                : tab === 'inactive'
+                  ? "Aucun code inactif ou expiré."
+                  : "Aucun code promo pour le moment."}
+            </div>
+          );
+        }
+        return (
         <div className="card">
           <table className="table">
             <thead>
@@ -255,7 +300,7 @@ export default function PromoCodes() {
               </tr>
             </thead>
             <tbody>
-              {list.map((p) => {
+              {filtered.map((p) => {
                 const isExpired = p.validTo && new Date(p.validTo) < new Date();
                 const isQuotaReached =
                   p.maxUses != null && p.currentUses >= p.maxUses;
@@ -362,7 +407,8 @@ export default function PromoCodes() {
             </tbody>
           </table>
         </div>
-      )}
+        );
+      })()}
 
       {showForm && (
         <PromoForm
