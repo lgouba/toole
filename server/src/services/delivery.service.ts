@@ -54,6 +54,10 @@ export interface CreateDeliveryInput {
   senderId: string;
   packageType: PackageType;
   packageDescription?: string;
+  /** Valeur declaree du colis en FCFA (optionnel). */
+  declaredValue?: number;
+  /** Indique au livreur que le colis est fragile. */
+  isFragile?: boolean;
   recipientName: string;
   recipientPhone: string;
   /** Si le colis est detenu par une autre personne que le client qui commande */
@@ -78,7 +82,16 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     input.deliveryLat,
     input.deliveryLng,
   );
-  const pricing = await calculatePrice(input.packageType, distanceKm);
+  // Pour le pricing, on utilise l'heure de la course (scheduledFor si defini,
+  // sinon maintenant). Cela garantit qu'une course programmee a 23h aura
+  // bien le tarif de nuit applique au moment de la creation, et que le client
+  // voit le bon prix.
+  const pricingAt = input.scheduledFor ?? new Date();
+  const pricing = await calculatePrice(
+    input.packageType,
+    distanceKm,
+    pricingAt,
+  );
   const expiryMs = await getDeliveryExpiryMs();
 
   // Si la date programmee est dans plus de `scheduledMinDelayMinutes` min,
@@ -97,6 +110,9 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       senderId: input.senderId,
       packageType: input.packageType,
       packageDescription: input.packageDescription,
+      declaredValue: input.declaredValue ?? null,
+      isFragile: input.isFragile ?? false,
+      nightSurchargeApplied: pricing.nightSurcharge || null,
       recipientName: input.recipientName,
       recipientPhone: input.recipientPhone,
       senderContactName: input.senderContactName ?? null,

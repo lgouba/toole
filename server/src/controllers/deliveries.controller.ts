@@ -20,6 +20,10 @@ import {
 const createDeliverySchema = z.object({
   packageType: z.enum(['envelope', 'small', 'large']),
   packageDescription: z.string().max(500).optional(),
+  /** Valeur declaree du colis en FCFA (optionnel, max 10M pour eviter les abus). */
+  declaredValue: z.number().int().min(0).max(10_000_000).optional(),
+  /** Toggle "colis fragile" pour signaler au livreur. */
+  isFragile: z.boolean().optional(),
   recipientName: z.string().min(1).max(100),
   recipientPhone: z.string().regex(/^\+?[0-9]{8,15}$/),
   senderContactName: z.string().trim().min(1).max(100).optional(),

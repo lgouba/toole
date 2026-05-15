@@ -203,6 +203,27 @@ export default function NewRequestScreen() {
             </Animated.View>
           ) : null}
 
+          {/* Infos colis additionnelles : fragile + valeur declaree */}
+          {(currentRequest.isFragile || currentRequest.declaredValue) && (
+            <Animated.View
+              entering={FadeInDown.duration(350).delay(170)}
+              style={styles.colisInfoRow}
+            >
+              {currentRequest.isFragile && (
+                <View style={[styles.colisInfoChip, styles.fragileChip]}>
+                  <Text style={styles.fragileChipText}>🍷 Fragile</Text>
+                </View>
+              )}
+              {currentRequest.declaredValue ? (
+                <View style={styles.colisInfoChip}>
+                  <Text style={styles.colisInfoChipText}>
+                    Valeur ~{formatCFA(currentRequest.declaredValue)}
+                  </Text>
+                </View>
+              ) : null}
+            </Animated.View>
+          )}
+
           {/* Trajet */}
           <Animated.View
             entering={FadeInDown.duration(350).delay(200)}
@@ -519,6 +540,34 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
   },
   thirdPartyName: {
+    fontWeight: '700',
+  },
+  colisInfoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  colisInfoChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  colisInfoChipText: {
+    ...typography.captionMedium,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  fragileChip: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  fragileChipText: {
+    ...typography.captionMedium,
+    color: '#B91C1C',
     fontWeight: '700',
   },
   routeBox: {

@@ -40,6 +40,10 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
   const payload = {
     packageType: draft.packageType,
     ...(draft.packageDescription ? { packageDescription: draft.packageDescription } : {}),
+    ...(typeof draft.declaredValue === 'number' && draft.declaredValue > 0
+      ? { declaredValue: draft.declaredValue }
+      : {}),
+    ...(draft.isFragile ? { isFragile: true } : {}),
     recipientName: draft.recipientName.trim(),
     recipientPhone: cleanPhone(draft.recipientPhone),
     ...(draft.senderContactName?.trim()
@@ -290,6 +294,9 @@ function normalizeDelivery(raw: any): Delivery {
     packageDescription: raw.packageDescription ?? undefined,
     packagePhotoPickupUrl: raw.packagePhotoPickupUrl ?? undefined,
     packagePhotoDeliveryUrl: raw.packagePhotoDeliveryUrl ?? undefined,
+    declaredValue: raw.declaredValue ?? null,
+    isFragile: !!raw.isFragile,
+    nightSurchargeApplied: raw.nightSurchargeApplied ?? null,
     recipientName: raw.recipientName,
     recipientPhone: raw.recipientPhone,
     senderContactName: raw.senderContactName ?? undefined,

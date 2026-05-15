@@ -169,6 +169,14 @@ model Delivery {
   packageDescription       String?
   packagePhotoPickupUrl    String?
   packagePhotoDeliveryUrl  String?
+  /// Valeur declaree par le client (FCFA). Sert d'indication pour le livreur
+  /// (responsabilite / niveau de soin) et base future pour l'assurance.
+  declaredValue            Int?
+  /// Le client a indique que le colis est fragile : le livreur doit etre averti.
+  isFragile                Boolean        @default(false)
+  /// Montant additionnel applique pour le tarif de nuit (snapshot du surcharge
+  /// applique au moment de la creation, pour audit). 0 ou null si pas de nuit.
+  nightSurchargeApplied    Int?
   recipientName            String
   recipientPhone           String
   /// Contact de la personne qui detient physiquement le colis au point de
@@ -310,9 +318,21 @@ model AppSettings {
   driverSoundEnabled   Boolean @default(true)
   driverVibrationEnabled Boolean @default(true)
 
-  // Reserve pour la tarification dynamique future
-  nightSurchargePct    Int    @default(0)
-  rainSurchargePct     Int    @default(0)
+  // Tarif de nuit : majoration appliquee si la course est cree pendant
+  // la plage horaire definie (heure locale de l'app). Le montant est
+  // additionne au prix total (et integralement reverse au livreur, hors
+  // commission plateforme).
+  nightSurchargeEnabled    Boolean @default(false)
+  /// Heure de debut de la plage de nuit (0-23). Par defaut 22h.
+  nightSurchargeStartHour  Int     @default(22)
+  /// Heure de fin de la plage de nuit (0-23). Si < startHour, on traverse
+  /// minuit (ex: start=22, end=6 -> applique entre 22h et 6h du matin).
+  nightSurchargeEndHour    Int     @default(6)
+  /// Montant additionnel en unite de devise (FCFA) ajoute au prix.
+  nightSurchargeAmount     Int     @default(0)
+
+  // Reserve pour la tarification meteo future (non encore applique)
+  rainSurchargePct         Int    @default(0)
 
   // Reglages wallet / paiement
   /// Montant minimum pour un retrait livreur (en unite de devise)

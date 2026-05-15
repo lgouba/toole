@@ -32,6 +32,12 @@ export interface Delivery {
   packageDescription?: string;
   packagePhotoPickupUrl?: string;
   packagePhotoDeliveryUrl?: string;
+  /** Valeur déclarée du colis en FCFA (optionnel). */
+  declaredValue?: number | null;
+  /** Le colis est marqué fragile par le client. */
+  isFragile?: boolean;
+  /** Montant additionnel applique pour le tarif de nuit (snapshot). */
+  nightSurchargeApplied?: number | null;
 
   // Recipient
   recipientName: string;
@@ -93,6 +99,10 @@ export interface Delivery {
 export interface DeliveryDraft {
   packageType?: PackageType;
   packageDescription?: string;
+  /** Valeur déclarée du colis en FCFA (optionnel). */
+  declaredValue?: number;
+  /** Toggle "colis fragile". */
+  isFragile?: boolean;
   pickupAddress?: string;
   pickupDetails?: string;
   pickupLocation?: LatLng;

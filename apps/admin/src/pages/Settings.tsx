@@ -16,7 +16,10 @@ interface AppSettings {
   confettiEnabled: boolean;
   driverSoundEnabled: boolean;
   driverVibrationEnabled: boolean;
-  nightSurchargePct: number;
+  nightSurchargeEnabled: boolean;
+  nightSurchargeStartHour: number;
+  nightSurchargeEndHour: number;
+  nightSurchargeAmount: number;
   rainSurchargePct: number;
   deliveryExpiryMinutes: number;
   driverCancelCooldownSeconds: number;
@@ -28,12 +31,23 @@ interface AppSettings {
   updatedAt: string;
 }
 
+type TabId = 'brand' | 'pricing' | 'operations' | 'wallet' | 'ux';
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'brand', label: 'Marque & Localisation', icon: '🎨' },
+  { id: 'pricing', label: 'Tarification', icon: '💰' },
+  { id: 'operations', label: 'Opérationnel', icon: '⚙️' },
+  { id: 'wallet', label: 'Portefeuille', icon: '👛' },
+  { id: 'ux', label: 'Expérience utilisateur', icon: '✨' },
+];
+
 export default function Settings() {
   const dialog = useDialog();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabId>('brand');
 
   useEffect(() => {
     api
@@ -50,11 +64,10 @@ export default function Settings() {
     if (!settings) return;
     setSaving(true);
     try {
-      // On retire les champs read-only de la requete
       const { updatedAt: _u, ...payload } = settings;
       const res = await api.put('/admin/settings', payload);
       setSettings(unwrap<AppSettings>(res));
-      setToast('Parametres enregistres');
+      setToast('Paramètres enregistrés');
       setTimeout(() => setToast(null), 2500);
     } catch (err: any) {
       await dialog.alert({
@@ -78,16 +91,16 @@ export default function Settings() {
     );
   }
   if (!settings) {
-    return <div className="empty">Impossible de charger les parametres.</div>;
+    return <div className="empty">Impossible de charger les paramètres.</div>;
   }
 
   return (
     <>
       <div className="page-header">
         <div className="page-header-main">
-          <h1 className="page-title">Parametres</h1>
+          <h1 className="page-title">Paramètres</h1>
           <p className="page-subtitle">
-            Configuration globale de l'application — derniere modif{' '}
+            Configuration globale de l'application — dernière modif{' '}
             {new Date(settings.updatedAt).toLocaleString('fr-FR')}
           </p>
         </div>
@@ -112,148 +125,219 @@ export default function Settings() {
         </div>
       ) : null}
 
-      <div className="grid-2">
-        {/* Branding */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Branding</h2>
-          </div>
-          <div className="card-body">
-            <div
+      {/* Tabs nav */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 4,
+          borderBottom: '1px solid var(--border)',
+          marginBottom: 20,
+          overflowX: 'auto',
+          scrollbarWidth: 'thin',
+        }}
+      >
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
               style={{
-                padding: '10px 12px',
-                background: 'var(--warning-bg)',
-                color: '#92400e',
-                borderRadius: 8,
-                fontSize: 12.5,
-                marginBottom: 14,
+                padding: '10px 16px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: active
+                  ? '2px solid var(--primary)'
+                  : '2px solid transparent',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: active ? 700 : 500,
+                color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
               }}
             >
-              💡 Les couleurs sont appliquées au prochain redémarrage de l'application
-              mobile chez l'utilisateur (fermeture + réouverture). Le nom de l'app et
-              la monnaie s'appliquent immédiatement.
-            </div>
-            <div className="form">
-              <label>
-                Nom de l'application
-                <input
-                  type="text"
-                  value={settings.appName}
-                  onChange={(e) => update('appName', e.target.value)}
-                  maxLength={50}
-                />
-              </label>
+              <span style={{ marginRight: 6 }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
-              <div style={{ display: 'flex', gap: 12 }}>
-                <label style={{ flex: 1 }}>
-                  Couleur principale
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={settings.primaryColor}
-                      onChange={(e) => update('primaryColor', e.target.value)}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        padding: 0,
-                        border: '1px solid var(--border)',
-                        borderRadius: 10,
-                        background: 'var(--surface)',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={settings.primaryColor}
-                      onChange={(e) => update('primaryColor', e.target.value)}
-                      pattern="^#[0-9a-fA-F]{6}$"
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                </label>
+      {/* Tab content */}
+      {tab === 'brand' && <BrandTab settings={settings} update={update} />}
+      {tab === 'pricing' && <PricingTab settings={settings} update={update} />}
+      {tab === 'operations' && <OperationsTab settings={settings} update={update} />}
+      {tab === 'wallet' && <WalletTab settings={settings} update={update} />}
+      {tab === 'ux' && <UxTab settings={settings} update={update} />}
+    </>
+  );
+}
 
-                <label style={{ flex: 1 }}>
-                  Couleur secondaire
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={settings.secondaryColor}
-                      onChange={(e) => update('secondaryColor', e.target.value)}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        padding: 0,
-                        border: '1px solid var(--border)',
-                        borderRadius: 10,
-                        background: 'var(--surface)',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={settings.secondaryColor}
-                      onChange={(e) => update('secondaryColor', e.target.value)}
-                      pattern="^#[0-9a-fA-F]{6}$"
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
+// ============================================================
+// Tab : Marque & Localisation
+// ============================================================
+function BrandTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <div className="grid-2">
+      <div className="card">
+        <div className="card-header">
+          <h2>Branding</h2>
         </div>
-
-        {/* Localisation */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Localisation</h2>
+        <div className="card-body">
+          <div
+            style={{
+              padding: '10px 12px',
+              background: 'var(--warning-bg)',
+              color: '#92400e',
+              borderRadius: 8,
+              fontSize: 12.5,
+              marginBottom: 14,
+            }}
+          >
+            💡 Les couleurs sont appliquées au prochain redémarrage de l'application
+            mobile chez l'utilisateur (fermeture + réouverture). Le nom de l'app et
+            la monnaie s'appliquent immédiatement.
           </div>
-          <div className="card-body">
-            <div className="form">
-              <label>
-                Monnaie (symbole / code)
-                <input
-                  type="text"
-                  value={settings.currency}
-                  onChange={(e) => update('currency', e.target.value)}
-                  placeholder="FCFA"
-                  maxLength={10}
-                />
+          <div className="form">
+            <label>
+              Nom de l'application
+              <input
+                type="text"
+                value={settings.appName}
+                onChange={(e) => update('appName', e.target.value)}
+                maxLength={50}
+              />
+            </label>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <label style={{ flex: 1 }}>
+                Couleur principale
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={settings.primaryColor}
+                    onChange={(e) => update('primaryColor', e.target.value)}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      padding: 0,
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      background: 'var(--surface)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={settings.primaryColor}
+                    onChange={(e) => update('primaryColor', e.target.value)}
+                    pattern="^#[0-9a-fA-F]{6}$"
+                    style={{ flex: 1 }}
+                  />
+                </div>
               </label>
-              <label>
-                Format regional (pour nombres et dates)
-                <select
-                  value={settings.currencyLocale}
-                  onChange={(e) => update('currencyLocale', e.target.value)}
-                >
-                  <option value="fr-BF">Burkina Faso (fr-BF)</option>
-                  <option value="fr-CI">Cote d'Ivoire (fr-CI)</option>
-                  <option value="fr-SN">Senegal (fr-SN)</option>
-                  <option value="fr-ML">Mali (fr-ML)</option>
-                  <option value="fr-NE">Niger (fr-NE)</option>
-                  <option value="fr-TG">Togo (fr-TG)</option>
-                  <option value="fr-BJ">Benin (fr-BJ)</option>
-                  <option value="fr-FR">France (fr-FR)</option>
-                  <option value="en-US">US (en-US)</option>
-                </select>
+
+              <label style={{ flex: 1 }}>
+                Couleur secondaire
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={settings.secondaryColor}
+                    onChange={(e) => update('secondaryColor', e.target.value)}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      padding: 0,
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      background: 'var(--surface)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={settings.secondaryColor}
+                    onChange={(e) => update('secondaryColor', e.target.value)}
+                    pattern="^#[0-9a-fA-F]{6}$"
+                    style={{ flex: 1 }}
+                  />
+                </div>
               </label>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-tertiary)',
-                  margin: 0,
-                }}
-              >
-                La monnaie sera affichee partout dans l'application client et
-                livreur.
-              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tarification */}
       <div className="card">
         <div className="card-header">
-          <h2>Tarification</h2>
+          <h2>Localisation</h2>
+        </div>
+        <div className="card-body">
+          <div className="form">
+            <label>
+              Monnaie (symbole / code)
+              <input
+                type="text"
+                value={settings.currency}
+                onChange={(e) => update('currency', e.target.value)}
+                placeholder="FCFA"
+                maxLength={10}
+              />
+            </label>
+            <label>
+              Format régional (pour nombres et dates)
+              <select
+                value={settings.currencyLocale}
+                onChange={(e) => update('currencyLocale', e.target.value)}
+              >
+                <option value="fr-BF">Burkina Faso (fr-BF)</option>
+                <option value="fr-CI">Côte d'Ivoire (fr-CI)</option>
+                <option value="fr-SN">Sénégal (fr-SN)</option>
+                <option value="fr-ML">Mali (fr-ML)</option>
+                <option value="fr-NE">Niger (fr-NE)</option>
+                <option value="fr-TG">Togo (fr-TG)</option>
+                <option value="fr-BJ">Bénin (fr-BJ)</option>
+                <option value="fr-FR">France (fr-FR)</option>
+                <option value="en-US">US (en-US)</option>
+              </select>
+            </label>
+            <p
+              style={{
+                fontSize: 12,
+                color: 'var(--text-tertiary)',
+                margin: 0,
+              }}
+            >
+              La monnaie sera affichée partout dans l'application client et
+              livreur.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab : Tarification (prix + tarif de nuit)
+// ============================================================
+function PricingTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <>
+      <div className="card">
+        <div className="card-header">
+          <h2>Prix de base</h2>
         </div>
         <div className="card-body">
           <div className="form">
@@ -301,7 +385,7 @@ export default function Settings() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label>
-                Prix par kilometre ({settings.currency})
+                Prix par kilomètre ({settings.currency})
                 <input
                   type="number"
                   value={settings.pricePerKm}
@@ -346,238 +430,93 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Tarification dynamique — reservee */}
+      {/* Tarif de nuit */}
       <div className="card">
         <div className="card-header">
           <h2>
-            Tarification dynamique{' '}
+            🌙 Tarif de nuit{' '}
             <span
-              className="badge badge-pending"
-              style={{ marginLeft: 8, fontSize: 10 }}
+              className="badge"
+              style={{
+                marginLeft: 8,
+                fontSize: 10,
+                background: settings.nightSurchargeEnabled
+                  ? 'var(--success-bg)'
+                  : 'var(--bg-alt)',
+                color: settings.nightSurchargeEnabled
+                  ? 'var(--primary-700)'
+                  : 'var(--text-tertiary)',
+              }}
             >
-              Experimental
+              {settings.nightSurchargeEnabled ? 'Actif' : 'Désactivé'}
             </span>
           </h2>
         </div>
         <div className="card-body">
           <div className="form">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <label>
-                Majoration nuit (%)
-                <input
-                  type="number"
-                  value={settings.nightSurchargePct}
-                  onChange={(e) =>
-                    update('nightSurchargePct', parseInt(e.target.value || '0', 10))
-                  }
-                  min={0}
-                  max={500}
-                />
-              </label>
-              <label>
-                Majoration pluie (%)
-                <input
-                  type="number"
-                  value={settings.rainSurchargePct}
-                  onChange={(e) =>
-                    update('rainSurchargePct', parseInt(e.target.value || '0', 10))
-                  }
-                  min={0}
-                  max={500}
-                />
-              </label>
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: 0 }}>
-              Ces majorations ne sont pas encore appliquees. Elles seront activees dans
-              une prochaine version.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Reglages operationnels */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Reglages operationnels</h2>
-        </div>
-        <div className="card-body">
-          <div className="form">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 12,
-              }}
-            >
-              <label>
-                Duree de recherche d'un livreur (minutes)
-                <input
-                  type="number"
-                  value={settings.deliveryExpiryMinutes}
-                  onChange={(e) =>
-                    update(
-                      'deliveryExpiryMinutes',
-                      parseInt(e.target.value || '0', 10),
-                    )
-                  }
-                  min={1}
-                  max={60}
-                />
-              </label>
-              <label>
-                Delai avant annulation livreur (secondes)
-                <input
-                  type="number"
-                  value={settings.driverCancelCooldownSeconds}
-                  onChange={(e) =>
-                    update(
-                      'driverCancelCooldownSeconds',
-                      parseInt(e.target.value || '0', 10),
-                    )
-                  }
-                  min={0}
-                  max={1800}
-                />
-              </label>
-            </div>
+            <ToggleRow
+              label="Activer le tarif de nuit"
+              hint="Une majoration fixe est ajoutée au prix pour toute course créée durant la plage horaire ci-dessous. Le montant est intégralement reversé au livreur."
+              checked={settings.nightSurchargeEnabled}
+              onChange={(v) => update('nightSurchargeEnabled', v)}
+            />
 
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+                gridTemplateColumns: '1fr 1fr 1fr',
                 gap: 12,
+                opacity: settings.nightSurchargeEnabled ? 1 : 0.5,
+                pointerEvents: settings.nightSurchargeEnabled ? 'auto' : 'none',
               }}
             >
               <label>
-                Rayon de diffusion aux livreurs (km)
+                Heure de début (0-23)
                 <input
                   type="number"
-                  value={settings.nearbyRadiusKm}
+                  value={settings.nightSurchargeStartHour}
                   onChange={(e) =>
                     update(
-                      'nearbyRadiusKm',
-                      parseInt(e.target.value || '0', 10),
-                    )
-                  }
-                  min={1}
-                  max={50}
-                />
-              </label>
-              <label>
-                Fraicheur GPS livreur (secondes)
-                <input
-                  type="number"
-                  value={settings.driverHeartbeatMaxAgeSeconds}
-                  onChange={(e) =>
-                    update(
-                      'driverHeartbeatMaxAgeSeconds',
-                      parseInt(e.target.value || '0', 10),
-                    )
-                  }
-                  min={30}
-                  max={600}
-                />
-              </label>
-              <label>
-                Délai min livraison programmée (min)
-                <input
-                  type="number"
-                  value={settings.scheduledMinDelayMinutes}
-                  onChange={(e) =>
-                    update(
-                      'scheduledMinDelayMinutes',
-                      parseInt(e.target.value || '0', 10),
-                    )
-                  }
-                  min={1}
-                  max={120}
-                />
-              </label>
-            </div>
-
-            <div
-              style={{
-                marginTop: 8,
-                padding: 12,
-                background: 'var(--bg-alt)',
-                borderRadius: 10,
-                fontSize: 12.5,
-                color: 'var(--text-secondary)',
-                lineHeight: 1.6,
-              }}
-            >
-              <strong>Explications :</strong>
-              <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-                <li>
-                  <b>Duree de recherche</b> : temps maximum d'attente avant qu'une
-                  demande client expire si aucun livreur n'accepte (defaut 5 min).
-                </li>
-                <li>
-                  <b>Délai min livraison programmée</b> : seuil sous lequel une
-                  livraison "programmée" est en réalité diffusée immédiatement.
-                  Par défaut 10 min ; descendre à 2-3 min pour les tests.
-                </li>
-                <li>
-                  <b>Delai avant annulation</b> : un livreur ne peut pas annuler
-                  immediatement apres avoir accepte (evite les abus). Defaut 120s.
-                </li>
-                <li>
-                  <b>Rayon de diffusion</b> : rayon autour du pickup pour chercher
-                  les livreurs disponibles. Defaut 5 km.
-                </li>
-                <li>
-                  <b>Fraicheur GPS</b> : si un livreur n'a pas envoye sa position
-                  depuis N secondes, il est considere hors-ligne. Defaut 120s.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Portefeuille / Paiement */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Portefeuille et paiement</h2>
-        </div>
-        <div className="card-body">
-          <div className="form">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 12,
-              }}
-            >
-              <label>
-                Montant minimum de retrait ({settings.currency})
-                <input
-                  type="number"
-                  value={settings.minWithdrawAmount}
-                  onChange={(e) =>
-                    update(
-                      'minWithdrawAmount',
+                      'nightSurchargeStartHour',
                       parseInt(e.target.value || '0', 10),
                     )
                   }
                   min={0}
+                  max={23}
                 />
               </label>
               <label>
-                Plafond dette commission ({settings.currency})
+                Heure de fin (0-23)
                 <input
                   type="number"
-                  value={settings.commissionDebtLimit}
+                  value={settings.nightSurchargeEndHour}
                   onChange={(e) =>
                     update(
-                      'commissionDebtLimit',
+                      'nightSurchargeEndHour',
                       parseInt(e.target.value || '0', 10),
                     )
                   }
                   min={0}
+                  max={23}
+                />
+              </label>
+              <label>
+                Montant ajouté ({settings.currency})
+                <input
+                  type="number"
+                  value={settings.nightSurchargeAmount}
+                  onChange={(e) =>
+                    update(
+                      'nightSurchargeAmount',
+                      parseInt(e.target.value || '0', 10),
+                    )
+                  }
+                  min={0}
+                  max={100000}
                 />
               </label>
             </div>
+
             <div
               style={{
                 marginTop: 4,
@@ -589,43 +528,288 @@ export default function Settings() {
                 lineHeight: 1.6,
               }}
             >
-              <b>Plafond dette commission</b> : dès que la dette d'un livreur
-              dépasse ce montant, il ne peut plus accepter de nouvelles courses
-              tant qu'il n'a pas réglé via Mobile Money.
+              <strong>Plage configurée :</strong>{' '}
+              {formatHour(settings.nightSurchargeStartHour)} →{' '}
+              {formatHour(settings.nightSurchargeEndHour)}
+              {settings.nightSurchargeStartHour > settings.nightSurchargeEndHour
+                ? ' (traverse minuit)'
+                : ''}
+              .{' '}
+              {settings.nightSurchargeEnabled && settings.nightSurchargeAmount > 0 ? (
+                <>
+                  Une course créée dans cette plage coûtera{' '}
+                  <b>
+                    +{settings.nightSurchargeAmount} {settings.currency}
+                  </b>{' '}
+                  au client (reversés intégralement au livreur).
+                </>
+              ) : (
+                <>Aucune majoration n'est actuellement appliquée.</>
+              )}
             </div>
           </div>
         </div>
       </div>
+    </>
+  );
+}
 
-      {/* Toggles UX */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Experience utilisateur</h2>
-        </div>
-        <div className="card-body">
-          <div className="form">
-            <ToggleRow
-              label="Confettis apres notation"
-              hint="Anime des confettis quand le client note 4 ou 5 etoiles"
-              checked={settings.confettiEnabled}
-              onChange={(v) => update('confettiEnabled', v)}
-            />
-            <ToggleRow
-              label="Son de notification livreur"
-              hint="Le livreur entend un 'ding' quand une course tombe"
-              checked={settings.driverSoundEnabled}
-              onChange={(v) => update('driverSoundEnabled', v)}
-            />
-            <ToggleRow
-              label="Vibration forte livreur"
-              hint="Vibration repetee quand une course tombe (meme telephone en poche)"
-              checked={settings.driverVibrationEnabled}
-              onChange={(v) => update('driverVibrationEnabled', v)}
-            />
+function formatHour(h: number): string {
+  return `${h.toString().padStart(2, '0')}h00`;
+}
+
+// ============================================================
+// Tab : Opérationnel
+// ============================================================
+function OperationsTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>Réglages opérationnels</h2>
+      </div>
+      <div className="card-body">
+        <div className="form">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+            }}
+          >
+            <label>
+              Durée de recherche d'un livreur (minutes)
+              <input
+                type="number"
+                value={settings.deliveryExpiryMinutes}
+                onChange={(e) =>
+                  update('deliveryExpiryMinutes', parseInt(e.target.value || '0', 10))
+                }
+                min={1}
+                max={60}
+              />
+            </label>
+            <label>
+              Délai avant annulation livreur (secondes)
+              <input
+                type="number"
+                value={settings.driverCancelCooldownSeconds}
+                onChange={(e) =>
+                  update(
+                    'driverCancelCooldownSeconds',
+                    parseInt(e.target.value || '0', 10),
+                  )
+                }
+                min={0}
+                max={1800}
+              />
+            </label>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 12,
+            }}
+          >
+            <label>
+              Rayon de diffusion aux livreurs (km)
+              <input
+                type="number"
+                value={settings.nearbyRadiusKm}
+                onChange={(e) =>
+                  update('nearbyRadiusKm', parseInt(e.target.value || '0', 10))
+                }
+                min={1}
+                max={50}
+              />
+            </label>
+            <label>
+              Fraîcheur GPS livreur (secondes)
+              <input
+                type="number"
+                value={settings.driverHeartbeatMaxAgeSeconds}
+                onChange={(e) =>
+                  update(
+                    'driverHeartbeatMaxAgeSeconds',
+                    parseInt(e.target.value || '0', 10),
+                  )
+                }
+                min={30}
+                max={600}
+              />
+            </label>
+            <label>
+              Délai min livraison programmée (min)
+              <input
+                type="number"
+                value={settings.scheduledMinDelayMinutes}
+                onChange={(e) =>
+                  update(
+                    'scheduledMinDelayMinutes',
+                    parseInt(e.target.value || '0', 10),
+                  )
+                }
+                min={1}
+                max={120}
+              />
+            </label>
+          </div>
+
+          <div
+            style={{
+              marginTop: 8,
+              padding: 12,
+              background: 'var(--bg-alt)',
+              borderRadius: 10,
+              fontSize: 12.5,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+            }}
+          >
+            <strong>Explications :</strong>
+            <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+              <li>
+                <b>Durée de recherche</b> : temps maximum d'attente avant qu'une
+                demande client expire si aucun livreur n'accepte (défaut 5 min).
+              </li>
+              <li>
+                <b>Délai min livraison programmée</b> : seuil sous lequel une
+                livraison "programmée" est en réalité diffusée immédiatement.
+                Par défaut 10 min ; descendre à 2-3 min pour les tests.
+              </li>
+              <li>
+                <b>Délai avant annulation</b> : un livreur ne peut pas annuler
+                immédiatement après avoir accepté (évite les abus). Défaut 120s.
+              </li>
+              <li>
+                <b>Rayon de diffusion</b> : rayon autour du pickup pour chercher
+                les livreurs disponibles. Défaut 5 km.
+              </li>
+              <li>
+                <b>Fraîcheur GPS</b> : si un livreur n'a pas envoyé sa position
+                depuis N secondes, il est considéré hors-ligne. Défaut 120s.
+              </li>
+            </ul>
           </div>
         </div>
       </div>
-    </>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab : Portefeuille
+// ============================================================
+function WalletTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>Portefeuille et paiement</h2>
+      </div>
+      <div className="card-body">
+        <div className="form">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+            }}
+          >
+            <label>
+              Montant minimum de retrait ({settings.currency})
+              <input
+                type="number"
+                value={settings.minWithdrawAmount}
+                onChange={(e) =>
+                  update('minWithdrawAmount', parseInt(e.target.value || '0', 10))
+                }
+                min={0}
+              />
+            </label>
+            <label>
+              Plafond dette commission ({settings.currency})
+              <input
+                type="number"
+                value={settings.commissionDebtLimit}
+                onChange={(e) =>
+                  update('commissionDebtLimit', parseInt(e.target.value || '0', 10))
+                }
+                min={0}
+              />
+            </label>
+          </div>
+          <div
+            style={{
+              marginTop: 4,
+              padding: 12,
+              background: 'var(--bg-alt)',
+              borderRadius: 10,
+              fontSize: 12.5,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+            }}
+          >
+            <b>Plafond dette commission</b> : dès que la dette d'un livreur
+            dépasse ce montant, il ne peut plus accepter de nouvelles courses
+            tant qu'il n'a pas réglé via Mobile Money.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab : Expérience utilisateur
+// ============================================================
+function UxTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>Expérience utilisateur</h2>
+      </div>
+      <div className="card-body">
+        <div className="form">
+          <ToggleRow
+            label="Confettis après notation"
+            hint="Anime des confettis quand le client note 4 ou 5 étoiles"
+            checked={settings.confettiEnabled}
+            onChange={(v) => update('confettiEnabled', v)}
+          />
+          <ToggleRow
+            label="Son de notification livreur"
+            hint="Le livreur entend un 'ding' quand une course tombe"
+            checked={settings.driverSoundEnabled}
+            onChange={(v) => update('driverSoundEnabled', v)}
+          />
+          <ToggleRow
+            label="Vibration forte livreur"
+            hint="Vibration répétée quand une course tombe (même téléphone en poche)"
+            checked={settings.driverVibrationEnabled}
+            onChange={(v) => update('driverVibrationEnabled', v)}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -662,7 +846,9 @@ function ToggleRow({
           </div>
         ) : null}
       </div>
-      <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24 }}>
+      <label
+        style={{ position: 'relative', display: 'inline-block', width: 44, height: 24 }}
+      >
         <input
           type="checkbox"
           checked={checked}

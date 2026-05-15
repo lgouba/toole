@@ -44,7 +44,10 @@ export async function updateAppSettings(
     confettiEnabled: boolean;
     driverSoundEnabled: boolean;
     driverVibrationEnabled: boolean;
-    nightSurchargePct: number;
+    nightSurchargeEnabled: boolean;
+    nightSurchargeStartHour: number;
+    nightSurchargeEndHour: number;
+    nightSurchargeAmount: number;
     rainSurchargePct: number;
     deliveryExpiryMinutes: number;
     driverCancelCooldownSeconds: number;
@@ -98,5 +101,28 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
       nearbyRadiusKm: s.nearbyRadiusKm,
       scheduledMinDelayMinutes: s.scheduledMinDelayMinutes,
     },
+    // Tarif de nuit : expose au mobile pour qu'il puisse afficher le badge
+    // "Tarif de nuit" et l'estimation correcte avant submit.
+    nightSurcharge: {
+      enabled: s.nightSurchargeEnabled,
+      startHour: s.nightSurchargeStartHour,
+      endHour: s.nightSurchargeEndHour,
+      amount: s.nightSurchargeAmount,
+    },
   };
+}
+
+/**
+ * Determine si une date donnee tombe dans la plage horaire de nuit configuree.
+ * Gere le cas ou la plage traverse minuit (ex: 22h -> 6h).
+ */
+export function isNightTime(date: Date, startHour: number, endHour: number): boolean {
+  const h = date.getHours();
+  if (startHour === endHour) return false;
+  if (startHour < endHour) {
+    // plage classique (ex: 13h -> 18h)
+    return h >= startHour && h < endHour;
+  }
+  // plage qui traverse minuit (ex: 22h -> 6h)
+  return h >= startHour || h < endHour;
 }

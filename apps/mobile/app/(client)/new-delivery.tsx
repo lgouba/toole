@@ -204,6 +204,43 @@ export default function NewDeliveryScreen() {
         onChangeText={(v) => setDraftField('packageDescription', v)}
         containerStyle={styles.inputMargin}
       />
+
+      <Input
+        label="Valeur estimée du colis (FCFA)"
+        placeholder="Ex: 25 000"
+        value={draft.declaredValue ? String(draft.declaredValue) : ''}
+        onChangeText={(v) => {
+          const n = parseInt(v.replace(/\D/g, ''), 10);
+          setDraftField('declaredValue', isNaN(n) ? undefined : n);
+        }}
+        keyboardType="numeric"
+        containerStyle={styles.inputMargin}
+      />
+      <Text style={styles.fieldHint}>
+        Aide le livreur à prendre soin du colis. Pas de paiement supplémentaire.
+      </Text>
+
+      <TouchableOpacity
+        style={styles.fragileRow}
+        onPress={() => setDraftField('isFragile', !draft.isFragile)}
+        activeOpacity={0.7}
+      >
+        <View
+          style={[styles.checkbox, draft.isFragile && styles.checkboxChecked]}
+        >
+          {draft.isFragile && (
+            <Ionicons name="checkmark" size={16} color={colors.white} />
+          )}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleLabel}>
+            🍷 Colis fragile
+          </Text>
+          <Text style={styles.toggleHint}>
+            Manipulation délicate requise. Le livreur en sera averti.
+          </Text>
+        </View>
+      </TouchableOpacity>
     </View>,
 
     // Step 1: Addresses
@@ -352,6 +389,22 @@ export default function NewDeliveryScreen() {
             <Text style={styles.summaryValue}>{draft.senderContactName}</Text>
           </View>
         )}
+        {draft.declaredValue ? (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Valeur estimée</Text>
+            <Text style={styles.summaryValue}>
+              {draft.declaredValue.toLocaleString('fr-FR')} FCFA
+            </Text>
+          </View>
+        ) : null}
+        {draft.isFragile ? (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Fragile</Text>
+            <Text style={[styles.summaryValue, { color: '#B91C1C', fontWeight: '700' }]}>
+              🍷 Oui — manipulation délicate
+            </Text>
+          </View>
+        ) : null}
       </Card>
 
       {/* Programmer la livraison */}
@@ -375,13 +428,14 @@ export default function NewDeliveryScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Nouveau colis</Text>
-          <Text style={styles.stepIndicator}>{step + 1}/4</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        {/* Progress bar */}
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
-        </View>
+        {/* Indicateur de steps visuel : 4 pastilles reliees */}
+        <StepsIndicator
+          current={step}
+          labels={['Colis', 'Trajet', 'Destinataire', 'Récap']}
+        />
 
         <ScrollView
           style={styles.body}
@@ -485,17 +539,73 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  stepIndicator: {
-    ...typography.captionMedium,
-    color: colors.textSecondary,
+  stepsIndicator: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  progressBar: {
-    height: 3,
-    backgroundColor: colors.surface,
+  stepItem: {
+    alignItems: 'center',
+    width: 64,
   },
-  progressFill: {
-    height: 3,
+  stepConnector: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.border,
+    marginTop: 14, // aligne sur le centre de la pastille (28/2)
+  },
+  stepConnectorDone: {
     backgroundColor: colors.primary,
+  },
+  stepBubble: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  stepBubbleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stepBubbleDone: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stepNum: {
+    ...typography.captionMedium,
+    color: colors.textTertiary,
+    fontWeight: '700',
+  },
+  stepNumActive: {
+    color: colors.white,
+  },
+  stepLabel: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  stepLabelActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  fieldHint: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 4,
+    marginBottom: spacing.sm,
+  },
+  fragileRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
   },
   body: {
     flex: 1,
@@ -668,3 +778,70 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 });
+
+/**
+ * Indicateur visuel multi-step en haut du form. Affiche N pastilles reliees
+ * par des traits, avec :
+ *   - une coche verte sur les etapes terminees
+ *   - le numero en gras sur l'etape courante (pastille pleine)
+ *   - un label sous chaque pastille (current = primary, sinon gris)
+ */
+function StepsIndicator({
+  current,
+  labels,
+}: {
+  current: number;
+  labels: string[];
+}) {
+  return (
+    <View style={styles.stepsIndicator}>
+      {labels.map((label, i) => {
+        const isDone = i < current;
+        const isActive = i === current;
+        return (
+          <React.Fragment key={label}>
+            <View style={styles.stepItem}>
+              <View
+                style={[
+                  styles.stepBubble,
+                  isActive && styles.stepBubbleActive,
+                  isDone && styles.stepBubbleDone,
+                ]}
+              >
+                {isDone ? (
+                  <Ionicons name="checkmark" size={16} color={colors.white} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.stepNum,
+                      (isActive || isDone) && styles.stepNumActive,
+                    ]}
+                  >
+                    {i + 1}
+                  </Text>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.stepLabel,
+                  isActive && styles.stepLabelActive,
+                ]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            </View>
+            {i < labels.length - 1 && (
+              <View
+                style={[
+                  styles.stepConnector,
+                  i < current && styles.stepConnectorDone,
+                ]}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+}
