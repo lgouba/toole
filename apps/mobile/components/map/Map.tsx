@@ -64,16 +64,11 @@ function buildHtml(
                   <div class="driver-pin-outer">
                     <div class="driver-pin-halo"></div>
                     <div class="driver-pin-inner" data-id="${m.id}">
-                      <svg viewBox="0 0 100 130" width="80" height="104" xmlns="http://www.w3.org/2000/svg">
-                        <!-- ====== FORME PIN (goutte) ====== -->
-                        <!-- Couleur solide (pas de gradient) pour fiabilite WebView Android -->
-                        <path d="M 50 5 C 25 5, 8 22, 8 47 C 8 70, 30 90, 50 122 C 70 90, 92 70, 92 47 C 92 22, 75 5, 50 5 Z"
-                              fill="${colors.primary}"
-                              stroke="#fff"
-                              stroke-width="3"/>
-
-                        <!-- ====== CYCLISTE A L'INTERIEUR (scale 0.55, centre dans la tete) ====== -->
-                        <g transform="translate(50 47) scale(0.55) translate(-50 -50)">
+                      <svg viewBox="0 0 100 100" width="68" height="68" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Pas de forme container : le cycliste est affiche seul,
+                             avec juste un drop-shadow CSS sur le parent pour le detacher
+                             visuellement du fond de la carte. -->
+                        <g>
 
                         <!-- ombre sous le velo -->
                         <ellipse cx="50" cy="86" rx="32" ry="3" fill="rgba(0,0,0,0.18)"/>
@@ -145,10 +140,10 @@ function buildHtml(
                     </div>
                   </div>
                 \`,
-                // Le SVG fait 80x104 et l'ancrage doit pointer la POINTE du pin
-                // = bas du SVG (centre x, bas y).
-                iconSize: [80, 104],
-                iconAnchor: [40, 104],
+                // Avatar seul, 68x68 carre. L'ancre est au centre du SVG
+                // (le centre du cycliste = position GPS exacte).
+                iconSize: [68, 68],
+                iconAnchor: [34, 34],
               }),
             }).addTo(map);
             ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
@@ -214,41 +209,38 @@ function buildHtml(
     body { background: #F5F5F0; }
     .custom-marker { transition: transform 0.4s linear; }
 
-    /* Pin GPS livreur avec cycliste SVG a l'interieur */
+    /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
     .driver-pin-outer {
       position: relative;
-      width: 80px;
-      height: 104px;
+      width: 68px;
+      height: 68px;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
     }
-    /* Halo ellipsoide au sol qui pulse, sous la pointe du pin */
+    /* Halo discret derriere l'avatar pour le distinguer du fond carte */
     .driver-pin-halo {
       position: absolute;
-      bottom: -2px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 36px;
-      height: 12px;
+      inset: 6px;
       border-radius: 50%;
       background: ${colors.primary};
-      opacity: 0.35;
-      animation: driver-pulse-ground 2s ease-out infinite;
+      opacity: 0.18;
+      animation: driver-pulse-ring 2s ease-out infinite;
     }
     .driver-pin-inner {
       position: relative;
-      width: 80px;
-      height: 104px;
+      width: 68px;
+      height: 68px;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.30));
+      /* Drop-shadow autour du cycliste pour le detacher de la carte */
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 2px rgba(255,255,255,0.8));
     }
-    /* Halo elliptique au sol qui pulse */
-    @keyframes driver-pulse-ground {
-      0%   { transform: translateX(-50%) scale(0.6); opacity: 0.5; }
-      100% { transform: translateX(-50%) scale(1.6); opacity: 0; }
+    /* Halo qui pulse autour de l'avatar */
+    @keyframes driver-pulse-ring {
+      0%   { transform: scale(0.9); opacity: 0.45; }
+      100% { transform: scale(1.8); opacity: 0; }
     }
   </style>
 </head>
