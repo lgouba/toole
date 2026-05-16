@@ -288,7 +288,14 @@ export function NewRequestModal() {
                   ]}
                 >
                   <View style={styles.acceptInner}>
-                    <Text style={styles.acceptText}>Accepter la course</Text>
+                    <Text
+                      style={styles.acceptText}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      Accepter la course
+                    </Text>
                     <View style={styles.acceptArrow}>
                       <Ionicons
                         name="arrow-forward"
@@ -688,18 +695,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
   },
   acceptText: {
     ...typography.bodyMedium,
     color: colors.white,
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: 15,
+    flexShrink: 1,
   },
   acceptArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',

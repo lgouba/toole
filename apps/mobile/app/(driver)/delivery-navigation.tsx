@@ -222,14 +222,16 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginVertical: spacing.md,
   },
   actionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     backgroundColor: colors.surface,
@@ -237,6 +239,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.bodySmall,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
   etaPill: {
     flexDirection: 'row',

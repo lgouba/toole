@@ -65,20 +65,10 @@ function buildHtml(
                     <div class="driver-pin-halo"></div>
                     <div class="driver-pin-inner" data-id="${m.id}">
                       <svg viewBox="0 0 100 130" width="80" height="104" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                          <linearGradient id="pinBg-${m.id}" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="${colors.primary}"/>
-                            <stop offset="100%" stop-color="${colors.primaryDark}"/>
-                          </linearGradient>
-                          <linearGradient id="bag-${m.id}" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="${colors.secondary}"/>
-                            <stop offset="100%" stop-color="#8a3a1f"/>
-                          </linearGradient>
-                        </defs>
-
                         <!-- ====== FORME PIN (goutte) ====== -->
+                        <!-- Couleur solide (pas de gradient) pour fiabilite WebView Android -->
                         <path d="M 50 5 C 25 5, 8 22, 8 47 C 8 70, 30 90, 50 122 C 70 90, 92 70, 92 47 C 92 22, 75 5, 50 5 Z"
-                              fill="url(#pinBg-${m.id})"
+                              fill="${colors.primary}"
                               stroke="#fff"
                               stroke-width="3"/>
 
@@ -131,7 +121,7 @@ function buildHtml(
                         <path d="M 38 42 Q 38 32 50 28 Q 62 32 62 42 L 60 50 L 40 50 Z" fill="#fafafa" stroke="#d4d4d4" stroke-width="0.8"/>
 
                         <!-- Sac de livraison cube dans le dos -->
-                        <rect x="30" y="26" width="18" height="22" rx="2.5" fill="url(#bag-${m.id})" stroke="#fff" stroke-width="1.5"/>
+                        <rect x="30" y="26" width="18" height="22" rx="2.5" fill="${colors.secondary}" stroke="#fff" stroke-width="1.5"/>
                         <text x="39" y="40" font-family="Arial, sans-serif" font-size="13" font-weight="900" fill="#fff" text-anchor="middle">T</text>
                         <path d="M 48 26 L 52 22 L 54 24" stroke="#8a3a1f" stroke-width="2" fill="none" stroke-linecap="round"/>
 
