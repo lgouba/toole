@@ -88,23 +88,6 @@ export function NewRequestModal() {
   //   - socket 'delivery:expired' (expiration cote serveur)
   //   - le timer local de 2 minutes (rejet auto en dernier recours)
 
-  // Pulse subtil sur le bouton accepter pour attirer l'œil
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    if (!currentRequest) return;
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.03, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      true,
-    );
-  }, [currentRequest]);
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-  }));
-
   const handleAccept = async () => {
     stopAlert();
     alertConfirmSuccess();
@@ -279,12 +262,12 @@ export function NewRequestModal() {
                 <Text style={styles.rejectText}>Refuser</Text>
               </Pressable>
 
-              <Animated.View style={[styles.acceptBtnWrap, pulseStyle]}>
+              <View style={styles.acceptBtnWrap}>
                 <Pressable
                   onPress={handleAccept}
                   style={({ pressed }) => [
                     styles.acceptBtn,
-                    pressed && { transform: [{ scale: 0.98 }] },
+                    pressed && { opacity: 0.85 },
                   ]}
                 >
                   <Text
@@ -296,7 +279,7 @@ export function NewRequestModal() {
                     Accepter la course
                   </Text>
                 </Pressable>
-              </Animated.View>
+              </View>
             </View>
           </Animated.View>
         </SafeAreaView>
