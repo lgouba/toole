@@ -108,3 +108,39 @@ export async function updateMyKyc(patch: Partial<DriverKyc>): Promise<DriverKyc 
     return null;
   }
 }
+
+// ---------------- Stats livreur ----------------
+
+export interface DriverStatsPeriod {
+  deliveredCount: number;
+  revenue: number;
+  tips: number;
+}
+
+export interface DriverStatsDaily {
+  date: string;
+  revenue: number;
+  count: number;
+}
+
+export interface DriverStats {
+  today: DriverStatsPeriod;
+  week: DriverStatsPeriod;
+  month: DriverStatsPeriod;
+  last30Days: DriverStatsDaily[];
+  ratingAvg: number;
+  ratingCount: number;
+  totalDeliveries: number;
+  acceptanceRate: number;
+  cancellationRate: number;
+  ranking: { position: number; total: number };
+}
+
+export async function getMyDriverStats(): Promise<DriverStats | null> {
+  try {
+    const res = await api.get('/drivers/me/stats');
+    return unwrap<DriverStats>(res);
+  } catch {
+    return null;
+  }
+}

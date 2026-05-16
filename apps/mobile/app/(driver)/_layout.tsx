@@ -70,6 +70,7 @@ export default function DriverLayout() {
       <Tabs.Screen name="code-validation" options={{ href: null }} />
       <Tabs.Screen name="delivery-confirm" options={{ href: null }} />
       <Tabs.Screen name="kyc" options={{ href: null }} />
+      <Tabs.Screen name="stats" options={{ href: null }} />
     </Tabs>
     </>
   );

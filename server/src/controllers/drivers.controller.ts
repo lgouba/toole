@@ -8,6 +8,7 @@ import {
   findNearbyDrivers,
   getPublicDriverProfile,
 } from '../services/driver.service.js';
+import { getDriverStats } from '../services/driver-stats.service.js';
 import { emitToUser } from '../services/notification.service.js';
 import { success } from '../utils/response.js';
 import { HttpError } from '../utils/response.js';
@@ -168,6 +169,20 @@ export async function getKyc(
     });
     if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
     return success(res, profile);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /drivers/me/stats : stats detaillees du livreur courant. */
+export async function getDriverStatsCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const stats = await getDriverStats(req.user!.id);
+    return success(res, stats);
   } catch (err) {
     next(err);
   }

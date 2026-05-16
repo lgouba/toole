@@ -10,6 +10,7 @@ import { formatPhone } from '@/utils/format';
 import { resolveUploadUrl } from '@/services/upload.service';
 
 const menuItems = [
+  { icon: 'stats-chart-outline', label: 'Mes statistiques', route: '/(driver)/stats' },
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'document-outline', label: 'Mes documents', route: '/(driver)/kyc' },
   { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
