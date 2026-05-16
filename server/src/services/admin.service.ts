@@ -532,6 +532,25 @@ export async function setUserActive(
     },
   });
 
+  // Suspension : on revoque tous les refresh tokens pour ejecter le user
+  // immediatement de tous ses devices (sinon il garde ses tokens valides
+  // jusqu'a la prochaine expiration access ~15min).
+  if (!isActive) {
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    // Si c'est un livreur, on le passe aussi offline pour qu'il ne recoive
+    // plus de nouvelles courses meme s'il a encore son access token actif.
+    if (updated.userType === 'driver') {
+      await prisma.driverProfile
+        .update({
+          where: { userId },
+          data: { isOnline: false },
+        })
+        .catch(() => {
+          // Pas grave si le profil driver n'existe pas (cas client)
+        });
+    }
+  }
+
   // Push au livreur qui vient d'etre active (notification positive)
   if (isActive && updated.userType === 'driver') {
     const { sendPushToUser } = await import('./push.service.js');

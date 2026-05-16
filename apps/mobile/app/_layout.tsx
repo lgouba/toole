@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -69,8 +69,17 @@ export default function RootLayout() {
   // Évite les états zombie où l'utilisateur est "loggué" côté cache
   // mais plus aucun appel ne passe (typique après un wipe DB).
   useEffect(() => {
-    setAuthExpiredHandler(() => {
-      console.warn('[Auth] session expired, logging out');
+    setAuthExpiredHandler((reason) => {
+      console.warn('[Auth] session expired, logging out', reason);
+      // Si le serveur indique que le compte a ete suspendu / desactive,
+      // on previent l'utilisateur explicitement avant de le delogger.
+      if (reason?.errorCode === 'ACCOUNT_UNAVAILABLE') {
+        Alert.alert(
+          'Compte indisponible',
+          reason.errorMessage ??
+            "Votre compte n'est pas accessible. Veuillez contacter le support.",
+        );
+      }
       logout().catch(() => {});
     });
     return () => setAuthExpiredHandler(null);

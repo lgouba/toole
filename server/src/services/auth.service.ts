@@ -237,6 +237,21 @@ export async function rotateRefreshToken(oldToken: string) {
   if (!existing || existing.expiresAt < new Date()) {
     throw new HttpError(401, 'INVALID_REFRESH', 'Invalid or expired refresh token');
   }
+  // Compte suspendu / desactive : on refuse le refresh et on supprime tous
+  // les refresh tokens de l'utilisateur (logout force a la prochaine
+  // requete sur tous les devices).
+  if (!existing.user.isActive) {
+    logger.warn(
+      { userId: existing.user.id },
+      'Refresh attempt on inactive/suspended account — revoking all tokens',
+    );
+    await prisma.refreshToken.deleteMany({ where: { userId: existing.user.id } });
+    throw new HttpError(
+      403,
+      'ACCOUNT_UNAVAILABLE',
+      'Compte indisponible. Veuillez contacter le support.',
+    );
+  }
   await prisma.refreshToken.delete({ where: { id: existing.id } });
   return issueTokens(existing.user.id, existing.user.userType);
 }

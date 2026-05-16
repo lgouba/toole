@@ -66,8 +66,17 @@ let refreshQueue: Array<(token: string | null) => void> = [];
 
 // Callback invoque quand le refresh token échoué aussi (session invalide)
 // -> l'app peut logout + renvoyer sur l'écran de connexion.
-let onAuthExpiredCb: (() => void) | null = null;
-export function setAuthExpiredHandler(cb: (() => void) | null) {
+// `reason` permet de distinguer une suspension d'admin d'une simple expiration.
+export interface AuthExpiredReason {
+  /** Code API : 'ACCOUNT_UNAVAILABLE' si suspendu, sinon undefined */
+  errorCode?: string;
+  /** Message API affichable */
+  errorMessage?: string;
+}
+let onAuthExpiredCb: ((reason?: AuthExpiredReason) => void) | null = null;
+export function setAuthExpiredHandler(
+  cb: ((reason?: AuthExpiredReason) => void) | null,
+) {
   onAuthExpiredCb = cb;
 }
 
@@ -118,7 +127,7 @@ api.interceptors.response.use(
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         console.warn(
           '[API] token refresh FAILED, user will be logged out',
           refreshError,
@@ -126,8 +135,15 @@ api.interceptors.response.use(
         refreshQueue.forEach((cb) => cb(null));
         refreshQueue = [];
         await tokenStorage.clear();
-        // Notifie toute l'app qu'il faut relogger (handler poses dans _layout)
-        if (onAuthExpiredCb) onAuthExpiredCb();
+        // Si le serveur a explicite un motif (ex: compte suspendu), on le
+        // passe au handler pour qu'il puisse afficher le bon message.
+        const errorCode = refreshError?.response?.data?.error?.code as
+          | string
+          | undefined;
+        const errorMessage = refreshError?.response?.data?.error?.message as
+          | string
+          | undefined;
+        if (onAuthExpiredCb) onAuthExpiredCb({ errorCode, errorMessage });
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
