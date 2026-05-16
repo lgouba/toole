@@ -191,7 +191,7 @@ export default function DeliveryCompleteScreen() {
       >
         <Animated.View style={[styles.successIconWrap, checkStyle]}>
           <View style={styles.successIconBg}>
-            <Ionicons name="checkmark" size={60} color={colors.white} />
+            <Ionicons name="checkmark" size={42} color={colors.white} />
           </View>
         </Animated.View>
 
@@ -365,43 +365,45 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'center', // centre verticalement sur grands écrans
+    // Pas de justifyContent center : on veut que tout commence en haut
+    // pour que la zone de notation soit visible des l'ouverture sur petits ecrans.
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
     paddingBottom: spacing.lg,
     gap: spacing.xs,
   },
   successIconWrap: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   successIconBg: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
     shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 6,
   },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   summary: {
     width: '100%',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -425,9 +427,8 @@ const styles = StyleSheet.create({
   ratingSection: {
     width: '100%',
     alignItems: 'center',
-    gap: spacing.lg,
-    padding: spacing.lg,
-    paddingVertical: spacing.xl,
+    gap: spacing.md,
+    padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.border,

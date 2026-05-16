@@ -287,23 +287,14 @@ export function NewRequestModal() {
                     pressed && { transform: [{ scale: 0.98 }] },
                   ]}
                 >
-                  <View style={styles.acceptInner}>
-                    <Text
-                      style={styles.acceptText}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.75}
-                    >
-                      Accepter la course
-                    </Text>
-                    <View style={styles.acceptArrow}>
-                      <Ionicons
-                        name="arrow-forward"
-                        size={20}
-                        color={colors.white}
-                      />
-                    </View>
-                  </View>
+                  <Text
+                    style={styles.acceptText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    Accepter la course
+                  </Text>
                 </Pressable>
               </Animated.View>
             </View>
@@ -684,33 +675,20 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: colors.primary,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
     shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  acceptInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-  },
   acceptText: {
     ...typography.bodyMedium,
     color: colors.white,
     fontWeight: '800',
-    fontSize: 15,
-    flexShrink: 1,
-  },
-  acceptArrow: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
