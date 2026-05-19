@@ -14,11 +14,23 @@ interface DriverState {
   todayDeliveries: number;
   todayEarnings: number;
   currentRequest: Delivery | null;
+  /** Course "chainee" recue alors que le livreur a une course active.
+   *  Stockee en attendant la fin de la course actuelle pour etre promue
+   *  en currentRequest (et afficher la modal pleine). */
+  queuedNextRequest: Delivery | null;
   activeDelivery: Delivery | null;
   currentLocation: LatLng | null;
 
   toggleOnline: () => Promise<void>;
   receiveRequest: (delivery: Delivery) => void;
+  /** Nouvelle demande recue alors qu'une course est active mais bientot finie
+   *  (chainage active cote serveur). Affichee en banniere non-bloquante. */
+  receiveChainedRequest: (delivery: Delivery) => void;
+  /** Promeut la queuedNextRequest en currentRequest (modal pleine).
+   *  Appele automatiquement quand activeDelivery devient null. */
+  promoteQueuedRequest: () => void;
+  /** Annule la queuedNextRequest (l'utilisateur a refuse la banniere). */
+  dismissQueuedRequest: () => void;
   acceptRequest: () => Promise<void>;
   rejectRequest: () => void;
   setActiveDelivery: (delivery: Delivery | null) => void;
@@ -74,6 +86,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   todayDeliveries: 0,
   todayEarnings: 0,
   currentRequest: null,
+  queuedNextRequest: null,
   activeDelivery: null,
   currentLocation: null,
 
@@ -115,6 +128,26 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   receiveRequest: (delivery) => set({ currentRequest: delivery }),
 
+  receiveChainedRequest: (delivery) => {
+    // Si pas de course active, fallback en demande standard (modal pleine).
+    const { activeDelivery } = get();
+    if (!activeDelivery) {
+      set({ currentRequest: delivery });
+      return;
+    }
+    // Ne pas ecraser une queued existante (premier arrive, premier servi).
+    if (get().queuedNextRequest) return;
+    set({ queuedNextRequest: delivery });
+  },
+
+  promoteQueuedRequest: () => {
+    const { queuedNextRequest } = get();
+    if (!queuedNextRequest) return;
+    set({ currentRequest: queuedNextRequest, queuedNextRequest: null });
+  },
+
+  dismissQueuedRequest: () => set({ queuedNextRequest: null }),
+
   acceptRequest: async () => {
     const { currentRequest } = get();
     if (!currentRequest) return;
@@ -127,7 +160,17 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   rejectRequest: () => set({ currentRequest: null }),
 
-  setActiveDelivery: (delivery) => set({ activeDelivery: delivery }),
+  setActiveDelivery: (delivery) => {
+    set({ activeDelivery: delivery });
+    // Quand la course active se termine et qu'on a une course chainee en file,
+    // la promouvoir automatiquement en modal pleine.
+    if (delivery === null) {
+      const { queuedNextRequest } = get();
+      if (queuedNextRequest) {
+        set({ currentRequest: queuedNextRequest, queuedNextRequest: null });
+      }
+    }
+  },
 
   confirmPickup: async (photoUri, pickupCode) => {
     const { activeDelivery } = get();
@@ -159,6 +202,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   confirmDelivery: async (_photoUri) => {
     set({ activeDelivery: null });
+    // Promouvoir auto la course chainee si presente.
+    const { queuedNextRequest } = get();
+    if (queuedNextRequest) {
+      set({ currentRequest: queuedNextRequest, queuedNextRequest: null });
+    }
   },
 
   cancelActiveDelivery: async (reason, comment) => {
@@ -186,7 +234,13 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     return false;
   },
 
-  clearActiveDelivery: () => set({ activeDelivery: null, currentRequest: null }),
+  clearActiveDelivery: () => {
+    set({ activeDelivery: null, currentRequest: null });
+    const { queuedNextRequest } = get();
+    if (queuedNextRequest) {
+      set({ currentRequest: queuedNextRequest, queuedNextRequest: null });
+    }
+  },
 
   incrementTodayStats: (commission) =>
     set((state) => ({

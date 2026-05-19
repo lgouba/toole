@@ -274,6 +274,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.on('delivery:new_request', (payload: any) => {
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
+          // Flag "chainage" envoye par le serveur quand le livreur termine
+          // bientot sa course actuelle (banniere non-bloquante).
+          const isChained = Boolean(payload?.isChained ?? raw?.isChained);
 
           // Dedup: si on a déjà traite cette demande (même id), ignorer
           if (lastHandledRequestIdRef.current === delivery.id) {
@@ -281,9 +284,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          const { activeDelivery, currentRequest } = useDriverStore.getState();
+          const { activeDelivery, currentRequest, queuedNextRequest } =
+            useDriverStore.getState();
 
-          // 1) Livreur déjà en course -> ignore completement
+          // 1) Livreur en course + chainage actif -> stocker en file
+          //    pour banniere non-bloquante (style Uber).
+          if (activeDelivery && isChained) {
+            if (queuedNextRequest && queuedNextRequest.id === delivery.id) {
+              return;
+            }
+            if (queuedNextRequest) {
+              console.log('[Socket] queued request already present, skipping', delivery.id);
+              return;
+            }
+            lastHandledRequestIdRef.current = delivery.id;
+            useDriverStore.getState().receiveChainedRequest(delivery);
+            // Pas d'alerte forte : banniere visuelle suffit (course active).
+            return;
+          }
+
+          // 1bis) Livreur deja en course sans chainage -> ignore
           if (activeDelivery) {
             console.log('[Socket] driver busy with active delivery, ignoring', delivery.id);
             return;

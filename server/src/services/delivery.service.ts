@@ -311,27 +311,115 @@ async function notifyNearbyDrivers(delivery: Delivery) {
     delivery.pickupLng,
     radiusKm,
   );
-  const ids = drivers.map((d) => d.userId);
-  if (ids.length) {
-    const payload = sanitizeForDriver(delivery);
-    emitToUsers(ids, 'delivery:new_request', payload);
+  if (drivers.length === 0) {
+    logger.info(
+      { deliveryId: delivery.id },
+      'Notified nearby drivers (no drivers in zone)',
+    );
+    return;
+  }
 
-    // Push notification (pour livreurs avec app fermee)
+  // Pour chaque livreur candidat, on determine s'il est :
+  //   - LIBRE (pas de course active)        -> envoi standard
+  //   - PRESQUE LIBRE (course active, ETA < seuil) -> envoi avec isChained=true
+  //   - OCCUPE                              -> on ne lui envoie rien
+  //
+  // Cela maximise le taux d'utilisation : un livreur en fin de course reçoit
+  // deja la suivante en banniere non-bloquante (style Uber).
+  const settings = await getAppSettings();
+  const chainingThresholdSec = settings.chainingMaxRemainingMinutes * 60;
+
+  // Recupere les courses actives des candidats
+  const driverIds = drivers.map((d) => d.userId);
+  const activeDeliveries = await prisma.delivery.findMany({
+    where: {
+      driverId: { in: driverIds },
+      status: { in: ['accepted', 'picking_up', 'picked_up', 'delivering'] },
+    },
+    include: {
+      driver: {
+        select: {
+          driverProfile: {
+            select: { currentLat: true, currentLng: true },
+          },
+        },
+      },
+    },
+  });
+  const activeByDriver = new Map<string, (typeof activeDeliveries)[number]>();
+  for (const ad of activeDeliveries) {
+    if (ad.driverId) activeByDriver.set(ad.driverId, ad);
+  }
+
+  type Eligible = { userId: string; isChained: boolean };
+  const eligible: Eligible[] = [];
+
+  for (const driver of drivers) {
+    const active = activeByDriver.get(driver.userId);
+    if (!active) {
+      // Livreur libre → envoi standard
+      eligible.push({ userId: driver.userId, isChained: false });
+      continue;
+    }
+
+    // Livreur avec course active : on chaine UNIQUEMENT si :
+    //   - chainage active (chainingMaxRemainingMinutes > 0)
+    //   - la course est dans la phase de livraison (colis deja recupere)
+    //   - l'ETA jusqu'a la livraison est inferieure au seuil
+    if (chainingThresholdSec <= 0) continue;
+    if (!['picked_up', 'delivering'].includes(active.status)) continue;
+
+    const profile = active.driver?.driverProfile;
+    if (profile?.currentLat == null || profile?.currentLng == null) continue;
+
+    const eta = await computeRouteEta(
+      profile.currentLat,
+      profile.currentLng,
+      active.deliveryLat,
+      active.deliveryLng,
+    );
+    if (!eta) continue; // OSRM indispo → on ne chaine pas par prudence
+    if (eta.durationSeconds <= chainingThresholdSec) {
+      eligible.push({ userId: driver.userId, isChained: true });
+    }
+  }
+
+  if (eligible.length === 0) {
+    logger.info(
+      { deliveryId: delivery.id, nearby: drivers.length },
+      'Notified nearby drivers (all currently busy beyond chaining threshold)',
+    );
+    return;
+  }
+
+  // Emission socket avec payload qui INCLUT isChained (le mobile distinguera
+  // modal pleine vs banniere non-bloquante).
+  const payload = sanitizeForDriver(delivery);
+  for (const { userId, isChained } of eligible) {
+    emitToUser(userId, 'delivery:new_request', { ...payload, isChained });
+  }
+
+  // Push notification UNIQUEMENT aux livreurs libres (les "chaines" auront
+  // une banniere in-app, pas besoin de les notifier avec une push push qui
+  // peut etre intrusive pendant leur course actuelle).
+  const freeIds = eligible.filter((e) => !e.isChained).map((e) => e.userId);
+  if (freeIds.length) {
     const title = 'Nouvelle course Tolle';
     const body = `Récupération : ${delivery.pickupAddress}`;
-    for (const userId of ids) {
+    for (const userId of freeIds) {
       void sendPushToUser(userId, title, body, {
         type: 'new_request',
         deliveryId: delivery.id,
       }).catch(() => {});
     }
   }
+
   logger.info(
     {
       deliveryId: delivery.id,
-      driversNotified: ids.length,
-      driverIds: ids,
-      driversNames: drivers.map((d) => d.fullName),
+      nearby: drivers.length,
+      sentFree: freeIds.length,
+      sentChained: eligible.length - freeIds.length,
     },
     'Notified nearby drivers',
   );
