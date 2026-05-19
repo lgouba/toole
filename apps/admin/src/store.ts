@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, tokenStorage, unwrap } from './api';
+import { Sentry } from './sentry';
 
 export interface AdminUser {
   id: string;
@@ -30,7 +31,10 @@ export const useAuth = create<AuthState>((set) => ({
     }
     try {
       const res = await api.get('/admin/me');
-      set({ user: unwrap<AdminUser>(res), loading: false });
+      const u = unwrap<AdminUser>(res);
+      set({ user: u, loading: false });
+      // Identifie le user admin pour Sentry (id + role uniquement, pas l'email)
+      Sentry.setUser({ id: u.id, username: u.userType });
     } catch {
       tokenStorage.clear();
       set({ loading: false, user: null });
@@ -44,6 +48,7 @@ export const useAuth = create<AuthState>((set) => ({
       const data = unwrap<{ user: AdminUser; accessToken: string }>(res);
       tokenStorage.set(data.accessToken);
       set({ user: data.user });
+      Sentry.setUser({ id: data.user.id, username: data.user.userType });
       return true;
     } catch (err: any) {
       const msg =
@@ -56,6 +61,7 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: () => {
     tokenStorage.clear();
+    Sentry.setUser(null);
     set({ user: null });
   },
 }));

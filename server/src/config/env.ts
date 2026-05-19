@@ -42,6 +42,10 @@ const envSchema = z.object({
   // Ex: "https://admin.tolle.bf" -> les SMS contiendront https://admin.tolle.bf/track/<token>
   // Si vide, les SMS destinataire n'incluent pas de lien de suivi.
   PUBLIC_TRACKING_BASE_URL: z.string().optional(),
+
+  // Sentry DSN pour le crash reporting serveur. Si vide, Sentry est desactive.
+  // Format : https://xxx@oXXX.ingest.de.sentry.io/XXX
+  SENTRY_DSN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

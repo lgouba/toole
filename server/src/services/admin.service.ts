@@ -44,7 +44,9 @@ export async function adminLogin(email: string, password: string) {
     },
   });
 
-  return { user, accessToken, refreshToken };
+  // ⚠️ Ne jamais retourner passwordHash, meme au proprietaire.
+  const { passwordHash: _ph, ...safeUser } = user;
+  return { user: safeUser, accessToken, refreshToken };
 }
 
 export async function createAdmin(params: {
@@ -209,7 +211,7 @@ export async function listUsers(params: {
     ];
   }
 
-  const [items, total] = await Promise.all([
+  const [rawItems, total] = await Promise.all([
     prisma.user.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -219,6 +221,12 @@ export async function listUsers(params: {
     }),
     prisma.user.count({ where }),
   ]);
+
+  // Strip passwordHash de chaque user avant de renvoyer cote admin client.
+  const items = rawItems.map((u) => {
+    const { passwordHash: _ph, ...safe } = u;
+    return safe;
+  });
 
   return { items, total };
 }
@@ -251,7 +259,9 @@ export async function getUserDetail(userId: string) {
     },
   });
 
-  return { user, recentDeliveries };
+  // Ne jamais exposer passwordHash dans les reponses (meme admin).
+  const { passwordHash: _ph, ...safeUser } = user;
+  return { user: safeUser, recentDeliveries };
 }
 
 /**

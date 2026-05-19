@@ -5,6 +5,7 @@ import { User, UserRole } from '@/types';
 import * as authService from '@/services/auth.service';
 import * as userService from '@/services/user.service';
 import { disconnectSocket } from '@/services/socket.client';
+import { Sentry } from '@/services/sentry';
 
 interface AuthState {
   user: User | null;
@@ -157,6 +158,12 @@ export const useAuthStore = create<AuthState>()(
         try {
           const fresh = await userService.getMe();
           set({ user: fresh });
+          // Identifie l'user pour Sentry : permet de filtrer les crashs par user.
+          // On n'envoie PAS le tel ou l'email (PII), juste l'ID + le role.
+          Sentry.setUser({
+            id: fresh.id,
+            username: fresh.userType,
+          });
         } catch (err: any) {
           // Si 401 (token invalide) -> logout propre.
           // Sinon (timeout, réseau, 5xx...) on ne fait rien, le user en cache reste utilisable.
@@ -180,6 +187,9 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         disconnectSocket();
         await authService.logout();
+        // Reset l'user Sentry au logout (les crashs suivants ne seront pas
+        // attribues a l'ancien user).
+        Sentry.setUser(null);
         set({
           user: null,
           isAuthenticated: false,

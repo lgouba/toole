@@ -10,6 +10,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import '@/utils/globalErrorHandler';
+import { initSentry, Sentry } from '@/services/sentry';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useLocationStore } from '@/stores/location.store';
@@ -24,9 +25,13 @@ import { colors } from '@/theme';
 
 export { ErrorBoundary } from 'expo-router';
 
+// Initialise Sentry des le chargement du module (avant meme le 1er render).
+// Comme ca, meme un crash dans le tout premier rendu est capture.
+initSentry();
+
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   // Verifie automatiquement les OTA Expo au demarrage + au retour en foreground.
   // Sans ce hook, l'utilisateur doit force-close l'app 2 fois pour qu'un nouvel
   // update soit applique. Avec, c'est transparent (reload auto).
@@ -205,3 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 });
+
+// Wrap avec Sentry.wrap pour qu'il capture les erreurs de rendering React
+// (en plus des erreurs JS asynchrones deja capturees par init).
+export default Sentry.wrap(RootLayout);

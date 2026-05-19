@@ -23,7 +23,7 @@ export async function getMe(req: AuthedRequest, res: Response, next: NextFunctio
 const updateMeSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   email: z.string().email().optional().nullable(),
-  avatarUrl: z.string().url().optional().nullable(),
+  avatarUrl: z.string().url().max(500).optional().nullable(),
 });
 
 export async function updateMe(
@@ -76,8 +76,8 @@ export async function deleteMe(
 }
 
 const pushTokenSchema = z.object({
-  token: z.string().min(10),
-  platform: z.string().optional(),
+  token: z.string().min(10).max(500),
+  platform: z.string().max(20).optional(),
 });
 
 export async function registerPushTokenCtrl(

@@ -1,3 +1,10 @@
+// ⚠️ initSentry doit etre IMPERATIVEMENT appele avant tout autre import de
+// modules instrumentes (http, express). Le module Sentry "patch" ces modules
+// pour capturer les requetes automatiquement, et ce patch doit avoir lieu
+// AVANT que les modules ne soient charges.
+import { initSentry, Sentry } from './lib/sentry.js';
+initSentry();
+
 import http from 'http';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
@@ -100,6 +107,11 @@ app.use('/api/promo', promoRoutes);
 
 // 404 + error handling
 app.use(notFoundHandler);
+
+// Sentry capture toutes les erreurs envoyees a next(err) AVANT notre handler.
+// Doit etre place apres les routes et avant le errorHandler final.
+Sentry.setupExpressErrorHandler(app);
+
 app.use(errorHandler);
 
 const server = http.createServer(app);

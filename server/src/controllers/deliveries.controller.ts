@@ -50,11 +50,11 @@ const createDeliverySchema = z.object({
     .regex(/^\+?[0-9]{8,15}$/)
     .optional(),
   pickupAddress: z.string().min(1),
-  pickupDetails: z.string().optional(),
+  pickupDetails: z.string().max(500).optional(),
   pickupLat: z.number().min(-90).max(90),
   pickupLng: z.number().min(-180).max(180),
   deliveryAddress: z.string().min(1),
-  deliveryDetails: z.string().optional(),
+  deliveryDetails: z.string().max(500).optional(),
   deliveryLat: z.number().min(-90).max(90),
   deliveryLng: z.number().min(-180).max(180),
   scheduledFor: z.string().datetime().optional(),

@@ -561,14 +561,28 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
     );
   }
 
-  const updated = await prisma.delivery.update({
-    where: { id: deliveryId },
+  // ⚠️ ATOMIC UPDATE : updateMany avec WHERE status='pending' garantit
+  // qu'UN SEUL livreur peut accepter (le SQL UPDATE est atomique).
+  // Si 2 drivers cliquent en meme temps, le 2eme aura count=0.
+  const updateResult = await prisma.delivery.updateMany({
+    where: { id: deliveryId, status: 'pending' },
     data: {
       driverId,
       status: 'accepted',
       acceptedAt: new Date(),
     },
   });
+  if (updateResult.count === 0) {
+    throw new HttpError(
+      409,
+      'ALREADY_TAKEN',
+      'Cette course vient d\'etre acceptee par un autre livreur.',
+    );
+  }
+  // Recharge la livraison apres update (updateMany ne retourne pas la row)
+  const updated = (await prisma.delivery.findUnique({
+    where: { id: deliveryId },
+  }))!;
 
   emitToUser(updated.senderId, 'delivery:accepted', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
@@ -714,14 +728,30 @@ export async function confirmPickup(
       'Code de recuperation incorrect',
     );
   }
-  const updated = await prisma.delivery.update({
-    where: { id: deliveryId },
+  // Atomic : WHERE conditionne sur driverId + status pour eviter qu'un
+  // double submit ne reapplique la confirmation (et reecrive la photo).
+  const result = await prisma.delivery.updateMany({
+    where: {
+      id: deliveryId,
+      driverId,
+      status: { in: ['accepted', 'picking_up'] },
+    },
     data: {
       status: 'picked_up',
       pickedUpAt: new Date(),
       packagePhotoPickupUrl: photoUrl,
     },
   });
+  if (result.count === 0) {
+    throw new HttpError(
+      409,
+      'ALREADY_PICKED_UP',
+      'Cette course a deja ete confirmee.',
+    );
+  }
+  const updated = (await prisma.delivery.findUnique({
+    where: { id: deliveryId },
+  }))!;
   emitToUser(updated.senderId, 'delivery:status_update', updated);
   emitToUser(driverId, 'delivery:status_update', updated);
 
@@ -769,10 +799,24 @@ export async function validateCode(
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const d = await tx.delivery.update({
-      where: { id: deliveryId },
+    // Atomic : WHERE conditionne sur le status pour eviter une double-validation
+    // qui creerait 2 transactions de commission.
+    const result = await tx.delivery.updateMany({
+      where: {
+        id: deliveryId,
+        driverId,
+        status: { in: ['picked_up', 'delivering'] },
+      },
       data: { status: 'delivered', deliveredAt: new Date() },
     });
+    if (result.count === 0) {
+      throw new HttpError(
+        409,
+        'ALREADY_DELIVERED',
+        'Cette livraison a deja ete validee.',
+      );
+    }
+    const d = (await tx.delivery.findUnique({ where: { id: deliveryId } }))!;
 
     if (d.driverCommission && d.platformFee && d.driverId) {
       // Modele cash : le client paie tout le prix cash au livreur.
