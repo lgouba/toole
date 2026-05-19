@@ -31,6 +31,25 @@ export default function AboutScreen() {
     (Constants.manifest as any)?.version ??
     '1.0.0';
 
+  // Diagnostic OTA : ID du bundle JS actuellement charge + branche.
+  // Permet de verifier si une OTA a bien ete appliquee (le `updateId` change
+  // a chaque update). Un tap long sur la version copie ces infos dans le clipboard.
+  const updates = (Constants.expoConfig as any)?.updates ?? {};
+  const otaInfo = (() => {
+    try {
+      // expo-updates expose ces infos a runtime
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Updates = require('expo-updates') as typeof import('expo-updates');
+      return {
+        updateId: Updates.updateId ?? 'embedded',
+        channel: Updates.channel ?? 'unknown',
+        runtimeVersion: Updates.runtimeVersion ?? '?',
+      };
+    } catch {
+      return { updateId: 'embedded', channel: 'dev', runtimeVersion: '?' };
+    }
+  })();
+
   const openUrl = async (url: string, fallbackMessage: string) => {
     try {
       const can = await Linking.canOpenURL(url);
@@ -198,6 +217,16 @@ export default function AboutScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>© 2026 Tollé · Tous droits réservés</Text>
           <Text style={styles.footerText}>Fait avec ❤️ au Burkina Faso</Text>
+          {/* Diagnostic technique - en bas, discret. Utile pour verifier
+              qu'une OTA s'est bien appliquee (l'updateId change a chaque update). */}
+          <View style={styles.debugBlock}>
+            <Text style={styles.debugLine}>
+              Channel : {otaInfo.channel} · RT : {otaInfo.runtimeVersion}
+            </Text>
+            <Text style={styles.debugLine} numberOfLines={1}>
+              Bundle : {otaInfo.updateId.slice(0, 16)}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -331,5 +360,19 @@ const styles = StyleSheet.create({
   footerText: {
     ...typography.caption,
     color: colors.textTertiary,
+  },
+  debugBlock: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  debugLine: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    fontFamily: 'monospace',
   },
 });
