@@ -29,10 +29,12 @@ interface AppSettings {
   minWithdrawAmount: number;
   commissionDebtLimit: number;
   scheduledMinDelayMinutes: number;
+  minSupportedAppVersion: string;
+  forceUpdateMessage: string | null;
   updatedAt: string;
 }
 
-type TabId = 'brand' | 'pricing' | 'operations' | 'wallet' | 'ux';
+type TabId = 'brand' | 'pricing' | 'operations' | 'wallet' | 'ux' | 'release';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'brand', label: 'Marque & Localisation', icon: '🎨' },
@@ -40,6 +42,7 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'operations', label: 'Opérationnel', icon: '⚙️' },
   { id: 'wallet', label: 'Portefeuille', icon: '👛' },
   { id: 'ux', label: 'Expérience utilisateur', icon: '✨' },
+  { id: 'release', label: 'Versions & releases', icon: '🚀' },
 ];
 
 export default function Settings() {
@@ -171,6 +174,7 @@ export default function Settings() {
       {tab === 'operations' && <OperationsTab settings={settings} update={update} />}
       {tab === 'wallet' && <WalletTab settings={settings} update={update} />}
       {tab === 'ux' && <UxTab settings={settings} update={update} />}
+      {tab === 'release' && <ReleaseTab settings={settings} update={update} />}
     </>
   );
 }
@@ -819,6 +823,100 @@ function UxTab({
             checked={settings.driverVibrationEnabled}
             onChange={(v) => update('driverVibrationEnabled', v)}
           />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Tab : Versions & releases (force update)
+// ============================================================
+function ReleaseTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
+}) {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>🚀 Force update / Kill switch version</h2>
+      </div>
+      <div className="card-body">
+        <div className="form">
+          <div
+            style={{
+              padding: '12px 14px',
+              background: 'var(--warning-bg)',
+              color: '#92400e',
+              borderRadius: 10,
+              fontSize: 12.5,
+              marginBottom: 6,
+              lineHeight: 1.5,
+            }}
+          >
+            ⚠️ <b>Utiliser avec précaution.</b> Si tu mets une version supérieure
+            à celle installée chez les utilisateurs, ils seront <b>bloqués</b> sur
+            un écran "Mettre à jour" et ne pourront plus utiliser l'app tant
+            qu'ils n'ont pas téléchargé une version ≥ celle ici. À utiliser
+            uniquement pour killer une version bugguée en prod.
+          </div>
+
+          <label>
+            Version mobile minimum supportée (semver : 1.0.0)
+            <input
+              type="text"
+              value={settings.minSupportedAppVersion}
+              onChange={(e) =>
+                update('minSupportedAppVersion', e.target.value)
+              }
+              placeholder="1.0.0"
+              pattern="^\d+\.\d+\.\d+$"
+            />
+          </label>
+
+          <label>
+            Message custom sur l'écran "Mise à jour requise" (optionnel)
+            <textarea
+              value={settings.forceUpdateMessage ?? ''}
+              onChange={(e) =>
+                update('forceUpdateMessage', e.target.value || null)
+              }
+              placeholder="Ex : Une nouvelle version avec le paiement Mobile Money est disponible !"
+              maxLength={500}
+              rows={3}
+            />
+          </label>
+
+          <div
+            style={{
+              marginTop: 4,
+              padding: 12,
+              background: 'var(--bg-alt)',
+              borderRadius: 10,
+              fontSize: 12.5,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+            }}
+          >
+            <b>Fonctionnement :</b>
+            <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+              <li>
+                À chaque ouverture, l'app compare sa version avec celle ci-dessus.
+              </li>
+              <li>
+                Si version installée &lt; minimum → écran bloquant avec bouton
+                "Mettre à jour" qui redirige vers le store.
+              </li>
+              <li>
+                Garde toujours cette valeur ≤ à la version réellement
+                disponible sur les stores. Sinon les users n'auront aucun moyen
+                de débloquer leur app.
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

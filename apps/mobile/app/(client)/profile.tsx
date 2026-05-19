@@ -12,8 +12,9 @@ import { resolveUploadUrl } from '@/services/upload.service';
 const menuItems = [
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'cube-outline', label: 'Mes envois', route: '/(client)/shipments' },
+  { icon: 'bookmark-outline', label: 'Mes adresses', route: '/(client)/favorites' },
   { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
-  { icon: 'information-circle-outline', label: 'À propos', route: null },
+  { icon: 'information-circle-outline', label: 'À propos & support', route: '/about' },
 ] as const;
 
 export default function ProfileScreen() {

@@ -10,6 +10,8 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isOnboarded: boolean;
+  /** Tutoriels post-login deja vus par role. Persistant. */
+  roleTutorialSeen: { client: boolean; driver: boolean };
   isLoading: boolean;
   phoneNumber: string;
   lastOtpCode: string;
@@ -39,6 +41,8 @@ interface AuthState {
     referralCode?: string;
   }) => Promise<boolean>;
   completeOnboarding: () => void;
+  /** Marque le tutoriel post-login comme vu pour un role donne. */
+  completeRoleTutorial: (role: 'client' | 'driver') => void;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -49,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isOnboarded: false,
+      roleTutorialSeen: { client: false, driver: false },
       isLoading: false,
       phoneNumber: '',
       lastOtpCode: '',
@@ -124,6 +129,11 @@ export const useAuthStore = create<AuthState>()(
 
       completeOnboarding: () => set({ isOnboarded: true }),
 
+      completeRoleTutorial: (role) =>
+        set((s) => ({
+          roleTutorialSeen: { ...s.roleTutorialSeen, [role]: true },
+        })),
+
       refreshUser: async () => {
         try {
           const fresh = await userService.getMe();
@@ -166,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         isOnboarded: state.isOnboarded,
+        roleTutorialSeen: state.roleTutorialSeen,
       }),
     }
   )

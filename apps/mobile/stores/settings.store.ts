@@ -36,6 +36,11 @@ export interface PublicSettings {
   driverVibrationEnabled: boolean;
   pricing: PricingSettings;
   operations: OperationSettings;
+  /** Version mobile minimum supportee. Si la version installee est inferieure,
+   *  l'app affiche un ecran bloquant "Mettre a jour" (ForceUpdateGate). */
+  minSupportedAppVersion?: string;
+  /** Message optionnel a afficher sur l'ecran de force update. */
+  forceUpdateMessage?: string | null;
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
@@ -61,6 +66,8 @@ const DEFAULT_SETTINGS: PublicSettings = {
     nearbyRadiusKm: 5,
     scheduledMinDelayMinutes: 10,
   },
+  minSupportedAppVersion: '0.0.0',
+  forceUpdateMessage: null,
 };
 
 interface SettingsState {

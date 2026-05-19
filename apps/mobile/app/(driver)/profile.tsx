@@ -14,7 +14,7 @@ const menuItems = [
   { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
   { icon: 'document-outline', label: 'Mes documents', route: '/(driver)/kyc' },
   { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
-  { icon: 'information-circle-outline', label: 'À propos', route: null },
+  { icon: 'information-circle-outline', label: 'À propos & support', route: '/about' },
 ] as const;
 
 export default function DriverProfileScreen() {

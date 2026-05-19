@@ -225,6 +225,11 @@ const settingsUpdateSchema = z.object({
   minWithdrawAmount: z.number().int().min(0).max(1000000).optional(),
   commissionDebtLimit: z.number().int().min(0).max(10000000).optional(),
   scheduledMinDelayMinutes: z.number().int().min(1).max(120).optional(),
+  minSupportedAppVersion: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/, 'Format semver requis : "1.0.0"')
+    .optional(),
+  forceUpdateMessage: z.string().max(500).nullable().optional(),
 });
 
 export async function getSettingsCtrl(

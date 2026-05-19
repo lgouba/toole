@@ -394,6 +394,14 @@ model AppSettings {
   /// l'abaisser pendant les tests (ex: 2 min) ou le remonter en prod.
   scheduledMinDelayMinutes  Int @default(10)
 
+  /// Version mobile minimum supportee. Si la version installee de l'app est
+  /// INFERIEURE a celle-ci (comparaison semver), l'app affiche un ecran
+  /// bloquant "Mettre a jour". Permet de killer rapidement une version
+  /// mobile bugguee en production. Format : "1.0.0", "1.2.3", etc.
+  minSupportedAppVersion    String  @default("1.0.0")
+  /// Message custom affiche sur l'ecran "Mise a jour requise" (optionnel).
+  forceUpdateMessage        String?
+
   updatedAt DateTime @updatedAt
   updatedBy String?  @db.Uuid
 }

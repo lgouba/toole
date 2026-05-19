@@ -1,0 +1,115 @@
+name: CI
+
+# Verifie a chaque push sur main + a chaque PR que :
+#   - le code TypeScript compile sur les 3 projets (server / mobile / admin)
+#   - le schema Prisma est valide
+#   - pas de secret accidentellement commit (basique)
+#
+# Le but : eviter de pousser du code casse en prod.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server (TypeScript + Prisma)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+  mobile:
+    name: Mobile (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+  admin:
+    name: Admin (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+  secret-scan:
+    name: Secret scan (basique)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Recupere tout l'historique pour scanner les commits passes
+          fetch-depth: 0
+
+      - name: Check for accidentally committed .env files
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.example$'; then
+            echo "❌ ERREUR : fichier .env commit. Ajoute-le au .gitignore et reset le commit."
+            exit 1
+          fi
+          echo "✅ Aucun .env commit"
+
+      - name: Check for hardcoded suspicious strings
+        run: |
+          # Cherche des patterns suspects (cles AWS, slack tokens, etc.)
+          if grep -rE '(AKIA[0-9A-Z]{16}|xoxb-|sk_live_|ghp_[a-zA-Z0-9]{36})' \
+              --include='*.ts' --include='*.tsx' --include='*.js' --include='*.json' \
+              --exclude-dir=node_modules --exclude-dir=.git . ; then
+            echo "❌ ERREUR : pattern de secret suspect detecte"
+            exit 1
+          fi
+          echo "✅ Aucun pattern de secret suspect"

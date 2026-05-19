@@ -57,6 +57,8 @@ export async function updateAppSettings(
     minWithdrawAmount: number;
     commissionDebtLimit: number;
     scheduledMinDelayMinutes: number;
+    minSupportedAppVersion: string;
+    forceUpdateMessage: string | null;
   }>,
   updatedBy?: string,
 ) {
@@ -103,6 +105,9 @@ export function publicSettings(s: Awaited<ReturnType<typeof getAppSettings>>) {
       nearbyRadiusKm: s.nearbyRadiusKm,
       scheduledMinDelayMinutes: s.scheduledMinDelayMinutes,
     },
+    // Version mobile min supportee (force update kill switch)
+    minSupportedAppVersion: s.minSupportedAppVersion,
+    forceUpdateMessage: s.forceUpdateMessage,
     // Tarif de nuit : expose au mobile pour qu'il puisse afficher le badge
     // "Tarif de nuit" et l'estimation correcte avant submit.
     nightSurcharge: {

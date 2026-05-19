@@ -15,6 +15,7 @@ import { useSettingsStore } from '@/stores/settings.store';
 import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
+import { ForceUpdateGate } from '@/components/ForceUpdateGate';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
 import { setAuthExpiredHandler } from '@/services/api.client';
@@ -40,7 +41,8 @@ export default function RootLayout() {
 
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isOnboarded, user, refreshUser, logout } = useAuthStore();
+  const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
+    useAuthStore();
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -128,8 +130,34 @@ export default function RootLayout() {
 
     if (wrongGroup) {
       router.replace(expected === '(driver)' ? '/(driver)' : '/(client)');
+      return;
     }
-  }, [fontsLoaded, isAuthenticated, isOnboarded, user?.userType, segments.join('/')]);
+
+    // Tutoriel post-login : si jamais vu pour ce role, on l'affiche au premier
+    // arrivee sur la home du role. L'utilisateur peut le passer via "Passer".
+    // On n'affiche le tuto que pour client + driver (pas merchant/admin).
+    if (
+      user?.userType === 'client' ||
+      user?.userType === 'driver'
+    ) {
+      const role = user.userType;
+      const seen = roleTutorialSeen[role];
+      const onTutorial = (segments[1] as string) === 'tutorial';
+      if (!seen && !onTutorial) {
+        const path =
+          role === 'driver' ? '/(driver)/tutorial' : '/(client)/tutorial';
+        router.replace(path as any);
+      }
+    }
+  }, [
+    fontsLoaded,
+    isAuthenticated,
+    isOnboarded,
+    user?.userType,
+    roleTutorialSeen.client,
+    roleTutorialSeen.driver,
+    segments.join('/'),
+  ]);
 
   if (!fontsLoaded) return null;
 
@@ -144,6 +172,7 @@ export default function RootLayout() {
 
   return (
     <ThemeGate>
+      <ForceUpdateGate>
       <SocketProvider>
         <ActiveDeliveryGuard />
         <ConnectionBanner />
@@ -154,6 +183,7 @@ export default function RootLayout() {
         <Stack.Screen name="delivery/[id]" />
         <Stack.Screen name="profile-edit" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="about" />
         <Stack.Screen
           name="address-picker"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
@@ -162,6 +192,7 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
     </SocketProvider>
+    </ForceUpdateGate>
     </ThemeGate>
   );
 }
