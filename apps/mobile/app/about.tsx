@@ -20,8 +20,8 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 export const SUPPORT_PHONE = '+22670000000'; // TODO: remplacer par le vrai numero
 export const SUPPORT_EMAIL = 'support@tolle.bf'; // TODO: vraie adresse
 export const SUPPORT_WHATSAPP = '+22670000000'; // TODO: numero WhatsApp Business
-export const PRIVACY_URL = 'https://tolle.qalitylabs.fr/privacy'; // TODO: vraie URL
-export const TERMS_URL = 'https://tolle.qalitylabs.fr/terms'; // TODO: vraie URL
+export const PRIVACY_URL = 'https://admin.tolle.qalitylabs.fr/privacy.html';
+export const TERMS_URL = 'https://admin.tolle.qalitylabs.fr/terms.html';
 
 export default function AboutScreen() {
   const router = useRouter();
