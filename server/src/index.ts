@@ -28,8 +28,15 @@ import {
   processScheduledDeliveries,
 } from './services/delivery.service.js';
 import { markStaleDriversOffline } from './services/driver.service.js';
+import { globalLimiter } from './middleware/rateLimit.js';
 
 const app = express();
+
+// Le serveur tourne derriere nginx-proxy → req.ip doit etre la vraie IP
+// du client (extrait de X-Forwarded-For), pas l'IP du proxy interne.
+// Sans ca, tous les limiters considererent que tout le monde a la meme IP
+// (celle du proxy) et seraient inutiles.
+app.set('trust proxy', 1);
 
 // Helmet est desactive pour les uploads pour que le CORS cross-origin
 // et la servie statique marchent proprement avec un CDN / nginx-proxy.
@@ -73,6 +80,11 @@ app.use(
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Global rate limiter (anti-DDoS basique). Applique a TOUTES les routes /api/*
+// sauf /health. Les routes sensibles ajoutent leur propre limiter par-dessus
+// (OTP, login admin, promo) directement dans leur routeur.
+app.use('/api', globalLimiter);
 
 // API routes
 app.use('/api/auth', authRoutes);

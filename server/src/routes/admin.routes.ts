@@ -35,11 +35,12 @@ import {
   adminUpdatePromoCtrl,
   adminDeletePromoCtrl,
 } from '../controllers/promo.controller.js';
+import { adminLoginLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-// Public login (admin)
-router.post('/login', adminLoginCtrl);
+// Public login (admin) — rate-limited contre le brute-force du password
+router.post('/login', adminLoginLimiter, adminLoginCtrl);
 
 // Toutes les autres routes exigent role admin
 router.use(authRequired, requireRole('admin'));
