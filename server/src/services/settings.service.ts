@@ -53,6 +53,7 @@ export async function updateAppSettings(
     deliveryExpiryMinutes: number;
     driverCancelCooldownSeconds: number;
     nearbyRadiusKm: number;
+    chainingMaxRemainingMinutes: number;
     driverHeartbeatMaxAgeSeconds: number;
     minWithdrawAmount: number;
     commissionDebtLimit: number;

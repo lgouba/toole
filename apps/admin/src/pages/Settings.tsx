@@ -25,6 +25,7 @@ interface AppSettings {
   deliveryExpiryMinutes: number;
   driverCancelCooldownSeconds: number;
   nearbyRadiusKm: number;
+  chainingMaxRemainingMinutes: number;
   driverHeartbeatMaxAgeSeconds: number;
   minWithdrawAmount: number;
   commissionDebtLimit: number;
@@ -644,6 +645,21 @@ function OperationsTab({
                 }
                 min={1}
                 max={50}
+              />
+            </label>
+            <label title="Si un livreur termine sa course dans X minutes ou moins (selon l'ETA OSRM), on lui propose deja la prochaine course en banniere non-bloquante (style Uber). 0 = chainage desactive.">
+              Chainage prochaine course (min restantes max)
+              <input
+                type="number"
+                value={settings.chainingMaxRemainingMinutes}
+                onChange={(e) =>
+                  update(
+                    'chainingMaxRemainingMinutes',
+                    parseInt(e.target.value || '0', 10),
+                  )
+                }
+                min={0}
+                max={15}
               />
             </label>
             <label>

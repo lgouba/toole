@@ -221,6 +221,9 @@ const settingsUpdateSchema = z.object({
   deliveryExpiryMinutes: z.number().int().min(1).max(60).optional(),
   driverCancelCooldownSeconds: z.number().int().min(0).max(1800).optional(),
   nearbyRadiusKm: z.number().int().min(1).max(50).optional(),
+  // Chainage de courses (style Uber) : 0 = desactive, sinon ETA max en minutes
+  // jusqu'a la fin de la course actuelle pour proposer la suivante en banniere.
+  chainingMaxRemainingMinutes: z.number().int().min(0).max(15).optional(),
   driverHeartbeatMaxAgeSeconds: z.number().int().min(30).max(600).optional(),
   minWithdrawAmount: z.number().int().min(0).max(1000000).optional(),
   commissionDebtLimit: z.number().int().min(0).max(10000000).optional(),
