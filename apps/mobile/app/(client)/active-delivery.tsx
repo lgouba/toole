@@ -297,8 +297,12 @@ export default function ActiveDeliveryScreen() {
               const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Tolle (réf. ${delivery.reference}) : ${url}`;
               try {
                 await Share.share({ message, url });
-              } catch (err: any) {
-                Alert.alert('Erreur', err?.message ?? 'Partage impossible');
+              } catch (err) {
+                console.warn('[active-delivery] share failed', err);
+                Alert.alert(
+                  'Partage impossible',
+                  'Le partage du suivi a échoué. Réessayez ou copiez le lien manuellement.',
+                );
               }
             }}
             activeOpacity={0.85}
