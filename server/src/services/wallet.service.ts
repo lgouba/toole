@@ -85,7 +85,13 @@ export async function listUserTransactions(
     skip: opts.skip ?? 0,
     include: {
       delivery: {
-        select: { reference: true, status: true },
+        select: {
+          reference: true,
+          status: true,
+          price: true,
+          driverCommission: true,
+          platformFee: true,
+        },
       },
     },
   });

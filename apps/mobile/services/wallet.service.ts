@@ -34,7 +34,14 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
   processedAt: string | null;
-  delivery?: { reference: string; status: string } | null;
+  delivery?: {
+    reference: string;
+    status: string;
+    /** Prix total payé par le client (pour affichage récap dans l'historique). */
+    price?: number;
+    driverCommission?: number | null;
+    platformFee?: number | null;
+  } | null;
 }
 
 export async function getMyWallet(): Promise<WalletSnapshot> {

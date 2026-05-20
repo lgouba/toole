@@ -173,9 +173,9 @@ export default function WalletScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.metricLabel}>Mes gains à vie</Text>
+                      <Text style={styles.metricLabel}>Gain Net Total</Text>
                       <Text style={styles.metricHint}>
-                        Cumul de toutes vos livraisons (cash + en ligne)
+                        Après commission · cash + en ligne confondus
                       </Text>
                     </View>
                   </View>
@@ -428,6 +428,14 @@ function TransactionRow({ tx }: { tx: Transaction }) {
             {formatCFA(tx.amount)}
           </Text>
         </View>
+        {/* Pour une commission_debt (dette sur course cash), on ajoute le
+            prix total de la course pour donner du contexte au livreur :
+            "Course coute 2500 FCFA, commission a reverser 875 FCFA" */}
+        {tx.type === 'commission_debt' && tx.delivery?.price != null ? (
+          <Text style={styles.txCourseTotal}>
+            Course de {formatCFA(tx.delivery.price)}
+          </Text>
+        ) : null}
         <View style={styles.txBottomRow}>
           <Text style={styles.txMeta} numberOfLines={1}>
             {tx.delivery?.reference
@@ -770,6 +778,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
     minWidth: 0,
+  },
+  txCourseTotal: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   txAmount: {
     ...typography.bodyMedium,
