@@ -307,7 +307,11 @@ export async function processScheduledDeliveries() {
   }
 }
 
-async function notifyNearbyDrivers(delivery: Delivery) {
+async function notifyNearbyDrivers(
+  delivery: Delivery,
+  options: { excludeDriverIds?: string[] } = {},
+) {
+  const excludeSet = new Set(options.excludeDriverIds ?? []);
   const radiusKm = await getNearbyRadiusKm();
   const drivers = await findNearbyDrivers(
     delivery.pickupLat,
@@ -358,6 +362,10 @@ async function notifyNearbyDrivers(delivery: Delivery) {
   const eligible: Eligible[] = [];
 
   for (const driver of drivers) {
+    // Exclure les livreurs qui ont deja refuse/annule cette course
+    // (sinon ils recoivent leur propre annulation comme un nouveau push).
+    if (excludeSet.has(driver.userId)) continue;
+
     const active = activeByDriver.get(driver.userId);
     if (!active) {
       // Livreur libre → envoi standard
@@ -1084,9 +1092,14 @@ export async function cancelDelivery(
       comment,
     });
 
-    // Re-notifier les autres livreurs proches
-    void notifyNearbyDrivers(updated).catch((err) =>
-      logger.error({ err, deliveryId }, 'Failed to re-notify after driver cancel'),
+    // Re-notifier les autres livreurs proches en excluant celui qui vient
+    // d'annuler (sinon il recevrait sa propre annulation comme un push).
+    void notifyNearbyDrivers(updated, { excludeDriverIds: [userId] }).catch(
+      (err) =>
+        logger.error(
+          { err, deliveryId },
+          'Failed to re-notify after driver cancel',
+        ),
     );
 
     logger.info({ deliveryId, driverId: userId, reason }, 'Driver cancelled, re-posted');

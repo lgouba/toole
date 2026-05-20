@@ -155,6 +155,41 @@ export function initSocket(httpServer: HttpServer): IoServer {
     );
     registerSocketHandlers(authed);
 
+    // A la (re)connexion d'un livreur, on lui pousse les courses pending dans
+    // sa zone qu'il aurait pu manquer pendant qu'il etait deconnecte
+    // (app en background, reseau coupe, etc.). Sans ca, le livreur reste sur
+    // l'ecran d'accueil sans rien voir alors qu'une demande existe.
+    if (userType === 'driver') {
+      void (async () => {
+        try {
+          const { prisma } = await import('../lib/prisma.js');
+          const { notifyPendingDeliveriesToDriver } = await import(
+            '../services/driver.service.js'
+          );
+          const profile = await prisma.driverProfile.findUnique({
+            where: { userId },
+            select: { isOnline: true, currentLat: true, currentLng: true },
+          });
+          if (
+            profile?.isOnline &&
+            profile.currentLat != null &&
+            profile.currentLng != null
+          ) {
+            await notifyPendingDeliveriesToDriver(
+              userId,
+              profile.currentLat,
+              profile.currentLng,
+            );
+          }
+        } catch (err) {
+          logger.warn(
+            { err, userId },
+            'Failed to replay pending deliveries on socket connect',
+          );
+        }
+      })();
+    }
+
     socket.on('disconnect', (reason) => {
       const s = userStats.get(userId);
       if (!s) return;
