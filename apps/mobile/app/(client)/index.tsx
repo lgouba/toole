@@ -56,13 +56,15 @@ export default function ClientHomeScreen() {
       </SafeAreaView>
 
       {/* Bottom CTA */}
-      <View style={styles.bottomCard}>
-        <Button
-          title="Envoyer un colis"
-          onPress={() => router.push('/(client)/new-delivery')}
-          icon={<Ionicons name="cube-outline" size={20} color={colors.white} />}
-        />
-      </View>
+      <SafeAreaView edges={['bottom']} style={styles.bottomSafe}>
+        <View style={styles.bottomCard}>
+          <Button
+            title="Envoyer un colis"
+            onPress={() => router.push('/(client)/new-delivery')}
+            icon={<Ionicons name="cube-outline" size={20} color={colors.white} />}
+          />
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -98,11 +100,15 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  bottomCard: {
+  bottomSafe: {
     position: 'absolute',
-    bottom: spacing.lg,
-    left: spacing.md,
-    right: spacing.md,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  bottomCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
     padding: spacing.md,

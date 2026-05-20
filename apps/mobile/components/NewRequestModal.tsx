@@ -391,7 +391,11 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    justifyContent: 'space-between',
+    // Sur grand ecran (iPhone Pro Max / iPad), space-between laisse un vide
+    // enorme entre le header et la card. flex-end pousse l'ensemble vers le
+    // bas, avec le header juste au-dessus de la card. Le safe area top reste
+    // respecte par SafeAreaView lui-meme.
+    justifyContent: 'flex-end',
   },
   header: {
     flexDirection: 'row',
