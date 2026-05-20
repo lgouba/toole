@@ -231,6 +231,9 @@ model Delivery {
   /// Code a 4 chiffres donne par le destinataire au livreur pour valider la livraison
   validationCode           String         @db.VarChar(4)
   status                   DeliveryStatus @default(pending)
+  /// Mode de paiement choisi par le client a la commande. Cash par defaut.
+  /// Pour OM/Moov, le client paie d'avance via USSD ; en cash, le livreur encaisse.
+  paymentMethod            PaymentMethod  @default(cash)
   acceptedAt               DateTime?
   pickedUpAt               DateTime?
   deliveredAt              DateTime?

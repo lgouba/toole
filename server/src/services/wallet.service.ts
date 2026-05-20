@@ -54,12 +54,22 @@ export async function getWalletSnapshot(userId: string) {
   // (commission encore due moins les reglements en attente de validation).
   const effectiveDebt = Math.max(0, commissionDebt - pendingTopupAmount);
 
+  // Cumul a vie des gains livreur : somme de toutes les transactions de
+  // type "commission" completees (les credits gagnes a chaque livraison
+  // terminee, cash ou wallet confondus). C'est l'onglet "Mes gains".
+  const earnedAgg = await prisma.transaction.aggregate({
+    where: { userId, type: 'commission', status: 'completed' },
+    _sum: { amount: true },
+  });
+  const totalEarned = earnedAgg._sum.amount ?? 0;
+
   return {
     balance: Math.max(0, raw),
     commissionDebt,
     pendingTopupAmount,
     effectiveDebt,
     totalDeliveries: profile.totalDeliveries,
+    totalEarned,
   };
 }
 

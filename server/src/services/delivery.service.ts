@@ -90,6 +90,8 @@ export interface CreateDeliveryInput {
   deliveryLng: number;
   /** Si fourni (future date), la livraison est programmee et diffusee a cette heure-la. */
   scheduledFor?: Date;
+  /** Mode de paiement choisi par le client. Defaut = cash a la livraison. */
+  paymentMethod?: 'cash' | 'orange_money' | 'moov_money' | 'wallet';
 }
 
 export async function createDelivery(input: CreateDeliveryInput): Promise<Delivery> {
@@ -184,6 +186,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
       pickupValidationCode: generateValidationCode(),
       status: isScheduled ? 'scheduled' : 'pending',
       scheduledFor: input.scheduledFor ?? null,
+      paymentMethod: input.paymentMethod ?? 'cash',
       expiresAt: isScheduled
         ? null // l'expiresAt sera pose au moment de la diffusion
         : new Date(now + expiryMs),
@@ -907,46 +910,75 @@ export async function validateCode(
     const d = (await tx.delivery.findUnique({ where: { id: deliveryId } }))!;
 
     if (d.driverCommission && d.platformFee && d.driverId) {
-      // Modele cash : le client paie tout le prix cash au livreur.
-      // - Le livreur encaisse driverCommission (gain net) physiquement.
-      // - Il doit platformFee a la plateforme (dette cumulee).
-      //
-      // On enregistre 2 transactions pour la tracabilite :
-      //   1. commission      : + driverCommission (gain historique, paymentMethod=cash)
-      //   2. commission_debt : - platformFee (dette cumulee envers la plateforme)
-      //
-      // Le walletBalance du livreur est decremente de platformFee : il represente
-      // la "balance nette" de ses obligations envers la plateforme. S'il devient
-      // tres negatif, le livreur est bloque jusqu'a ce qu'il regle sa dette.
-      await tx.transaction.create({
-        data: {
-          userId: d.driverId,
-          deliveryId: d.id,
-          type: 'commission',
-          amount: d.driverCommission,
-          paymentMethod: 'cash',
-          status: 'completed',
-          note: 'Gain livreur (paiement cash du client)',
-        },
-      });
-      await tx.transaction.create({
-        data: {
-          userId: d.driverId,
-          deliveryId: d.id,
-          type: 'commission_debt',
-          amount: -d.platformFee,
-          paymentMethod: 'cash',
-          status: 'completed',
-          note: 'Commission plateforme due (paiement cash)',
-        },
-      });
-      await tx.driverProfile.update({
-        where: { userId: d.driverId },
-        data: {
-          walletBalance: { decrement: d.platformFee },
-          totalDeliveries: { increment: 1 },
-        },
-      });
+      const isCash = d.paymentMethod === 'cash';
+
+      if (isCash) {
+        // Modele cash : le client paie tout le prix cash au livreur.
+        // - Le livreur encaisse driverCommission (gain net) physiquement.
+        // - Il doit platformFee a la plateforme (dette cumulee).
+        //
+        // On enregistre 2 transactions pour la tracabilite :
+        //   1. commission      : + driverCommission (gain historique cash)
+        //   2. commission_debt : - platformFee (dette cumulee envers la plateforme)
+        //
+        // Le walletBalance est decremente de platformFee (dette nette).
+        // Onglet "Mes gains" = somme(commission completed) = driverCommission
+        // Onglet "Commission a reverser" = -walletBalance = platformFee
+        await tx.transaction.create({
+          data: {
+            userId: d.driverId,
+            deliveryId: d.id,
+            type: 'commission',
+            amount: d.driverCommission,
+            paymentMethod: 'cash',
+            status: 'completed',
+            note: 'Gain livreur (paiement cash du client)',
+          },
+        });
+        await tx.transaction.create({
+          data: {
+            userId: d.driverId,
+            deliveryId: d.id,
+            type: 'commission_debt',
+            amount: -d.platformFee,
+            paymentMethod: 'cash',
+            status: 'completed',
+            note: 'Commission plateforme due (paiement cash)',
+          },
+        });
+        await tx.driverProfile.update({
+          where: { userId: d.driverId },
+          data: {
+            walletBalance: { decrement: d.platformFee },
+            totalDeliveries: { increment: 1 },
+          },
+        });
+      } else {
+        // Modele wallet/OM/Moov : le client a paye d'avance via mobile money.
+        // - La plateforme a deja prelevé sa commission cote client.
+        // - Le livreur gagne driverCommission, credite dans son wallet.
+        // - Aucune dette envers la plateforme.
+        //
+        // Transaction unique de type commission : credit wallet retirable via OM.
+        await tx.transaction.create({
+          data: {
+            userId: d.driverId,
+            deliveryId: d.id,
+            type: 'commission',
+            amount: d.driverCommission,
+            paymentMethod: d.paymentMethod,
+            status: 'completed',
+            note: `Gain livreur (paiement ${d.paymentMethod} du client)`,
+          },
+        });
+        await tx.driverProfile.update({
+          where: { userId: d.driverId },
+          data: {
+            walletBalance: { increment: d.driverCommission },
+            totalDeliveries: { increment: 1 },
+          },
+        });
+      }
     }
     return d;
   });

@@ -15,15 +15,16 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.android.tolle",
+      "bundleIdentifier": "com.qalitylabs.tolle",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Tolle utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
         "NSCameraUsageDescription": "Tolle utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
-        "NSPhotoLibraryUsageDescription": "Tolle acces votre galerie pour ajouter des photos de profil et de colis."
+        "NSPhotoLibraryUsageDescription": "Tolle acces votre galerie pour ajouter des photos de profil et de colis.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.android.tolle",
+      "package": "com.qalitylabs.tolle",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -37,7 +38,8 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {

@@ -7,6 +7,7 @@ import { useDriverStore } from '@/stores/driver.store';
 import { useConnectionStore } from '@/stores/connection.store';
 import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.client';
 import { syncPushTokenToBackend } from '@/services/push.service';
+import { getDeliveryById } from '@/services/delivery.service';
 import { Delivery, DriverWithProfile } from '@/types';
 import { haptic } from '@/utils/haptics';
 import { alertNewRequest, stopAlert } from '@/utils/alerts';
@@ -115,27 +116,83 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     syncPushTokenToBackend();
 
+    // Types client qui doivent ouvrir la page de suivi de la course
+    const CLIENT_TRACKING_TYPES = new Set([
+      'delivery_accepted',
+      'delivery_picked_up',
+      'delivery_delivered',
+      'scheduled_started',
+      'status_update',
+    ]);
+
+    /**
+     * Gere un tap sur une notification push (foreground OU cold start).
+     * Reinjecte la livraison dans le store si besoin (cas app tuee) puis
+     * navigue vers l'ecran approprie. Sans ca, l'utilisateur reste bloque
+     * sur la home et ne voit jamais sa course.
+     */
+    async function handleNotificationData(data: any) {
+      if (!data) return;
+      const type = data.type as string | undefined;
+      const deliveryId = data.deliveryId as string | undefined;
+
+      if (user!.userType === 'driver') {
+        if (type === 'new_request' || type === 'pending_batch') {
+          routerRef.current.push('/(driver)');
+        }
+        return;
+      }
+
+      // === Cote client ===
+      if (!type || !CLIENT_TRACKING_TYPES.has(type)) return;
+
+      // Cas livraison terminee -> ecran de feedback
+      if (type === 'delivery_delivered') {
+        if (deliveryId) {
+          const d = await getDeliveryById(deliveryId);
+          if (d) useDeliveryStore.getState().setActiveDelivery(d);
+        }
+        routerRef.current.push('/(client)/delivery-complete');
+        return;
+      }
+
+      // Cas course acceptee / en cours / programmee qui demarre
+      // -> page de suivi (avec code de retrait + position livreur).
+      if (deliveryId) {
+        const existing = useDeliveryStore.getState().activeDelivery;
+        if (!existing || existing.id !== deliveryId) {
+          const d = await getDeliveryById(deliveryId);
+          if (d) useDeliveryStore.getState().setActiveDelivery(d);
+        }
+      }
+      routerRef.current.push('/(client)/active-delivery');
+    }
+
     let cleanup: (() => void) | undefined;
     // Import dynamique pour que le module ne soit PAS evalue dans Expo Go
     import('expo-notifications')
-      .then((Notifications) => {
+      .then(async (Notifications) => {
+        // 1) Listener pour les taps quand l'app tourne deja (foreground/bg)
         const sub = Notifications.addNotificationResponseReceivedListener(
           (response) => {
             const data = response.notification.request.content.data as any;
-            if (data?.type === 'new_request' || data?.type === 'pending_batch') {
-              if (user.userType === 'driver') {
-                // Pas besoin de navigation : la <NewRequestModal /> dans
-                // (driver)/_layout.tsx s'affiche automatiquement des que
-                // currentRequest est defini. On va juste sur le tab driver
-                // pour s'assurer que le livreur est bien dans son contexte.
-                routerRef.current.push('/(driver)');
-              }
-            } else if (data?.type === 'status_update' && user.userType === 'client') {
-              routerRef.current.push('/(client)/active-delivery');
-            }
+            void handleNotificationData(data);
           },
         );
         cleanup = () => sub.remove();
+
+        // 2) Cold start : l'app vient d'etre lancee depuis un tap sur push.
+        //    Sans ca, l'utilisateur arrive sur la home sans aucun contexte
+        //    de la course qui l'a fait ouvrir l'app.
+        try {
+          const last = await Notifications.getLastNotificationResponseAsync();
+          if (last) {
+            const data = last.notification.request.content.data as any;
+            void handleNotificationData(data);
+          }
+        } catch {
+          // ignore
+        }
       })
       .catch(() => {
         // Module indisponible: tant pis, tout le reste marche.

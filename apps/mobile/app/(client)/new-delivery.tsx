@@ -16,6 +16,11 @@ import { Button, Input, Card } from '@/components/ui';
 import { AddressField } from '@/components/AddressField';
 import { PriceEstimate, SchedulePicker } from '@/components/delivery';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
+import {
+  PaymentMethodPicker,
+  type ClientPaymentMethod,
+} from '@/components/PaymentMethodPicker';
+import { PaymentOtpModal } from '@/components/PaymentOtpModal';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -57,6 +62,8 @@ export default function NewDeliveryScreen() {
   // de bloquer la soumission si l'utilisateur a active le toggle mais que la
   // date saisie est invalide (auquel cas draft.scheduledFor est undefined).
   const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
+  // Modal de paiement Mobile Money (USSD + OTP simule)
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   // Modal contact picker : 'recipient' = destinataire, 'sender' = expéditeur tiers
   const [contactPickerTarget, setContactPickerTarget] = useState<
     null | 'recipient' | 'sender'
@@ -141,6 +148,20 @@ export default function NewDeliveryScreen() {
       );
       return;
     }
+
+    // Si paiement Mobile Money, on ouvre le modal USSD/OTP. La creation
+    // effective se fait dans `actuallyCreate` apres validation OTP.
+    const method = draft.paymentMethod ?? 'cash';
+    if (method === 'orange_money' || method === 'moov_money') {
+      setPaymentModalVisible(true);
+      return;
+    }
+
+    await actuallyCreate();
+  };
+
+  const actuallyCreate = async () => {
+    if (!user) return;
 
     // Capture le scheduledFor AVANT createDelivery (qui reset le draft),
     // pour pouvoir afficher l'heure exacte dans l'alert.
@@ -488,6 +509,13 @@ export default function NewDeliveryScreen() {
         orderAmount={estimate?.price ?? 0}
       />
 
+      {/* Mode de paiement */}
+      <PaymentMethodPicker
+        value={(draft.paymentMethod as ClientPaymentMethod) ?? 'cash'}
+        onChange={(m) => setDraftField('paymentMethod', m)}
+        amount={estimate?.price ?? 0}
+      />
+
       {/* Programmer la livraison */}
       <SchedulePicker
         value={draft.scheduledFor}
@@ -610,6 +638,22 @@ export default function NewDeliveryScreen() {
             setDraftField('senderContactPhone', phone);
           }
           setContactPickerTarget(null);
+        }}
+      />
+
+      {/* Modal paiement Mobile Money (USSD + OTP simule) */}
+      <PaymentOtpModal
+        visible={paymentModalVisible}
+        method={
+          (draft.paymentMethod === 'moov_money'
+            ? 'moov_money'
+            : 'orange_money') as 'orange_money' | 'moov_money'
+        }
+        amount={estimate?.price ?? 0}
+        onCancel={() => setPaymentModalVisible(false)}
+        onSuccess={async () => {
+          setPaymentModalVisible(false);
+          await actuallyCreate();
         }}
       />
     </SafeAreaView>

@@ -58,6 +58,9 @@ const createDeliverySchema = z.object({
   deliveryLat: z.number().min(-90).max(90),
   deliveryLng: z.number().min(-180).max(180),
   scheduledFor: z.string().datetime().optional(),
+  paymentMethod: z
+    .enum(['cash', 'orange_money', 'moov_money', 'wallet'])
+    .optional(),
 });
 
 export async function createDeliveryCtrl(

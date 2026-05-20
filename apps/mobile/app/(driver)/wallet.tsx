@@ -22,12 +22,33 @@ import {
   Transaction,
 } from '@/services/wallet.service';
 
+type Tab = 'gains' | 'debt';
+
+// Types de transactions affiches dans chaque onglet.
+// Onglet "Mes gains" : tout ce qui credite le livreur (gain de course, pourboire,
+//   retrait via OM, ajustement positif).
+// Onglet "Commission a reverser" : tout ce qui touche la dette plateforme
+//   (debit commission cash + reversements OM).
+const GAINS_TYPES = new Set<Transaction['type']>([
+  'commission',
+  'tip',
+  'withdrawal',
+  'withdrawal_fee',
+  'payment',
+]);
+const DEBT_TYPES = new Set<Transaction['type']>([
+  'commission_debt',
+  'topup',
+  'adjustment',
+]);
+
 export default function WalletScreen() {
   const router = useRouter();
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState<Tab>('gains');
 
   const load = async () => {
     try {
@@ -55,16 +76,22 @@ export default function WalletScreen() {
   const pending = wallet?.pendingTopupAmount ?? 0;
   const effectiveDebt = wallet?.effectiveDebt ?? 0;
   const balance = wallet?.balance ?? 0;
+  const totalEarned = wallet?.totalEarned ?? 0;
   const hasDebt = debt > 0;
   // Le livreur peut reverser seulement si la dette nette est > 0
   // (sinon tout est déjà en attente de validation)
   const canPay = effectiveDebt > 0;
   const canWithdraw = balance > 0;
 
+  // Filtre les transactions selon l'onglet actif.
+  const filteredTxs = txs.filter((t) =>
+    tab === 'gains' ? GAINS_TYPES.has(t.type) : DEBT_TYPES.has(t.type),
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={txs}
+        data={filteredTxs}
         keyExtractor={(t) => t.id}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -74,129 +101,240 @@ export default function WalletScreen() {
             <Text style={styles.pageTitle}>Portefeuille</Text>
 
             {/* ============================================ */}
-            {/* Card 1 : MON GAIN NET (toujours visible)     */}
+            {/* Onglets : Mes gains / Commission a reverser  */}
             {/* ============================================ */}
-            <View style={[styles.metricCard, styles.metricCardGain]}>
-              <View style={styles.metricHeader}>
-                <View style={styles.metricIconGain}>
-                  <Ionicons name="trending-up" size={20} color={colors.white} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.metricLabel}>Mon gain net</Text>
-                  <Text style={styles.metricHint}>
-                    Disponible pour retrait
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.metricValueGain}>{formatCFA(balance)}</Text>
-              {canWithdraw ? (
-                <TouchableOpacity
-                  style={styles.actionBtnGain}
-                  onPress={() => router.push('/wallet-flow?mode=withdraw')}
-                  activeOpacity={0.85}
+            <View style={styles.tabsRow}>
+              <TouchableOpacity
+                onPress={() => setTab('gains')}
+                style={[
+                  styles.tabBtn,
+                  tab === 'gains' && styles.tabBtnActive,
+                ]}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="trending-up"
+                  size={16}
+                  color={tab === 'gains' ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    tab === 'gains' && styles.tabLabelActive,
+                  ]}
                 >
-                  <Ionicons name="arrow-down-circle" size={18} color={colors.white} />
-                  <Text style={styles.actionBtnText}>Retirer</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.actionBtnDisabled}>
-                  <Text style={styles.actionBtnDisabledText}>
-                    Effectuez des livraisons pour gagner
-                  </Text>
-                </View>
-              )}
+                  Mes gains
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setTab('debt')}
+                style={[
+                  styles.tabBtn,
+                  tab === 'debt' && styles.tabBtnActive,
+                ]}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="alert-circle"
+                  size={16}
+                  color={tab === 'debt' ? colors.error : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    tab === 'debt' && {
+                      color: colors.error,
+                      fontWeight: '700',
+                    },
+                  ]}
+                >
+                  À reverser
+                </Text>
+                {hasDebt ? (
+                  <View style={styles.tabBadge}>
+                    <Text style={styles.tabBadgeText}>!</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
             </View>
 
-            {/* ============================================ */}
-            {/* Card 2 : COMMISSION À REVERSER (si > 0)      */}
-            {/* ============================================ */}
-            {hasDebt ? (
-              <View style={[styles.metricCard, styles.metricCardDebt]}>
-                <View style={styles.metricHeader}>
-                  <View style={styles.metricIconDebt}>
-                    <Ionicons
-                      name="alert-circle"
-                      size={20}
-                      color={colors.white}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.metricLabelDebt}>
-                      Commission à reverser
-                    </Text>
-                    <Text style={styles.metricHint}>
-                      Sur les courses payées en espèce
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.metricValueDebt}>
-                  {formatCFA(effectiveDebt)}
-                </Text>
-
-                {/* Détail dette totale + en attente */}
-                {pending > 0 ? (
-                  <View style={styles.debtBreakdown}>
-                    <View style={styles.breakdownRow}>
-                      <Text style={styles.breakdownLabel}>Dette totale</Text>
-                      <Text style={styles.breakdownValue}>{formatCFA(debt)}</Text>
+            {tab === 'gains' ? (
+              <>
+                {/* ============================================ */}
+                {/* Onglet GAINS                                  */}
+                {/* ============================================ */}
+                <View style={[styles.metricCard, styles.metricCardGain]}>
+                  <View style={styles.metricHeader}>
+                    <View style={styles.metricIconGain}>
+                      <Ionicons
+                        name="trending-up"
+                        size={20}
+                        color={colors.white}
+                      />
                     </View>
-                    <View style={styles.breakdownRow}>
-                      <View style={styles.breakdownLabelRow}>
-                        <Ionicons
-                          name="time-outline"
-                          size={13}
-                          color={colors.warning}
-                        />
-                        <Text
-                          style={[
-                            styles.breakdownLabel,
-                            { color: colors.warning },
-                          ]}
-                        >
-                          En attente de validation
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.breakdownValue,
-                          { color: colors.warning },
-                        ]}
-                      >
-                        −{formatCFA(pending)}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.metricLabel}>Mes gains à vie</Text>
+                      <Text style={styles.metricHint}>
+                        Cumul de toutes vos livraisons (cash + en ligne)
                       </Text>
                     </View>
                   </View>
-                ) : null}
+                  <Text style={styles.metricValueGain}>
+                    {formatCFA(totalEarned)}
+                  </Text>
+                </View>
 
-                {canPay ? (
-                  <TouchableOpacity
-                    style={styles.actionBtnDebt}
-                    onPress={() =>
-                      router.push(
-                        `/wallet-flow?mode=topup&amount=${effectiveDebt}`,
-                      )
-                    }
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="wallet" size={18} color={colors.white} />
-                    <Text style={styles.actionBtnText}>
-                      Reverser {formatCFA(effectiveDebt)}
+                {/* Sous-carte : retrait dispo (paiements en ligne uniquement) */}
+                <View style={styles.subCard}>
+                  <View style={styles.subCardRow}>
+                    <View style={styles.subCardLabel}>
+                      <Ionicons
+                        name="wallet-outline"
+                        size={18}
+                        color={colors.textSecondary}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.subCardTitle}>
+                          Disponible pour retrait
+                        </Text>
+                        <Text style={styles.subCardHint}>
+                          Gains des courses payées en ligne
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.subCardValue}>{formatCFA(balance)}</Text>
+                  </View>
+                  {canWithdraw ? (
+                    <TouchableOpacity
+                      style={styles.actionBtnGain}
+                      onPress={() => router.push('/wallet-flow?mode=withdraw')}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name="arrow-down-circle"
+                        size={18}
+                        color={colors.white}
+                      />
+                      <Text style={styles.actionBtnText}>
+                        Retirer {formatCFA(balance)}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <>
+                {/* ============================================ */}
+                {/* Onglet COMMISSION À REVERSER                  */}
+                {/* ============================================ */}
+                {hasDebt ? (
+                  <View style={[styles.metricCard, styles.metricCardDebt]}>
+                    <View style={styles.metricHeader}>
+                      <View style={styles.metricIconDebt}>
+                        <Ionicons
+                          name="alert-circle"
+                          size={20}
+                          color={colors.white}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.metricLabelDebt}>
+                          Commission à reverser
+                        </Text>
+                        <Text style={styles.metricHint}>
+                          Sur les courses payées en espèce
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.metricValueDebt}>
+                      {formatCFA(effectiveDebt)}
                     </Text>
-                  </TouchableOpacity>
+
+                    {pending > 0 ? (
+                      <View style={styles.debtBreakdown}>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Dette totale</Text>
+                          <Text style={styles.breakdownValue}>
+                            {formatCFA(debt)}
+                          </Text>
+                        </View>
+                        <View style={styles.breakdownRow}>
+                          <View style={styles.breakdownLabelRow}>
+                            <Ionicons
+                              name="time-outline"
+                              size={13}
+                              color={colors.warning}
+                            />
+                            <Text
+                              style={[
+                                styles.breakdownLabel,
+                                { color: colors.warning },
+                              ]}
+                            >
+                              En attente de validation
+                            </Text>
+                          </View>
+                          <Text
+                            style={[
+                              styles.breakdownValue,
+                              { color: colors.warning },
+                            ]}
+                          >
+                            −{formatCFA(pending)}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
+
+                    {canPay ? (
+                      <TouchableOpacity
+                        style={styles.actionBtnDebt}
+                        onPress={() =>
+                          router.push(
+                            `/wallet-flow?mode=topup&amount=${effectiveDebt}`,
+                          )
+                        }
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons
+                          name="wallet"
+                          size={18}
+                          color={colors.white}
+                        />
+                        <Text style={styles.actionBtnText}>
+                          Reverser {formatCFA(effectiveDebt)}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.actionBtnPending}>
+                        <Ionicons
+                          name="time-outline"
+                          size={16}
+                          color={colors.warning}
+                        />
+                        <Text style={styles.actionBtnPendingText}>
+                          En attente de validation admin
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 ) : (
-                  <View style={styles.actionBtnPending}>
+                  <View style={styles.metricCardOk}>
                     <Ionicons
-                      name="time-outline"
-                      size={16}
-                      color={colors.warning}
+                      name="checkmark-circle"
+                      size={32}
+                      color={colors.primary}
                     />
-                    <Text style={styles.actionBtnPendingText}>
-                      En attente de validation admin
+                    <Text style={styles.metricCardOkTitle}>
+                      Aucune commission due
+                    </Text>
+                    <Text style={styles.metricCardOkHint}>
+                      Vous êtes à jour avec la plateforme.
                     </Text>
                   </View>
                 )}
-              </View>
-            ) : null}
+              </>
+            )}
 
             {/* Stat livraisons */}
             <View style={styles.deliveriesPill}>
@@ -214,7 +352,9 @@ export default function WalletScreen() {
               </Text>
             </View>
 
-            <Text style={styles.historyTitle}>Historique</Text>
+            <Text style={styles.historyTitle}>
+              {tab === 'gains' ? 'Historique des gains' : 'Historique des règlements'}
+            </Text>
           </View>
         }
         ListEmptyComponent={
@@ -497,6 +637,110 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
     marginBottom: spacing.sm,
+  },
+  // ============== Tabs ==============
+  tabsRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: 4,
+    marginBottom: spacing.md,
+    gap: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: borderRadius.sm,
+  },
+  tabBtnActive: {
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  tabLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  tabLabelActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  tabBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  // ============== Sub-card (retrait dispo) ==============
+  subCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  subCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  subCardLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  subCardTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  subCardHint: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 1,
+  },
+  subCardValue: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
+  // ============== Etat "aucune dette" ==============
+  metricCardOk: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  metricCardOkTitle: {
+    ...typography.bodyMedium,
+    color: colors.primaryDark,
+    fontWeight: '700',
+  },
+  metricCardOkHint: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   txRow: {
     flexDirection: 'row',

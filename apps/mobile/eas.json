@@ -38,6 +38,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "hakeemgouba@gmail.com",
+        "ascAppId": "6771436858",
+        "appleTeamId": "89N79D7D3X"
+      }
+    }
   }
 }

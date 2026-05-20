@@ -176,6 +176,8 @@ export interface DeliveryDraft {
   senderContactPhone?: string;
   /** Si defini, la livraison sera programmée pour cette date/heure. */
   scheduledFor?: string; // ISO datetime
+  /** Mode de paiement choisi par le client. Default = cash a la livraison. */
+  paymentMethod?: 'cash' | 'orange_money' | 'moov_money';
 }
 
 export interface PriceEstimate {

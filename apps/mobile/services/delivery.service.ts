@@ -66,6 +66,7 @@ export async function createDelivery(draft: DeliveryDraft, _senderId: string): P
     deliveryLat: draft.deliveryLocation.latitude,
     deliveryLng: draft.deliveryLocation.longitude,
     ...(draft.scheduledFor ? { scheduledFor: draft.scheduledFor } : {}),
+    ...(draft.paymentMethod ? { paymentMethod: draft.paymentMethod } : {}),
   };
 
   const res = await api.post('/deliveries', payload);

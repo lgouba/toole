@@ -9,6 +9,8 @@ export interface WalletSnapshot {
    *  maximum que le livreur peut encore reverser MAINTENANT. */
   effectiveDebt: number;
   totalDeliveries: number;
+  /** Cumul à vie des gains livreur (cash + wallet confondus). */
+  totalEarned: number;
 }
 
 export interface Transaction {
