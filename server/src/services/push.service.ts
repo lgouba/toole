@@ -56,6 +56,13 @@ export async function sendPushToUser(
     sound: 'default',
     priority: 'high',
     channelId: 'default',
+    // TTL court : pour les notifications de course, une notif arrivee
+    // plus de 2 minutes apres l'envoi n'a plus d'interet (la course aura
+    // ete prise par un autre livreur). Evite que des push tardifs
+    // arrivent ne servant a rien et risquant d'irriter l'utilisateur.
+    ttl: 120,
+    // iOS : alert+sound immediat. Equivalent apns-priority: 10
+    _contentAvailable: false,
   }));
 
   try {

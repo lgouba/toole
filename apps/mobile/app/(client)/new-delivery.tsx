@@ -439,7 +439,20 @@ export default function NewDeliveryScreen() {
       )}
     </View>,
 
-    // Step 3: Summary
+    // Step 3: Paiement (mode de paiement dedie pour clarte UX)
+    <View key="payment" style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Mode de paiement</Text>
+      <Text style={styles.stepHint}>
+        Comment souhaitez-vous regler cette course ?
+      </Text>
+      <PaymentMethodPicker
+        value={(draft.paymentMethod as ClientPaymentMethod) ?? 'cash'}
+        onChange={(m) => setDraftField('paymentMethod', m)}
+        amount={estimate?.price ?? 0}
+      />
+    </View>,
+
+    // Step 4: Summary
     <View key="summary" style={styles.stepContent}>
       <Text style={styles.stepTitle}>Recapitulatif</Text>
       {estimate && <PriceEstimate estimate={estimate} />}
@@ -500,6 +513,16 @@ export default function NewDeliveryScreen() {
             </Text>
           </View>
         ) : null}
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Paiement</Text>
+          <Text style={styles.summaryValue}>
+            {draft.paymentMethod === 'orange_money'
+              ? '🟠 Orange Money'
+              : draft.paymentMethod === 'moov_money'
+                ? '🔵 Moov Money'
+                : '💵 Espèces à la livraison'}
+          </Text>
+        </View>
       </Card>
 
       {/* Code promo */}
@@ -507,13 +530,6 @@ export default function NewDeliveryScreen() {
         code={draft.promoCode ?? ''}
         onChange={(v) => setDraftField('promoCode', v)}
         orderAmount={estimate?.price ?? 0}
-      />
-
-      {/* Mode de paiement */}
-      <PaymentMethodPicker
-        value={(draft.paymentMethod as ClientPaymentMethod) ?? 'cash'}
-        onChange={(m) => setDraftField('paymentMethod', m)}
-        amount={estimate?.price ?? 0}
       />
 
       {/* Programmer la livraison */}
@@ -540,10 +556,10 @@ export default function NewDeliveryScreen() {
           <View style={{ width: 24 }} />
         </View>
 
-        {/* Indicateur de steps visuel : 4 pastilles reliees */}
+        {/* Indicateur de steps visuel : 5 pastilles reliees */}
         <StepsIndicator
           current={step}
-          labels={['Colis', 'Trajet', 'Destinataire', 'Récap']}
+          labels={['Colis', 'Trajet', 'Destinataire', 'Paiement', 'Récap']}
         />
 
         <ScrollView
@@ -557,7 +573,7 @@ export default function NewDeliveryScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               title="Continuer"
               onPress={() => {
