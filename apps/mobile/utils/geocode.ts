@@ -33,17 +33,32 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
+export interface CityBbox {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
 /**
  * Recherche des adresses pour l'autocompletion.
- * Si `countryCode` est fourni (ISO 2, ex: 'bf', 'fr'), les resultats sont
- * STRICTEMENT limites a ce pays — évite les "Banque mondiale Washington"
- * quand l'utilisateur tape "banque" depuis Ouagadougou.
- * Si `biasLocation` est fourni en plus, les resultats proches sont prioritaires.
+ *
+ * Strategie en escalier (du plus strict au plus permissif) :
+ *
+ * 1. `cityBbox` fourni → viewbox = bbox exacte de la ville + bounded=1.
+ *    Resultats STRICTEMENT dans la ville (ex: Nice). Plus de "Burger King Paris"
+ *    quand on est a Nice. C'est le mode recommande des qu'on a detecte la ville.
+ *
+ * 2. Pas de bbox mais `countryCode` fourni → countrycodes=cc + viewbox bias 50km
+ *    autour de biasLocation. Resultats dans le pays uniquement.
+ *
+ * 3. Rien fourni → recherche mondiale (debug / fallback uniquement).
  */
 export async function searchAddresses(
   query: string,
   biasLocation?: LatLng,
   countryCode?: string | null,
+  cityBbox?: CityBbox | null,
 ): Promise<GeocodeSuggestion[]> {
   if (!query || query.trim().length < 3) return [];
 
@@ -55,24 +70,29 @@ export async function searchAddresses(
     addressdetails: '1',
   });
 
-  // Filtre strict par pays = la solution la plus fiable pour des recherches
-  // generiques (banque, station, marche). Sans ca Nominatim renvoie des
-  // resultats du monde entier même avec viewbox.
   if (countryCode) {
     params.set('countrycodes', countryCode);
   }
 
-  if (biasLocation) {
+  if (cityBbox) {
+    // Mode strict ville : viewbox = bbox Nominatim de la ville + bounded=1
+    // (= filtre dur, pas seulement un bias).
+    // Format Nominatim viewbox : left,top,right,bottom = west,north,east,south
+    params.set(
+      'viewbox',
+      `${cityBbox.west},${cityBbox.north},${cityBbox.east},${cityBbox.south}`,
+    );
+    params.set('bounded', '1');
+  } else if (biasLocation) {
+    // Mode soft : bias 50km autour de la position, pas de bounded
+    // (au cas ou le GPS soit peu fiable / l'user au bord de la zone).
     const { latitude, longitude } = biasLocation;
-    const delta = 0.5; // ~50km autour de la position pour prioriser
+    const delta = 0.5;
     params.set(
       'viewbox',
       `${longitude - delta},${latitude + delta},${longitude + delta},${latitude - delta}`,
     );
-    // Avec countrycodes, on peut activer bounded sans risque de tout perdre :
-    // on reste dans le pays. Sans countrycodes, on garde bounded=0 pour ne pas
-    // tuer les resultats hors-zone.
-    params.set('bounded', countryCode ? '0' : '0');
+    params.set('bounded', '0');
   }
 
   const data = await fetchJson<

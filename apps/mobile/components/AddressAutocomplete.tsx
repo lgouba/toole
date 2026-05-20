@@ -77,6 +77,7 @@ export function AddressAutocomplete({
   // partout dans le monde sans configuration.
   const userLocation = useLocationStore((s) => s.current);
   const countryCode = useLocationStore((s) => s.countryCode);
+  const cityBbox = useLocationStore((s) => s.cityBbox);
   const fallbackCenter = useLocationStore((s) => s.getCenterOrFallback);
   const effectiveBias = biasLocation ?? userLocation ?? fallbackCenter();
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
@@ -122,7 +123,12 @@ export function AddressAutocomplete({
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchAddresses(q, effectiveBias, countryCode);
+        const results = await searchAddresses(
+          q,
+          effectiveBias,
+          countryCode,
+          cityBbox,
+        );
         cacheSet(q, results);
         setSuggestions(results);
       } finally {
