@@ -209,10 +209,16 @@ export default function OtpScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Vérification</Text>
           <Text style={styles.subtitle}>
-            Entrez le code à 4 chiffres envoyé au{'\n'}
-            <Text style={styles.phone}>{formatPhone(phoneNumber)}</Text>
+            Entrez le code à 4 chiffres envoyé à{'\n'}
+            <Text style={styles.phone}>
+              {isEmail(phoneNumber) ? phoneNumber : formatPhone(phoneNumber)}
+            </Text>
           </Text>
-          <Text style={styles.devHint}>Code test: 1234</Text>
+          {/* Code test 1234 uniquement pour SMS/WhatsApp (en attendant un
+              vrai provider). Pour email, le SMTP livre un vrai code. */}
+          {!isEmail(phoneNumber) ? (
+            <Text style={styles.devHint}>Code test: 1234</Text>
+          ) : null}
         </View>
 
         <OtpInput

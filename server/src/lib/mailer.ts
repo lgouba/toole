@@ -36,15 +36,27 @@ function getTransporter(): Transporter | null {
   return transporter;
 }
 
+/**
+ * Envoie un email via SMTP.
+ *
+ * @param options.throwOnError - Si true (defaut: false), throw en cas d'echec
+ *   au lieu de silently log. Utile pour les emails critiques comme l'OTP, ou
+ *   l'utilisateur attend une confirmation que le code est parti. Les emails
+ *   d'alerte admin restent en mode "best-effort" (pas bloquant).
+ */
 export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  throwOnError?: boolean;
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
     logger.info({ to: params.to, subject: params.subject }, '[DEV] Email skipped');
+    if (params.throwOnError) {
+      throw new Error('SMTP not configured');
+    }
     return;
   }
 
@@ -59,6 +71,7 @@ export async function sendEmail(params: {
     logger.info({ to: params.to, subject: params.subject }, 'Email sent');
   } catch (err) {
     logger.error({ err, to: params.to }, 'Failed to send email');
+    if (params.throwOnError) throw err;
   }
 }
 
