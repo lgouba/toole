@@ -594,7 +594,7 @@ export async function resetUserOtp(userId: string) {
 }
 
 export async function deleteUser(userId: string) {
-  // Refuse si livraisons actives
+  // Refuse si livraisons actives en cours.
   const activeCount = await prisma.delivery.count({
     where: {
       OR: [{ senderId: userId }, { driverId: userId }],
@@ -610,7 +610,31 @@ export async function deleteUser(userId: string) {
       'Cet utilisateur a des livraisons actives. Terminez-les ou annulez-les d\'abord.',
     );
   }
-  return prisma.user.delete({ where: { id: userId } });
+
+  // Cascade manuelle : on supprime toutes les relations qui n'ont pas
+  // onDelete: Cascade dans le schema. Sans ca, Prisma echoue avec
+  // P2003 (foreign key constraint).
+  return prisma.$transaction(async (tx) => {
+    // Ratings donnes ou recus par l'utilisateur
+    await tx.rating.deleteMany({
+      where: { OR: [{ raterId: userId }, { ratedId: userId }] },
+    });
+    // Transactions de l'utilisateur (commissions, retraits, etc.)
+    await tx.transaction.deleteMany({ where: { userId } });
+    // Logs GPS pour les livreurs
+    await tx.driverLocationLog.deleteMany({ where: { driverId: userId } });
+    // Promo codes consommes par l'utilisateur
+    await tx.promoCodeUsage.deleteMany({ where: { userId } });
+    // Livraisons en tant que sender (cancelled/expired/delivered seulement
+    // a ce stade vu la verif ci-dessus) ou en tant que driver
+    await tx.delivery.deleteMany({
+      where: { OR: [{ senderId: userId }, { driverId: userId }] },
+    });
+    // Refresh tokens (Cascade serait possible mais on est explicite)
+    await tx.refreshToken.deleteMany({ where: { userId } });
+    // PushTokens et DriverProfile sont en Cascade dans le schema, supprimes auto.
+    return tx.user.delete({ where: { id: userId } });
+  });
 }
 
 // ---------- KYC verification ----------
