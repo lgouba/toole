@@ -24,6 +24,7 @@ interface UserDetailData {
       vehiclePhotoUrl: string | null;
       cnibNumber: string | null;
       cnibPhotoUrl: string | null;
+      cnibPhotoBackUrl: string | null;
       licenseNumber: string | null;
       licensePhotoUrl: string | null;
       isOnline: boolean;
@@ -290,8 +291,14 @@ export default function UserDetail() {
             <div className="photos-row">
               {user.driverProfile.cnibPhotoUrl ? (
                 <div>
-                  <div className="muted">CNIB</div>
-                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.cnibPhotoUrl)!} alt="CNIB" />
+                  <div className="muted">CNIB recto</div>
+                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.cnibPhotoUrl)!} alt="CNIB recto" />
+                </div>
+              ) : null}
+              {user.driverProfile.cnibPhotoBackUrl ? (
+                <div>
+                  <div className="muted">CNIB verso</div>
+                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.cnibPhotoBackUrl)!} alt="CNIB verso" />
                 </div>
               ) : null}
               {user.driverProfile.licensePhotoUrl ? (

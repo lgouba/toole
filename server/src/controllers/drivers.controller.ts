@@ -122,6 +122,8 @@ const kycSchema = z.object({
   vehiclePhotoUrl: z.string().max(500).optional(),
   cnibNumber: z.string().max(50).optional(),
   cnibPhotoUrl: z.string().max(500).optional(),
+  /** Photo piece d'identite verso (KYC recto + verso) */
+  cnibPhotoBackUrl: z.string().max(500).optional(),
   licenseNumber: z.string().max(50).optional(),
   licensePhotoUrl: z.string().max(500).optional(),
 });

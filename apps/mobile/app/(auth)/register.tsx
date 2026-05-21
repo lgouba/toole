@@ -8,6 +8,8 @@ import {
   Platform,
   ScrollView,
   TextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -266,7 +268,12 @@ export default function RegisterScreen() {
       // 1) Cree d'abord le compte driver (avec email). Le register utilise
       //    l'OTP deja valide, le compte sera cree en isActive=false +
       //    verificationStatus=pending.
-      await doRegister();
+      const created = await doRegister();
+      if (!created) {
+        // doRegister a deja appele setError, on stoppe ici.
+        setSubmittingKyc(false);
+        return;
+      }
 
       // 2) Upload des deux photos. On parallelise pour gagner du temps.
       const [front, back] = await Promise.all([
@@ -311,8 +318,13 @@ export default function RegisterScreen() {
     }
   };
 
-  const doRegister = async () => {
-    if (!selectedRole) return;
+  /**
+   * Cree le compte cote serveur. Retourne true en cas de succes, false sinon.
+   * En cas d'echec, l'erreur est affichee via setError (pas de throw : sinon
+   * unhandled promise rejection silencieuse qui semble bloquer l'UI).
+   */
+  const doRegister = async (): Promise<boolean> => {
+    if (!selectedRole) return false;
     setError('');
     const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     const ok = await register({
@@ -329,13 +341,17 @@ export default function RegisterScreen() {
       deferAuth: selectedRole === 'driver',
     });
     if (!ok) {
-      throw new Error('Impossible de créer le compte. Vérifiez votre connexion.');
+      setError(
+        'Impossible de créer le compte. Le code OTP a peut-être expiré, demandez-en un nouveau.',
+      );
+      return false;
     }
     // Pour client : redirection direct sur la home.
     // Pour driver : on continue le flow KYC (pas de redirection ici).
     if (selectedRole === 'client') {
       router.replace('/(client)');
     }
+    return true;
   };
 
   return (
@@ -366,8 +382,13 @@ export default function RegisterScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
+        {/* Tap n'importe ou hors d'un Input ferme le clavier numerique
+            (qui n'a pas de bouton "Retour" natif). */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View>
           {step === 'role' && (
             <>
               <View style={styles.header}>
@@ -653,6 +674,8 @@ export default function RegisterScreen() {
               </View>
             </>
           )}
+        </View>
+        </TouchableWithoutFeedback>
         </ScrollView>
 
         <View style={styles.footer}>

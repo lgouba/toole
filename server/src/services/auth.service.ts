@@ -85,15 +85,36 @@ export async function verifyOtpFlow(phone: string, code: string) {
     return { user: null, tokens: null, isNewUser: true as const };
   }
 
-  // Compte suspendu / desactive par l'admin : on bloque la connexion.
-  // Message volontairement generique pour ne pas indiquer a un attaquant
-  // si le numero est valide / suspendu / autre — on dit juste "compte
-  // indisponible, contactez le support".
   if (!user.isActive) {
     logger.warn(
       { userId: user.id, phone, userType: user.userType },
       'Login attempt on inactive/suspended account',
     );
+    // Cas specifique du livreur en attente de validation KYC : on lui dit
+    // explicitement ce qu'il en est pour qu'il sache quoi attendre.
+    if (
+      user.userType === 'driver' &&
+      user.driverProfile?.verificationStatus === 'pending'
+    ) {
+      throw new HttpError(
+        403,
+        'DRIVER_KYC_PENDING',
+        "Vos justificatifs sont en cours de validation par notre equipe. Vous serez notifie des l'activation de votre compte.",
+      );
+    }
+    // KYC rejete : message specifique avec la note de l'admin si dispo.
+    if (
+      user.userType === 'driver' &&
+      user.driverProfile?.verificationStatus === 'rejected'
+    ) {
+      throw new HttpError(
+        403,
+        'DRIVER_KYC_REJECTED',
+        user.driverProfile.verificationNote ??
+          'Vos justificatifs ont ete rejetes. Contactez le support pour plus d\'informations.',
+      );
+    }
+    // Autre cas : compte suspendu, message generique (ne pas reveler la cause).
     throw new HttpError(
       403,
       'ACCOUNT_UNAVAILABLE',
