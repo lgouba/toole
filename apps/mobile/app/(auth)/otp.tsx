@@ -127,6 +127,11 @@ export default function OtpScreen() {
         email: pending.email,
         vehicleType: pending.vehicleType,
         vehiclePlate: pending.vehiclePlate,
+        // Photos KYC envoyees au register : impossible de faire un PUT
+        // /drivers/me/kyc apres car le middleware authRequired refuse
+        // les comptes isActive=false (cas du driver tout neuf).
+        cnibPhotoUrl: pending.cnibPhotoUrl,
+        cnibPhotoBackUrl: pending.cnibPhotoBackUrl,
         referralCode: pending.referralCode,
       });
       const data = unwrap<{
@@ -135,26 +140,9 @@ export default function OtpScreen() {
         refreshToken: string;
       }>(res);
 
-      // Stocker les tokens AVANT le PUT KYC qui requiert auth.
+      // Stocker les tokens (les photos KYC ont deja ete envoyees dans le
+      // payload du register et stockees en DB cote driverProfile).
       await tokenStorage.setTokens(data.accessToken, data.refreshToken);
-
-      // Si driver, attache les URLs des photos CNIB deja uploadees pendant
-      // le step KYC du register (l'endpoint /uploads/kyc est public).
-      if (
-        pending.userType === 'driver' &&
-        (pending.cnibPhotoUrl || pending.cnibPhotoBackUrl)
-      ) {
-        try {
-          await api.put('/drivers/me/kyc', {
-            cnibPhotoUrl: pending.cnibPhotoUrl,
-            cnibPhotoBackUrl: pending.cnibPhotoBackUrl,
-          });
-        } catch (err) {
-          // Pas bloquant : l'utilisateur pourra renvoyer les photos depuis
-          // l'app driver dans la section "Mes documents".
-          console.warn('[otp] KYC PUT failed', err);
-        }
-      }
 
       // Pour driver : compte isActive=false. On nettoie les tokens et redirige
       // vers login avec message d'attente.

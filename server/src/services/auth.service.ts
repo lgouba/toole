@@ -186,6 +186,9 @@ export async function registerUser(args: {
   email?: string;
   vehicleType?: VehicleType;
   vehiclePlate?: string;
+  /** URLs photos KYC (driver). Attachees au profil a la creation. */
+  cnibPhotoUrl?: string;
+  cnibPhotoBackUrl?: string;
   /** Code de parrainage saisi par l'utilisateur. Logge mais pas encore
    *  applique (le mecanisme bonus parrain/parraine sera ajoute plus tard). */
   referralCode?: string;
@@ -255,6 +258,8 @@ export async function registerUser(args: {
               create: {
                 vehicleType: args.vehicleType ?? 'moto',
                 vehiclePlate: plate,
+                cnibPhotoUrl: args.cnibPhotoUrl ?? null,
+                cnibPhotoBackUrl: args.cnibPhotoBackUrl ?? null,
                 verificationStatus: 'pending',
               },
             },

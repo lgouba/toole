@@ -95,6 +95,12 @@ const registerSchema = z.object({
   email: z.string().trim().email('Email invalide'),
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
   vehiclePlate: z.string().trim().max(20).optional().or(z.literal('')),
+  /** URLs des photos d'identite KYC uploadees prealablement (/uploads/kyc/*).
+   *  Attachees au driverProfile a la creation, en meme temps que le user
+   *  (puisque PUT /drivers/me/kyc apres register echouerait : le compte
+   *  est isActive=false donc authRequired rejette). */
+  cnibPhotoUrl: z.string().max(500).optional(),
+  cnibPhotoBackUrl: z.string().max(500).optional(),
   /** Code de parrainage saisi. La logique de bonus sera ajoutee plus tard. */
   referralCode: z.string().trim().max(20).optional().or(z.literal('')),
 });
@@ -112,6 +118,8 @@ export async function registerCtrl(req: Request, res: Response, next: NextFuncti
       email: body.email,
       vehicleType: body.vehicleType,
       vehiclePlate: body.vehiclePlate || undefined,
+      cnibPhotoUrl: body.cnibPhotoUrl || undefined,
+      cnibPhotoBackUrl: body.cnibPhotoBackUrl || undefined,
       referralCode: body.referralCode || undefined,
     });
     return success(
