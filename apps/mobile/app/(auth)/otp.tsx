@@ -138,7 +138,8 @@ export default function OtpScreen() {
       // Stocker les tokens AVANT le PUT KYC qui requiert auth.
       await tokenStorage.setTokens(data.accessToken, data.refreshToken);
 
-      // Si driver, attache les photos CNIB deja uploadees au profil.
+      // Si driver, attache les URLs des photos CNIB deja uploadees pendant
+      // le step KYC du register (l'endpoint /uploads/kyc est public).
       if (
         pending.userType === 'driver' &&
         (pending.cnibPhotoUrl || pending.cnibPhotoBackUrl)

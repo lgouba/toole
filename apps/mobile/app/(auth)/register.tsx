@@ -313,20 +313,18 @@ export default function RegisterScreen() {
 
     setSubmittingKyc(true);
     try {
-      // Upload des 2 photos AVANT envoi OTP : on stockera leurs URLs dans
-      // pendingRegistration pour que l'API register les attache au profil
-      // driver au moment de la creation finale (apres confirmation OTP).
+      // Upload des photos AVANT envoi OTP. L'endpoint /uploads/kyc est public
+      // (pas d'auth requise) car ce flow tourne avant la creation du compte.
       const [front, back] = await Promise.all([
         uploadImage(cnibFrontUri, 'kyc'),
         uploadImage(cnibBackUri, 'kyc'),
       ]);
       if (!front || !back) {
         setError(
-          "Une des photos n'a pas pu être envoyée. Reessayez avec une meilleure connexion.",
+          "Une des photos n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
         );
         return;
       }
-
       await sendOtpAndProceed({
         cnibPhotoUrl: front.url,
         cnibPhotoBackUrl: back.url,
@@ -334,7 +332,7 @@ export default function RegisterScreen() {
     } catch (err: any) {
       setError(
         err?.response?.data?.error?.message ??
-          "Impossible de soumettre l'inscription. Reessayez.",
+          "Impossible d'envoyer le code de vérification. Reessayez.",
       );
     } finally {
       setSubmittingKyc(false);

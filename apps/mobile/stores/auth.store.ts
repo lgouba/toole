@@ -21,7 +21,9 @@ export interface PendingRegistration {
   vehicleType?: string;
   vehiclePlate?: string;
   referralCode?: string;
-  /** URLs des photos KYC deja uploadees (driver uniquement). */
+  /** URLs serveur des photos KYC deja uploadees (route /uploads/kyc est
+   *  publique, pas besoin d'auth). Attachees au profil driver apres
+   *  creation du compte via PUT /drivers/me/kyc. */
   cnibPhotoUrl?: string;
   cnibPhotoBackUrl?: string;
   /** Quel identifier a recu l'OTP (phone ou email). */

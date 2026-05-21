@@ -43,10 +43,26 @@ const upload = multer({
 });
 
 const router = Router();
-router.use(authRequired);
+
+/**
+ * Middleware d'auth conditionnel :
+ * - `kyc` : accessible SANS authentification (utilise pendant l'inscription
+ *   du livreur, avant la creation du compte). Les photos sont stockees dans
+ *   /uploads/kyc/ et associees a un driver via PUT /drivers/me/kyc apres login.
+ * - Autres categories (`avatars`, `packages`) : authentification requise.
+ */
+function conditionalAuth(
+  req: AuthedRequest,
+  res: import('express').Response,
+  next: import('express').NextFunction,
+) {
+  const category = req.params.category;
+  if (category === 'kyc') return next();
+  return authRequired(req, res, next);
+}
 
 // POST /api/uploads/:category (avatars | packages | kyc)
-router.post('/:category', upload.single('file'), (req: AuthedRequest, res, next) => {
+router.post('/:category', conditionalAuth, upload.single('file'), (req: AuthedRequest, res, next) => {
   try {
     if (!req.file) {
       throw new HttpError(400, 'NO_FILE', 'Aucun fichier recu (champ "file")');
