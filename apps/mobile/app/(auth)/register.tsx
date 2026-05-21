@@ -377,14 +377,20 @@ export default function RegisterScreen() {
       otpIdentifier,
     });
 
-    // Envoie OTP via le canal choisi.
+    // Envoie OTP via le canal choisi. purpose='register' : echoue si
+    // l'identifier (phone ou email) existe deja en DB.
     const result = await useAuthStore.getState().sendOtp(
       otpIdentifier,
       otpChannel,
+      'register',
     );
     if (!result.success) {
       useAuthStore.getState().setPendingRegistration(null);
-      setError(result.error ?? "Impossible d'envoyer le code de vérification.");
+      // Message generique pour eviter de reveler si l'identifier existe deja.
+      setError(
+        result.error ??
+          "Impossible d'envoyer le code de vérification. Vérifiez vos informations.",
+      );
       return;
     }
 

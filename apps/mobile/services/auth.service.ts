@@ -33,12 +33,14 @@ export function isEmail(identifier: string): boolean {
 export async function sendOtp(
   identifier: string,
   channel: OtpChannel = 'sms',
+  purpose?: 'login' | 'register',
 ): Promise<{ success: boolean }> {
   // Si l'identifier est un email, on force le canal email automatiquement.
   const effectiveChannel = isEmail(identifier) ? 'email' : channel;
   const res = await api.post('/auth/send-otp', {
     identifier,
     channel: effectiveChannel,
+    purpose,
   });
   return unwrap(res);
 }

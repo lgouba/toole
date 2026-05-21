@@ -31,6 +31,8 @@ const sendOtpSchema = z.object({
   phone: phoneSchema.optional(),
   /** Canal d'envoi. Defaut: deduit (sms si phone, email si email). */
   channel: z.enum(['sms', 'whatsapp', 'email']).optional(),
+  /** Verifie l'existence du compte selon l'usage. Si non fourni, pas de check. */
+  purpose: z.enum(['login', 'register']).optional(),
 });
 
 export async function sendOtpCtrl(req: Request, res: Response, next: NextFunction) {
@@ -42,7 +44,11 @@ export async function sendOtpCtrl(req: Request, res: Response, next: NextFunctio
         new Error('Vous devez fournir un numero de telephone ou un email.'),
       );
     }
-    const result = await sendOtp(identifier, body.channel ?? 'sms');
+    const result = await sendOtp(
+      identifier,
+      body.channel ?? 'sms',
+      body.purpose,
+    );
     return success(res, result);
   } catch (err) {
     next(err);

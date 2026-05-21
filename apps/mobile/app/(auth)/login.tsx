@@ -86,11 +86,13 @@ export default function LoginScreen() {
       }
     }
 
-    const result = await sendOtp(payloadIdentifier, channel);
+    const result = await sendOtp(payloadIdentifier, channel, 'login');
     if (result.success) {
       router.push('/(auth)/otp');
     } else {
-      setError(result.error || "Erreur lors de l'envoi du code");
+      // Message generique : ne pas reveler si l'identifier existe ou non
+      // (protection contre l'enumeration de comptes par un attaquant).
+      setError(result.error || "Impossible d'envoyer le code. Vérifiez vos informations.");
     }
   };
 

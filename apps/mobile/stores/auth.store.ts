@@ -49,6 +49,7 @@ interface AuthState {
   sendOtp: (
     identifier: string,
     channel?: 'sms' | 'whatsapp' | 'email',
+    purpose?: 'login' | 'register',
   ) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (
     code: string,
@@ -102,11 +103,11 @@ export const useAuthStore = create<AuthState>()(
       setPhoneNumber: (phone) => set({ phoneNumber: phone }),
       setPendingRegistration: (data) => set({ pendingRegistration: data }),
 
-      sendOtp: async (phone, channel = 'sms') => {
+      sendOtp: async (phone, channel = 'sms', purpose) => {
         set({ isLoading: true });
         try {
           console.log('[auth] sendOtp ->', channel, 'for', phone);
-          const result = await authService.sendOtp(phone, channel);
+          const result = await authService.sendOtp(phone, channel, purpose);
           console.log('[auth] sendOtp result:', result);
           set({ phoneNumber: phone, isLoading: false });
           return { success: result.success };

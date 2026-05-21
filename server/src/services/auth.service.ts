@@ -34,16 +34,45 @@ export function normalizeIdentifier(identifier: string): string {
  * Envoie un OTP au phone OU email donne. Le canal est deduit :
  *   - email -> email (SMTP Hostinger)
  *   - phone -> SMS par defaut, ou WhatsApp si channel='whatsapp'
+ *
+ * `purpose` permet de differencier login (compte doit exister) et register
+ * (compte ne doit PAS exister). Si pas fourni, comportement legacy (envoi
+ * sans verification — pour retro-compatibilite).
  */
 export async function sendOtp(
   identifier: string,
   channel: MessageChannel | 'email' = 'sms',
+  purpose?: 'login' | 'register',
 ): Promise<{ success: true }> {
   const normalized = normalizeIdentifier(identifier);
   const isEmail = isEmailIdentifier(normalized);
 
   if (isEmail && channel !== 'email') channel = 'email';
   if (!isEmail && channel === 'email') channel = 'sms';
+
+  // Verification de l'existence du compte selon le purpose.
+  // Message d'erreur volontairement generique pour ne pas reveler a un
+  // attaquant si un identifier existe ou non dans la base.
+  if (purpose === 'login' || purpose === 'register') {
+    const existing = await prisma.user.findFirst({
+      where: isEmail ? { email: normalized } : { phone: normalized },
+      select: { id: true },
+    });
+    if (purpose === 'login' && !existing) {
+      throw new HttpError(
+        404,
+        'IDENTIFIER_INVALID',
+        'Impossible d\'envoyer le code. Verifiez vos informations.',
+      );
+    }
+    if (purpose === 'register' && existing) {
+      throw new HttpError(
+        409,
+        'IDENTIFIER_INVALID',
+        'Impossible d\'envoyer le code. Verifiez vos informations.',
+      );
+    }
+  }
 
   // OTP : code reel pour email (SMTP livre vraiment), code dev pour SMS
   // tant que le provider SMS reel n'est pas branche.
@@ -68,9 +97,12 @@ export async function sendOtp(
     if (isEmail) {
       await sendEmail({
         to: normalized,
-        subject: 'Votre code Tolle',
+        subject: 'Votre code Tollé',
         html: `<p>Votre code de vérification Tollé : <b style="font-size:22px">${code}</b></p><p>Ce code expire dans 10 minutes.</p>`,
         text: `Votre code Tolle : ${code} (valide 10 min)`,
+        // Si le mail ne part pas, on remonte une vraie erreur a l'utilisateur
+        // (sinon il attend un mail qui n'arrivera jamais).
+        throwOnError: true,
       });
     } else {
       await sendOtpMessage(normalized, code, channel as MessageChannel);
