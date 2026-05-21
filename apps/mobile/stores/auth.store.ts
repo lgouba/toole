@@ -7,6 +7,27 @@ import * as userService from '@/services/user.service';
 import { disconnectSocket } from '@/services/socket.client';
 import { Sentry } from '@/services/sentry';
 
+/**
+ * Donnees collectees pendant le flow d'inscription, conservees entre les
+ * ecrans Register et OTP. Sur OTP soumis, on les envoie a /auth/register.
+ */
+export interface PendingRegistration {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  userType: UserRole;
+  phone: string; // format 226XXXXXXXX
+  email: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  referralCode?: string;
+  /** URLs des photos KYC deja uploadees (driver uniquement). */
+  cnibPhotoUrl?: string;
+  cnibPhotoBackUrl?: string;
+  /** Quel identifier a recu l'OTP (phone ou email). */
+  otpIdentifier: string;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -16,6 +37,9 @@ interface AuthState {
   isLoading: boolean;
   phoneNumber: string;
   lastOtpCode: string;
+  /** Donnees register en attente de confirmation OTP. */
+  pendingRegistration: PendingRegistration | null;
+  setPendingRegistration: (data: PendingRegistration | null) => void;
 
   /** `phoneNumber` est en fait un identifier : peut etre un phone (digits)
    *  ou un email. Le nom historique est garde pour eviter de tout casser. */
@@ -71,8 +95,10 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       phoneNumber: '',
       lastOtpCode: '',
+      pendingRegistration: null,
 
       setPhoneNumber: (phone) => set({ phoneNumber: phone }),
+      setPendingRegistration: (data) => set({ pendingRegistration: data }),
 
       sendOtp: async (phone, channel = 'sms') => {
         set({ isLoading: true });

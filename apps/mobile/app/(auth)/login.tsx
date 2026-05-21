@@ -20,16 +20,28 @@ import { Button } from '@/components/ui';
 import { colors, typography, spacing, borderRadius, shadow } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
+import { isEmail } from '@/services/auth.service';
 
-type Channel = 'sms' | 'whatsapp';
+type Channel = 'sms' | 'whatsapp' | 'email';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { sendOtp, isLoading } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
-  const [phone, setPhone] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
+  // Canal : selectionne automatiquement selon l'identifier (email -> email,
+  // phone -> WhatsApp par defaut). L'utilisateur peut overrider via les chips.
   const [channel, setChannel] = useState<Channel>('whatsapp');
+
+  // Detection auto email vs phone : impacte les chips proposes.
+  const isEmailInput = isEmail(identifier);
+  useEffect(() => {
+    // Si email : force le canal email automatiquement.
+    // Si phone et canal=email : retombe sur WhatsApp.
+    if (isEmailInput && channel !== 'email') setChannel('email');
+    if (!isEmailInput && channel === 'email') setChannel('whatsapp');
+  }, [isEmailInput, channel]);
 
   // Animation flottante de la moto dans le hero
   const floatY = useRef(new Animated.Value(0)).current;
@@ -54,13 +66,27 @@ export default function LoginScreen() {
 
   const handleContinue = async () => {
     setError('');
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length !== 8) {
-      setError('Entrez un numéro à 8 chiffres');
+    const trimmed = identifier.trim();
+    if (!trimmed) {
+      setError('Entrez votre numéro de téléphone ou email');
       return;
     }
-    const fullPhone = `226${cleaned}`;
-    const result = await sendOtp(fullPhone, channel);
+
+    let payloadIdentifier = trimmed;
+    if (!isEmailInput) {
+      // Phone : nettoyer et prefixer 226 si l'utilisateur a tape 8 chiffres seuls.
+      const cleaned = trimmed.replace(/\D/g, '');
+      if (cleaned.length === 8) {
+        payloadIdentifier = `226${cleaned}`;
+      } else if (cleaned.length === 11 && cleaned.startsWith('226')) {
+        payloadIdentifier = cleaned;
+      } else {
+        setError('Entrez un numéro à 8 chiffres ou un email valide');
+        return;
+      }
+    }
+
+    const result = await sendOtp(payloadIdentifier, channel);
     if (result.success) {
       router.push('/(auth)/otp');
     } else {
@@ -80,16 +106,10 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* HERO : illustration moto sur fond degrade terra cotta */}
+        {/* HERO : illustration moto sur fond terra cotta */}
         <View style={styles.hero}>
-          {/* Quadrillage decoratif */}
-          <View style={styles.heroGrid} pointerEvents="none" />
-
-          {/* Petits accents emoji animes */}
           <Text style={styles.heroAccentBox}>📦</Text>
           <Text style={styles.heroAccentStar}>⭐</Text>
-
-          {/* Moto centrale qui flotte */}
           <Animated.Text
             style={[styles.heroEmoji, { transform: [{ translateY: floatY }] }]}
           >
@@ -101,43 +121,63 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <Text style={styles.title}>Bienvenue chez {appName} !</Text>
           <Text style={styles.subtitle}>
-            {channel === 'whatsapp'
-              ? 'Recevez un code WhatsApp pour vous connecter en toute sécurité.'
-              : 'Recevez un code par SMS pour vous connecter en toute sécurité.'}
+            {channel === 'email'
+              ? 'Recevez un code par email pour vous connecter.'
+              : channel === 'whatsapp'
+                ? 'Recevez un code WhatsApp pour vous connecter en toute sécurité.'
+                : 'Recevez un code par SMS pour vous connecter en toute sécurité.'}
           </Text>
 
-          {/* Champ telephone — design hero */}
+          {/* Champ identifier (phone OU email) */}
           <View style={styles.inputCard}>
-            <Text style={styles.flag}>🇧🇫</Text>
-            <Text style={styles.prefix}>+226</Text>
+            {isEmailInput ? (
+              <Ionicons name="mail-outline" size={22} color={colors.primary} />
+            ) : (
+              <Text style={styles.flag}>🇧🇫</Text>
+            )}
             <TextInput
-              style={styles.phoneInput}
-              placeholder="70 12 34 56"
+              style={styles.identifierInput}
+              placeholder="70 12 34 56 ou email"
               placeholderTextColor={colors.textTertiary}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              maxLength={12}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={identifier}
+              onChangeText={setIdentifier}
+              maxLength={80}
             />
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          {/* Canaux WhatsApp / SMS */}
+          {/* Canaux affiches selon le type d'identifier */}
           <View style={styles.channels}>
-            <ChannelChip
-              active={channel === 'whatsapp'}
-              onPress={() => setChannel('whatsapp')}
-              icon="logo-whatsapp"
-              color="#25D366"
-              label="WhatsApp"
-            />
-            <ChannelChip
-              active={channel === 'sms'}
-              onPress={() => setChannel('sms')}
-              icon="chatbubble-outline"
-              color={colors.primary}
-              label="SMS"
-            />
+            {isEmailInput ? (
+              <ChannelChip
+                active
+                icon="mail"
+                color={colors.primary}
+                label="Code par email"
+                onPress={() => {}}
+                fullWidth
+              />
+            ) : (
+              <>
+                <ChannelChip
+                  active={channel === 'whatsapp'}
+                  onPress={() => setChannel('whatsapp')}
+                  icon="logo-whatsapp"
+                  color="#25D366"
+                  label="WhatsApp"
+                />
+                <ChannelChip
+                  active={channel === 'sms'}
+                  onPress={() => setChannel('sms')}
+                  icon="chatbubble-outline"
+                  color={colors.primary}
+                  label="SMS"
+                />
+              </>
+            )}
           </View>
 
           {/* CTA + lien register */}
@@ -146,7 +186,7 @@ export default function LoginScreen() {
               title="Continuer ✨"
               onPress={handleContinue}
               loading={isLoading}
-              disabled={phone.replace(/\D/g, '').length < 8}
+              disabled={identifier.trim().length < 3}
             />
             <TouchableOpacity
               onPress={() => router.push('/(auth)/register')}
@@ -173,17 +213,20 @@ function ChannelChip({
   icon,
   color,
   label,
+  fullWidth,
 }: {
   active: boolean;
   onPress: () => void;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   label: string;
+  fullWidth?: boolean;
 }) {
   return (
     <TouchableOpacity
       style={[
         styles.chip,
+        fullWidth && { flex: 1 },
         active && { borderColor: color, backgroundColor: color + '14' },
       ]}
       onPress={onPress}
@@ -205,11 +248,7 @@ function ChannelChip({
 const HERO_HEIGHT = 300;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  // ============== HERO ==============
+  container: { flex: 1, backgroundColor: colors.background },
   hero: {
     height: HERO_HEIGHT,
     backgroundColor: colors.primary,
@@ -219,14 +258,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  heroGrid: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'transparent',
-    opacity: 0.15,
-    // Faux quadrillage via 2 background-color sur lignes (RN ne supporte pas
-    // les gradients sans lib externe, donc on accepte un fond uni teinte
-    // et on simule la profondeur avec les accents emoji + le degrade visuel).
   },
   heroEmoji: {
     fontSize: 130,
@@ -248,7 +279,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     opacity: 0.9,
   },
-  // ============== FORM ==============
   form: {
     flex: 1,
     paddingHorizontal: spacing.lg,
@@ -269,7 +299,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
   },
-  // ============== Champ phone ==============
   inputCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,22 +308,15 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryLight,
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
-    gap: 8,
+    gap: 10,
     marginTop: spacing.sm,
     ...shadow.sm,
   },
-  flag: {
-    fontSize: 24,
-  },
-  prefix: {
-    ...typography.bodyMedium,
-    fontWeight: '800',
-    color: colors.primaryDark,
-  },
-  phoneInput: {
+  flag: { fontSize: 24 },
+  identifierInput: {
     flex: 1,
     paddingVertical: 14,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
     fontFamily: typography.bodyMedium.fontFamily,
@@ -304,11 +326,7 @@ const styles = StyleSheet.create({
     color: colors.error,
     marginTop: -spacing.xs,
   },
-  // ============== Canaux ==============
-  channels: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
+  channels: { flexDirection: 'row', gap: spacing.sm },
   chip: {
     flex: 1,
     flexDirection: 'row',
@@ -326,11 +344,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
   },
-  // ============== Footer ==============
-  footer: {
-    marginTop: 'auto',
-    gap: spacing.sm,
-  },
+  footer: { marginTop: 'auto', gap: spacing.sm },
   registerLink: {
     paddingVertical: spacing.sm,
     alignItems: 'center',

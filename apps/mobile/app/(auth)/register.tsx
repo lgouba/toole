@@ -84,6 +84,41 @@ type Step = 'role' | 'identity' | 'vehicle' | 'kyc';
 
 import { Image } from 'react-native';
 
+function ChannelOption({
+  active,
+  onPress,
+  icon,
+  color,
+  label,
+}: {
+  active: boolean;
+  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  label: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.channelOption,
+        active && { borderColor: color, backgroundColor: color + '14' },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Ionicons name={icon} size={16} color={active ? color : colors.textSecondary} />
+      <Text
+        style={[
+          styles.channelOptionLabel,
+          active && { color, fontWeight: '800' },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 function KycPhotoButton({
   label,
   uri,
@@ -157,13 +192,21 @@ export default function RegisterScreen() {
   const [year, setYear] = useState('');
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
+  // Telephone (obligatoire pour TOUS) et email (obligatoire pour TOUS) :
+  // ces deux contacts permettent de recevoir l'OTP de confirmation et
+  // d'utiliser l'un OU l'autre pour les connexions futures.
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  // Canal d'envoi de l'OTP de confirmation au moment de l'inscription.
+  const [otpChannel, setOtpChannel] = useState<'sms' | 'whatsapp' | 'email'>(
+    'whatsapp',
+  );
 
   // Driver only
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
   const [vehiclePlate, setVehiclePlate] = useState('');
 
-  // Driver KYC : email + photos piece d'identite (recto + verso)
-  const [email, setEmail] = useState('');
+  // Driver KYC : photos piece d'identite (recto + verso)
   const [cnibFrontUri, setCnibFrontUri] = useState<string | null>(null);
   const [cnibBackUri, setCnibBackUri] = useState<string | null>(null);
   const [submittingKyc, setSubmittingKyc] = useState(false);
@@ -197,19 +240,27 @@ export default function RegisterScreen() {
     setStep('identity');
   };
 
+  const validateIdentityFields = (): string | null => {
+    if (firstName.trim().length < 2) return 'Entrez votre prénom (2 caractères min)';
+    if (lastName.trim().length < 2) return 'Entrez votre nom (2 caractères min)';
+    const dateErr = validateDate(day, month, year);
+    if (dateErr) return dateErr;
+    // Phone obligatoire (8 chiffres ou 11 chiffres si commence par 226)
+    const cleanedPhone = phone.replace(/\D/g, '');
+    if (cleanedPhone.length !== 8 && !(cleanedPhone.length === 11 && cleanedPhone.startsWith('226'))) {
+      return 'Entrez un numéro de téléphone à 8 chiffres';
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      return 'Entrez une adresse email valide';
+    }
+    return null;
+  };
+
   const handleIdentityNext = async () => {
     setError('');
-    if (firstName.trim().length < 2) {
-      setError('Entrez votre prenom (2 caracteres min)');
-      return;
-    }
-    if (lastName.trim().length < 2) {
-      setError('Entrez votre nom (2 caracteres min)');
-      return;
-    }
-    const dateErr = validateDate(day, month, year);
-    if (dateErr) {
-      setError(dateErr);
+    const err = validateIdentityFields();
+    if (err) {
+      setError(err);
       return;
     }
 
@@ -218,7 +269,8 @@ export default function RegisterScreen() {
       return;
     }
 
-    await doRegister();
+    // Client : envoie l'OTP + stocke les donnees + navigue vers OTP screen
+    await sendOtpAndProceed();
   };
 
   const handleVehicleConfirm = () => {
@@ -250,68 +302,39 @@ export default function RegisterScreen() {
 
   const handleKycSubmit = async () => {
     setError('');
-    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError('Entrez une adresse email valide.');
-      return;
-    }
     if (!cnibFrontUri) {
-      setError("Ajoutez la photo recto de votre piece d'identite.");
+      setError("Ajoutez la photo recto de votre pièce d'identité.");
       return;
     }
     if (!cnibBackUri) {
-      setError("Ajoutez la photo verso de votre piece d'identite.");
+      setError("Ajoutez la photo verso de votre pièce d'identité.");
       return;
     }
 
     setSubmittingKyc(true);
     try {
-      // 1) Cree d'abord le compte driver (avec email). Le register utilise
-      //    l'OTP deja valide, le compte sera cree en isActive=false +
-      //    verificationStatus=pending.
-      const created = await doRegister();
-      if (!created) {
-        // doRegister a deja appele setError, on stoppe ici.
-        setSubmittingKyc(false);
-        return;
-      }
-
-      // 2) Upload des deux photos. On parallelise pour gagner du temps.
+      // Upload des 2 photos AVANT envoi OTP : on stockera leurs URLs dans
+      // pendingRegistration pour que l'API register les attache au profil
+      // driver au moment de la creation finale (apres confirmation OTP).
       const [front, back] = await Promise.all([
         uploadImage(cnibFrontUri, 'kyc'),
         uploadImage(cnibBackUri, 'kyc'),
       ]);
       if (!front || !back) {
         setError(
-          "Une des photos n'a pas pu etre envoyee. Reessayez avec une meilleure connexion.",
+          "Une des photos n'a pas pu être envoyée. Reessayez avec une meilleure connexion.",
         );
-        setSubmittingKyc(false);
         return;
       }
 
-      // 3) Attache les URLs photos au profil driver via PUT /drivers/me/kyc.
-      await api.put('/drivers/me/kyc', {
+      await sendOtpAndProceed({
         cnibPhotoUrl: front.url,
         cnibPhotoBackUrl: back.url,
       });
-
-      // 4) Logout + redirection ecran login avec message d'attente.
-      // Comme le compte est isActive=false, on ne peut pas rester loggue.
-      // L'utilisateur sera notifie quand l'admin validera.
-      logout();
-      router.replace('/(auth)/login');
-      // Petit alert pour le rassurer.
-      setTimeout(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { Alert } = require('react-native');
-        Alert.alert(
-          'Inscription envoyée',
-          "Vos justificatifs sont en cours de validation par notre equipe (24-48h). Vous recevrez une notification des l'activation de votre compte.",
-        );
-      }, 200);
     } catch (err: any) {
       setError(
         err?.response?.data?.error?.message ??
-          'Impossible de soumettre le KYC. Reessayez dans un instant.',
+          "Impossible de soumettre l'inscription. Reessayez.",
       );
     } finally {
       setSubmittingKyc(false);
@@ -319,10 +342,60 @@ export default function RegisterScreen() {
   };
 
   /**
-   * Cree le compte cote serveur. Retourne true en cas de succes, false sinon.
-   * En cas d'echec, l'erreur est affichee via setError (pas de throw : sinon
-   * unhandled promise rejection silencieuse qui semble bloquer l'UI).
+   * Envoie un OTP au phone ou email choisi par l'utilisateur, stocke les
+   * donnees d'inscription dans le store, et navigue vers l'ecran OTP.
+   * L'ecran OTP detecte le pendingRegistration et finalise l'inscription
+   * en appelant /auth/register avec ces donnees + le code OTP saisi.
    */
+  const sendOtpAndProceed = async (kycExtras: {
+    cnibPhotoUrl?: string;
+    cnibPhotoBackUrl?: string;
+  } = {}): Promise<void> => {
+    if (!selectedRole) return;
+    setError('');
+    const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const fullPhone =
+      cleanedPhone.length === 8 ? `226${cleanedPhone}` : cleanedPhone;
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Identifier vers lequel l'OTP est envoye (selon canal choisi).
+    const otpIdentifier =
+      otpChannel === 'email' ? cleanEmail : fullPhone;
+
+    // Stocke d'abord dans le store pour que OTP screen puisse finaliser.
+    useAuthStore.getState().setPendingRegistration({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      dateOfBirth: dob,
+      userType: selectedRole,
+      phone: fullPhone,
+      email: cleanEmail,
+      vehicleType: vehicleType ?? undefined,
+      vehiclePlate: vehiclePlate.trim() || undefined,
+      referralCode: referralCode.trim() || undefined,
+      cnibPhotoUrl: kycExtras.cnibPhotoUrl,
+      cnibPhotoBackUrl: kycExtras.cnibPhotoBackUrl,
+      otpIdentifier,
+    });
+
+    // Envoie OTP via le canal choisi.
+    const result = await useAuthStore.getState().sendOtp(
+      otpIdentifier,
+      otpChannel,
+    );
+    if (!result.success) {
+      useAuthStore.getState().setPendingRegistration(null);
+      setError(result.error ?? "Impossible d'envoyer le code de vérification.");
+      return;
+    }
+
+    router.push('/(auth)/otp');
+  };
+
+  // (deprecated) Conservé temporairement pour reference. Le flow utilise
+  // sendOtpAndProceed ci-dessus + finalisation dans l'ecran OTP.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const doRegister = async (): Promise<boolean> => {
     if (!selectedRole) return false;
     setError('');
@@ -561,6 +634,52 @@ export default function RegisterScreen() {
                 </View>
 
                 <Input
+                  label="Téléphone *"
+                  placeholder="70 12 34 56"
+                  value={phone}
+                  onChangeText={(t) => setPhone(t.replace(/\D/g, ''))}
+                  keyboardType="phone-pad"
+                  maxLength={12}
+                />
+
+                <Input
+                  label="Email *"
+                  placeholder="vous@exemple.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                {/* Choix du canal pour recevoir le code de verification */}
+                <Text style={styles.dobLabel}>
+                  Recevoir le code de vérification par *
+                </Text>
+                <View style={styles.channelRow}>
+                  <ChannelOption
+                    active={otpChannel === 'whatsapp'}
+                    onPress={() => setOtpChannel('whatsapp')}
+                    icon="logo-whatsapp"
+                    color="#25D366"
+                    label="WhatsApp"
+                  />
+                  <ChannelOption
+                    active={otpChannel === 'sms'}
+                    onPress={() => setOtpChannel('sms')}
+                    icon="chatbubble-outline"
+                    color={colors.primary}
+                    label="SMS"
+                  />
+                  <ChannelOption
+                    active={otpChannel === 'email'}
+                    onPress={() => setOtpChannel('email')}
+                    icon="mail-outline"
+                    color={colors.secondary}
+                    label="Email"
+                  />
+                </View>
+
+                <Input
                   label="Code de parrainage (optionnel)"
                   placeholder="Ex : AMINA22"
                   value={referralCode}
@@ -660,16 +779,6 @@ export default function RegisterScreen() {
                   d'activer votre compte (24-48h).
                 </Text>
               </View>
-
-              <Input
-                label="Email professionnel"
-                placeholder="vous@exemple.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                containerStyle={styles.inputMargin}
-              />
 
               <Text style={styles.kycSectionLabel}>
                 Pièce d'identité (CNIB, passeport, permis)
@@ -865,6 +974,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  channelOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  channelOptionLabel: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   dobInput: {
     flex: 1,
