@@ -139,21 +139,9 @@ export async function verifyOtpFlow(identifier: string, code: string) {
 
   if (!user.isActive) {
     logger.warn(
-      { userId: user.id, identifier: normalized, userType: user.userType },
+      { userId: user.id, identifier: normalized, userType: user.userType, verificationStatus: user.driverProfile?.verificationStatus },
       'Login attempt on inactive/suspended account',
     );
-    // Cas specifique du livreur en attente de validation KYC : on lui dit
-    // explicitement ce qu'il en est pour qu'il sache quoi attendre.
-    if (
-      user.userType === 'driver' &&
-      user.driverProfile?.verificationStatus === 'pending'
-    ) {
-      throw new HttpError(
-        403,
-        'DRIVER_KYC_PENDING',
-        "Vos justificatifs sont en cours de validation par notre equipe. Vous serez notifie des l'activation de votre compte.",
-      );
-    }
     // KYC rejete : message specifique avec la note de l'admin si dispo.
     if (
       user.userType === 'driver' &&
@@ -166,7 +154,17 @@ export async function verifyOtpFlow(identifier: string, code: string) {
           'Vos justificatifs ont ete rejetes. Contactez le support pour plus d\'informations.',
       );
     }
-    // Autre cas : compte suspendu, message generique (ne pas reveler la cause).
+    // Pour TOUT autre livreur inactif (status pending OU profile manquant),
+    // on considere qu'il est en attente de validation KYC. C'est le cas le plus
+    // courant : compte tout neuf cree par /auth/register avec isActive=false.
+    if (user.userType === 'driver') {
+      throw new HttpError(
+        403,
+        'DRIVER_KYC_PENDING',
+        "Vos justificatifs sont en cours de validation par notre equipe. Vous serez notifie des l'activation de votre compte (24-48h).",
+      );
+    }
+    // Compte client/merchant suspendu : message generique.
     throw new HttpError(
       403,
       'ACCOUNT_UNAVAILABLE',
