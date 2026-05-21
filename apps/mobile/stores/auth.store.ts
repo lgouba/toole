@@ -49,6 +49,8 @@ interface AuthState {
     success: boolean;
     errorCode?: string;
     errorMessage?: string;
+    /** Detail des erreurs Zod par champ (si VALIDATION_ERROR). */
+    fieldErrors?: Record<string, string[]>;
   }>;
   completeOnboarding: () => void;
   /** Marque le tutoriel post-login comme vu pour un role donne. */
@@ -158,12 +160,27 @@ export const useAuthStore = create<AuthState>()(
           return { success: true } as const;
         } catch (err: any) {
           set({ isLoading: false });
-          // Remonter le vrai code/message d'erreur du serveur pour que l'UI
-          // puisse afficher quelque chose d'utile (EXPIRED_OTP, USER_EXISTS, etc).
           const errorCode = err?.response?.data?.error?.code as string | undefined;
           const errorMessage = err?.response?.data?.error?.message as string | undefined;
-          console.warn('[auth] register failed', errorCode, errorMessage);
-          return { success: false, errorCode, errorMessage } as const;
+          // En cas de VALIDATION_ERROR, le serveur (Zod) renvoie le detail
+          // des champs invalides. On l'exploite pour afficher quel champ exact
+          // ne passe pas (au lieu du message generique "validation failed").
+          const fieldErrors =
+            (err?.response?.data?.error?.details?.fieldErrors as
+              | Record<string, string[]>
+              | undefined) ?? undefined;
+          console.warn(
+            '[auth] register failed',
+            errorCode,
+            errorMessage,
+            fieldErrors,
+          );
+          return {
+            success: false,
+            errorCode,
+            errorMessage,
+            fieldErrors,
+          } as const;
         }
       },
 

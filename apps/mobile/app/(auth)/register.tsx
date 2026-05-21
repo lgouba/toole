@@ -349,6 +349,28 @@ export default function RegisterScreen() {
       } else if (result.errorCode === 'USER_EXISTS') {
         msg =
           'Ce numéro est déjà associé à un compte. Connectez-vous au lieu de vous inscrire.';
+      } else if (result.errorCode === 'VALIDATION_ERROR' && result.fieldErrors) {
+        // On extrait le premier champ qui pose probleme et on l'explique
+        // dans la langue de l'utilisateur. Permet de pointer precisement
+        // ce qui bloque (date mal formee, prenom trop court, etc).
+        const fields = result.fieldErrors;
+        const FIELD_LABELS: Record<string, string> = {
+          firstName: 'Prénom',
+          lastName: 'Nom',
+          dateOfBirth: 'Date de naissance',
+          phone: 'Numéro de téléphone',
+          otpCode: 'Code de vérification',
+          email: 'Email',
+          vehicleType: 'Type de véhicule',
+          userType: 'Type de compte',
+        };
+        const firstBadField = Object.keys(fields).find(
+          (k) => (fields[k]?.length ?? 0) > 0,
+        );
+        if (firstBadField) {
+          const label = FIELD_LABELS[firstBadField] ?? firstBadField;
+          msg = `Champ invalide : ${label}. ${fields[firstBadField][0]}`;
+        }
       }
       setError(msg);
       return false;
