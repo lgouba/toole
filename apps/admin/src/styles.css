@@ -696,6 +696,11 @@ table tr:hover td {
   text-align: right;
 }
 
+.users-table .col-date {
+  white-space: nowrap;
+  min-width: 120px;
+}
+
 .users-table .col-actions .btn {
   float: none;
 }

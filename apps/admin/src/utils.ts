@@ -10,6 +10,11 @@ export function formatDate(d: string | Date): string {
   return format(new Date(d), 'dd MMM yyyy HH:mm', { locale: fr });
 }
 
+/** Variante compacte sans heure, pour les colonnes de table etroites. */
+export function formatDateShort(d: string | Date): string {
+  return format(new Date(d), 'dd MMM yyyy', { locale: fr });
+}
+
 export function timeAgo(d: string | Date): string {
   return formatDistanceToNow(new Date(d), { addSuffix: true, locale: fr });
 }

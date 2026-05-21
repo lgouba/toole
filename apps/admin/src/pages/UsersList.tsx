@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api';
-import { formatDate, formatPhone } from '../utils';
+import { formatDateShort, formatPhone } from '../utils';
 
 interface UserRow {
   id: string;
@@ -47,6 +47,64 @@ export default function UsersList({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterValue>('all');
+  // Tri par colonne : clic sur l'en-tete pour toggle asc/desc.
+  const [sortKey, setSortKey] = useState<
+    'name' | 'phone' | 'email' | 'vehicle' | 'kyc' | 'status' | 'createdAt'
+  >('createdAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedItems = useMemo(() => {
+    const sorted = [...items];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'name':
+          cmp = a.fullName.localeCompare(b.fullName, 'fr', { sensitivity: 'base' });
+          break;
+        case 'phone':
+          cmp = a.phone.localeCompare(b.phone);
+          break;
+        case 'email':
+          cmp = (a.email ?? '').localeCompare(b.email ?? '');
+          break;
+        case 'vehicle':
+          cmp = (a.driverProfile?.vehicleType ?? '').localeCompare(
+            b.driverProfile?.vehicleType ?? '',
+          );
+          break;
+        case 'kyc': {
+          const order: Record<string, number> = { pending: 0, verified: 1, rejected: 2 };
+          cmp =
+            (order[a.driverProfile?.verificationStatus ?? 'pending'] ?? 0) -
+            (order[b.driverProfile?.verificationStatus ?? 'pending'] ?? 0);
+          break;
+        }
+        case 'status':
+          cmp = Number(b.isActive) - Number(a.isActive);
+          break;
+        case 'createdAt':
+        default:
+          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [items, sortKey, sortDir]);
+
+  const SortIndicator = ({ active }: { active: boolean }) => (
+    <span style={{ marginLeft: 4, opacity: active ? 1 : 0.3, fontSize: 11 }}>
+      {active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+    </span>
+  );
 
   const load = async () => {
     setLoading(true);
@@ -125,19 +183,60 @@ export default function UsersList({
           <table className="users-table">
             <thead>
               <tr>
-                <th>Nom</th>
-                <th className="col-phone">Telephone</th>
-                <th>Email</th>
-                {role === 'driver' ? <th>Vehicule</th> : null}
+                <th
+                  onClick={() => toggleSort('name')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Nom <SortIndicator active={sortKey === 'name'} />
+                </th>
+                <th
+                  className="col-phone"
+                  onClick={() => toggleSort('phone')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Téléphone <SortIndicator active={sortKey === 'phone'} />
+                </th>
+                <th
+                  onClick={() => toggleSort('email')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Email <SortIndicator active={sortKey === 'email'} />
+                </th>
+                {role === 'driver' ? (
+                  <th
+                    onClick={() => toggleSort('vehicle')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Véhicule <SortIndicator active={sortKey === 'vehicle'} />
+                  </th>
+                ) : null}
                 {role === 'driver' ? <th>En ligne</th> : null}
-                {role === 'driver' ? <th>KYC</th> : null}
-                <th>Statut</th>
-                <th>Inscrit</th>
+                {role === 'driver' ? (
+                  <th
+                    onClick={() => toggleSort('kyc')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    KYC <SortIndicator active={sortKey === 'kyc'} />
+                  </th>
+                ) : null}
+                <th
+                  onClick={() => toggleSort('status')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Statut <SortIndicator active={sortKey === 'status'} />
+                </th>
+                <th
+                  onClick={() => toggleSort('createdAt')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  className="col-date"
+                >
+                  Inscrit <SortIndicator active={sortKey === 'createdAt'} />
+                </th>
                 <th className="col-actions"></th>
               </tr>
             </thead>
             <tbody>
-              {items.map((u) => {
+              {sortedItems.map((u) => {
                 const status = userStatus(u);
                 return (
                   <tr
@@ -179,7 +278,7 @@ export default function UsersList({
                     <td>
                       <span className={`badge ${status.cls}`}>{status.label}</span>
                     </td>
-                    <td className="muted nowrap">{formatDate(u.createdAt)}</td>
+                    <td className="muted nowrap col-date">{formatDateShort(u.createdAt)}</td>
                     <td className="col-actions">
                       <Link to={`/users/${u.id}`} className="btn btn-ghost btn-sm">
                         Gerer
