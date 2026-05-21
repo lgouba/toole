@@ -277,16 +277,25 @@ export default function UserDetail() {
               </div>
             </div>
 
-            <div className="row">
-              <div>
-                <div className="muted">CNIB</div>
-                <div>{user.driverProfile.cnibNumber ?? '-'}</div>
+            {/* N'affiche les numeros CNIB / Permis que si l'utilisateur en
+                a saisi : evite des libelles vides "CNIB: -" qui font doublon
+                avec les photos juste en dessous. */}
+            {user.driverProfile.cnibNumber || user.driverProfile.licenseNumber ? (
+              <div className="row">
+                {user.driverProfile.cnibNumber ? (
+                  <div>
+                    <div className="muted">N° CNIB</div>
+                    <div>{user.driverProfile.cnibNumber}</div>
+                  </div>
+                ) : null}
+                {user.driverProfile.licenseNumber ? (
+                  <div style={{ marginLeft: 40 }}>
+                    <div className="muted">N° Permis</div>
+                    <div>{user.driverProfile.licenseNumber}</div>
+                  </div>
+                ) : null}
               </div>
-              <div style={{ marginLeft: 40 }}>
-                <div className="muted">Permis</div>
-                <div>{user.driverProfile.licenseNumber ?? '-'}</div>
-              </div>
-            </div>
+            ) : null}
 
             <div className="photos-row">
               {user.driverProfile.cnibPhotoUrl ? (
@@ -309,14 +318,15 @@ export default function UserDetail() {
               ) : null}
               {user.driverProfile.vehiclePhotoUrl ? (
                 <div>
-                  <div className="muted">Vehicule</div>
+                  <div className="muted">Véhicule</div>
                   <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.vehiclePhotoUrl)!} alt="Vehicule" />
                 </div>
               ) : null}
               {!user.driverProfile.cnibPhotoUrl &&
+              !user.driverProfile.cnibPhotoBackUrl &&
               !user.driverProfile.licensePhotoUrl &&
               !user.driverProfile.vehiclePhotoUrl ? (
-                <div className="muted">Aucun document envoye.</div>
+                <div className="muted">Aucun document envoyé.</div>
               ) : null}
             </div>
 
