@@ -45,7 +45,11 @@ interface AuthState {
      *  uploader des photos avec le token tout en restant sur la page register
      *  (sinon l'auth guard du _layout redirige vers /(driver) instantanement). */
     deferAuth?: boolean;
-  }) => Promise<boolean>;
+  }) => Promise<{
+    success: boolean;
+    errorCode?: string;
+    errorMessage?: string;
+  }>;
   completeOnboarding: () => void;
   /** Marque le tutoriel post-login comme vu pour un role donne. */
   completeRoleTutorial: (role: 'client' | 'driver') => void;
@@ -145,20 +149,21 @@ export const useAuthStore = create<AuthState>()(
             otpCode: get().lastOtpCode,
             ...rest,
           });
-          // Si deferAuth=true (cas du driver qui doit encore uploader son KYC),
-          // on stocke l'user et garde les tokens (deja poses par registerUser)
-          // mais on NE bascule PAS isAuthenticated=true. L'ecran register reste
-          // affiche pour completer l'upload KYC, puis logout proprement.
           set({
             user,
             isAuthenticated: deferAuth ? false : true,
             isLoading: false,
             lastOtpCode: '',
           });
-          return true;
-        } catch {
+          return { success: true } as const;
+        } catch (err: any) {
           set({ isLoading: false });
-          return false;
+          // Remonter le vrai code/message d'erreur du serveur pour que l'UI
+          // puisse afficher quelque chose d'utile (EXPIRED_OTP, USER_EXISTS, etc).
+          const errorCode = err?.response?.data?.error?.code as string | undefined;
+          const errorMessage = err?.response?.data?.error?.message as string | undefined;
+          console.warn('[auth] register failed', errorCode, errorMessage);
+          return { success: false, errorCode, errorMessage } as const;
         }
       },
 

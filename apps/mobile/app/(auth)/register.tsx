@@ -327,7 +327,7 @@ export default function RegisterScreen() {
     if (!selectedRole) return false;
     setError('');
     const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    const ok = await register({
+    const result = await register({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       dateOfBirth: dob,
@@ -340,10 +340,17 @@ export default function RegisterScreen() {
       // redirige immediatement vers /(driver) et empeche l'upload KYC qui suit.
       deferAuth: selectedRole === 'driver',
     });
-    if (!ok) {
-      setError(
-        'Impossible de créer le compte. Le code OTP a peut-être expiré, demandez-en un nouveau.',
-      );
+    if (!result.success) {
+      // Message contextuel selon le code d'erreur serveur.
+      let msg = result.errorMessage ?? 'Impossible de créer le compte.';
+      if (result.errorCode === 'EXPIRED_OTP' || result.errorCode === 'INVALID_OTP') {
+        msg =
+          'Le code de vérification a expiré ou est invalide. Revenez en arrière et redemandez un code.';
+      } else if (result.errorCode === 'USER_EXISTS') {
+        msg =
+          'Ce numéro est déjà associé à un compte. Connectez-vous au lieu de vous inscrire.';
+      }
+      setError(msg);
       return false;
     }
     // Pour client : redirection direct sur la home.
