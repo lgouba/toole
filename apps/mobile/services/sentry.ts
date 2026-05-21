@@ -70,6 +70,19 @@ export function initSentry() {
       return event;
     },
 
+    // Erreurs RN benignes a ignorer (gerees automatiquement par le runtime,
+    // mais qui polluent le dashboard Sentry et faussent le taux de crash).
+    ignoreErrors: [
+      // Fabric / New Architecture : se produit quand une view est unmount
+      // pendant une mise a jour de layout. Le runtime retry l'operation
+      // (d'ou "Retryable") et l'app ne crash pas reellement.
+      'RetryableMountingLayerException',
+      'Unable to find viewState for tag',
+      // Erreur reseau classique quand l'utilisateur perd la connexion.
+      // Deja gere par l'UI (banner offline + retry), pas la peine d'alerter.
+      'Network request failed',
+    ],
+
     // Anonymise les donnees sensibles avant envoi.
     beforeSend: (event) => {
       // Ne JAMAIS envoyer les tokens auth ni le code OTP en clair dans les

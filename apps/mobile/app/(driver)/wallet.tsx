@@ -182,28 +182,11 @@ export default function WalletScreen() {
                   <Text style={styles.metricValueGain}>
                     {formatCFA(totalEarned)}
                   </Text>
-                </View>
 
-                {/* Sous-carte : retrait dispo (paiements en ligne uniquement) */}
-                <View style={styles.subCard}>
-                  <View style={styles.subCardRow}>
-                    <View style={styles.subCardLabel}>
-                      <Ionicons
-                        name="wallet-outline"
-                        size={18}
-                        color={colors.textSecondary}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.subCardTitle}>
-                          Disponible pour retrait
-                        </Text>
-                        <Text style={styles.subCardHint}>
-                          Gains des courses payées en ligne
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.subCardValue}>{formatCFA(balance)}</Text>
-                  </View>
+                  {/* Bouton retrait : visible des qu'il y a quelque chose
+                      de retirable via OM (paiements en ligne accumules dans
+                      le wallet). Sans ca, le livreur n'a rien a retirer car
+                      les gains cash sont deja en sa possession physique. */}
                   {canWithdraw ? (
                     <TouchableOpacity
                       style={styles.actionBtnGain}

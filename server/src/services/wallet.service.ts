@@ -54,14 +54,30 @@ export async function getWalletSnapshot(userId: string) {
   // (commission encore due moins les reglements en attente de validation).
   const effectiveDebt = Math.max(0, commissionDebt - pendingTopupAmount);
 
-  // Cumul a vie des gains livreur : somme de toutes les transactions de
-  // type "commission" completees (les credits gagnes a chaque livraison
-  // terminee, cash ou wallet confondus). C'est l'onglet "Mes gains".
-  const earnedAgg = await prisma.transaction.aggregate({
-    where: { userId, type: 'commission', status: 'completed' },
-    _sum: { amount: true },
-  });
-  const totalEarned = earnedAgg._sum.amount ?? 0;
+  // Gain Net Total = ce que le livreur a effectivement gagne dans le systeme,
+  // moins ce qu'il a deja retire. Apres chaque retrait validé, le total
+  // baisse d'autant ; ce qui se rapproche de la notion intuitive de "ce qu'il
+  // me reste dans l'app" plutot que d'un compteur cumulatif a vie.
+  //   = somme(commission completed) - somme(withdrawal completed)
+  // Les retraits sont stockes avec amount positif et type 'withdrawal'.
+  const [earnedAgg, withdrawnAgg] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { userId, type: 'commission', status: 'completed' },
+      _sum: { amount: true },
+    }),
+    // Retraits actifs (pending ou completed). Les retraits "failed" (rejetes
+    // par l'admin) ne comptent pas car le walletBalance est restaure.
+    prisma.transaction.aggregate({
+      where: {
+        userId,
+        type: 'withdrawal',
+        status: { in: ['pending', 'completed'] },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+  const totalEarned =
+    (earnedAgg._sum.amount ?? 0) - (withdrawnAgg._sum.amount ?? 0);
 
   return {
     balance: Math.max(0, raw),
