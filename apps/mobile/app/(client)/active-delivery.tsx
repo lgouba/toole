@@ -11,7 +11,7 @@ import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { shareLocationWhatsApp } from '@/utils/linking';
-import { formatEta, formatDistance } from '@/utils/format';
+import { formatEta, formatDistance, formatRating } from '@/utils/format';
 import { getDeliveryById } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
@@ -206,7 +206,13 @@ export default function ActiveDeliveryScreen() {
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{driver.fullName}</Text>
               <Text style={styles.driverMeta}>
-                {driver.ratingAvg.toFixed(1)} ★ · {driver.driverProfile.totalDeliveries} courses
+                {(() => {
+                  const r = formatRating(driver.ratingAvg, driver.ratingCount);
+                  return r.hasRatings
+                    ? `${r.value} ★ · ${r.label}`
+                    : `${r.label}`;
+                })()}{' '}
+                · {driver.driverProfile.totalDeliveries} courses
               </Text>
             </View>
             <TouchableOpacity

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Avatar, Rating } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { DriverWithProfile, VehicleType } from '@/types';
-import { formatDistance } from '@/utils/format';
+import { formatDistance, formatRating } from '@/utils/format';
 
 const VEHICLE_ICONS: Record<VehicleType, string> = {
   moto: 'bicycle',
@@ -35,8 +35,17 @@ export function DriverCard({ driver, onPress }: DriverCardProps) {
         <View style={styles.info}>
           <Text style={styles.name}>{driver.fullName}</Text>
           <View style={styles.meta}>
-            <Rating value={driver.ratingAvg} size={14} readonly />
-            <Text style={styles.ratingText}>{driver.ratingAvg.toFixed(1)}</Text>
+            {(() => {
+              const r = formatRating(driver.ratingAvg, driver.ratingCount);
+              return r.hasRatings ? (
+                <>
+                  <Rating value={driver.ratingAvg} size={14} readonly />
+                  <Text style={styles.ratingText}>{r.value}</Text>
+                </>
+              ) : (
+                <Text style={styles.ratingText}>{r.label}</Text>
+              );
+            })()}
             <Text style={styles.dot}> · </Text>
             <Text style={styles.deliveries}>{profile.totalDeliveries} courses</Text>
           </View>

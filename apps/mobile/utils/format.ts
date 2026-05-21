@@ -15,6 +15,26 @@ export function formatCFA(amount: number): string {
   return `${formatted} ${settings.currency}`;
 }
 
+/**
+ * Formate l'affichage d'une note utilisateur.
+ *   - Si ratingCount === 0 : renvoie un placeholder ("—" + "Pas encore note")
+ *     au lieu de l'illusion d'un 5/5 par defaut du schema DB.
+ *   - Sinon : "4.3" et "12 avis" (ou "1 avis" au singulier).
+ */
+export function formatRating(
+  ratingAvg: number,
+  ratingCount: number,
+): { value: string; label: string; hasRatings: boolean } {
+  if (!ratingCount || ratingCount <= 0) {
+    return { value: '—', label: 'Pas encore noté', hasRatings: false };
+  }
+  return {
+    value: ratingAvg.toFixed(1),
+    label: `${ratingCount} avis`,
+    hasRatings: true,
+  };
+}
+
 export function formatPhone(phone: string): string {
   // Format: +226 70 12 34 56
   const cleaned = phone.replace(/\D/g, '');

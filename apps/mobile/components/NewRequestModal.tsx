@@ -147,6 +147,18 @@ export function NewRequestModal() {
             <TimerRing seconds={remaining} progress={progress} />
           </Animated.View>
 
+          {/* Decoration au milieu : remplit l'espace vide entre le header
+              et la sheet, donne du caractere a la modale. */}
+          <View style={styles.heroDecorWrap} pointerEvents="none">
+            <Animated.View
+              entering={FadeIn.duration(600).delay(200)}
+              style={styles.heroDecor}
+            >
+              <Text style={styles.heroEmoji}>🛵💨</Text>
+              <Text style={styles.heroTagline}>Une course t'attend !</Text>
+            </Animated.View>
+          </View>
+
           {/* Card principale */}
           <Animated.View
             entering={SlideInDown.duration(450).springify().damping(18)}
@@ -391,11 +403,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    // Sur grand ecran (iPhone Pro Max / iPad), space-between laisse un vide
-    // enorme entre le header et la card. flex-end pousse l'ensemble vers le
-    // bas, avec le header juste au-dessus de la card. Le safe area top reste
-    // respecte par SafeAreaView lui-meme.
-    justifyContent: 'flex-end',
+    // Layout : header en haut (safe area), decor au milieu (espace flexible),
+    // sheet en bas. Le decor remplit l'espace vide pour eviter une zone
+    // verte deserte sur grand ecran.
   },
   header: {
     flexDirection: 'row',
@@ -454,6 +464,29 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -4 },
     elevation: 12,
+  },
+  // Wrapper flexible qui prend tout l'espace entre le header et la sheet
+  heroDecorWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  heroDecor: {
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  heroEmoji: {
+    fontSize: 70,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 6 },
+    textShadowRadius: 12,
+  },
+  heroTagline: {
+    ...typography.bodyMedium,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   fragileBanner: {
     flexDirection: 'row',

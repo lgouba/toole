@@ -138,6 +138,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       if (user!.userType === 'driver') {
         if (type === 'new_request' || type === 'pending_batch') {
+          // Recharge la course dans le store driver pour que la
+          // <NewRequestModal /> s'affiche automatiquement. Sinon le livreur
+          // arrive sur (driver) sans modal (currentRequest null).
+          if (deliveryId) {
+            const existing = useDriverStore.getState().currentRequest;
+            if (!existing || existing.id !== deliveryId) {
+              const d = await getDeliveryById(deliveryId);
+              if (d) useDriverStore.getState().receiveRequest(d);
+            }
+          }
           routerRef.current.push('/(driver)');
         }
         return;

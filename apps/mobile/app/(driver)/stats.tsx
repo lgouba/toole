@@ -14,7 +14,7 @@ import { Card } from '@/components/ui';
 import { MiniBarChart } from '@/components/MiniBarChart';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { getMyDriverStats, type DriverStats } from '@/services/driver.service';
-import { formatCFA } from '@/utils/format';
+import { formatCFA, formatRating } from '@/utils/format';
 
 type PeriodId = 'today' | 'week' | 'month';
 
@@ -230,12 +230,23 @@ export default function DriverStatsScreen() {
         {/* Note moyenne + taux */}
         <View style={styles.metricsRow}>
           <Card style={styles.metricCard}>
-            <View style={styles.metricHeader}>
-              <Ionicons name="star" size={18} color={colors.warning} />
-              <Text style={styles.metricLabel}>Note moyenne</Text>
-            </View>
-            <Text style={styles.metricValue}>{stats.ratingAvg.toFixed(1)}</Text>
-            <Text style={styles.metricSub}>{stats.ratingCount} avis</Text>
+            {(() => {
+              const r = formatRating(stats.ratingAvg, stats.ratingCount);
+              return (
+                <>
+                  <View style={styles.metricHeader}>
+                    <Ionicons
+                      name="star"
+                      size={18}
+                      color={r.hasRatings ? colors.warning : colors.textTertiary}
+                    />
+                    <Text style={styles.metricLabel}>Note moyenne</Text>
+                  </View>
+                  <Text style={styles.metricValue}>{r.value}</Text>
+                  <Text style={styles.metricSub}>{r.label}</Text>
+                </>
+              );
+            })()}
           </Card>
 
           <Card style={styles.metricCard}>

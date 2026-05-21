@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Card } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
-import { formatPhone } from '@/utils/format';
+import { formatPhone, formatRating } from '@/utils/format';
 import { resolveUploadUrl } from '@/services/upload.service';
 
 const menuItems = [
@@ -34,11 +34,20 @@ export default function DriverProfileScreen() {
           />
           <Text style={styles.name}>{user.fullName}</Text>
           <Text style={styles.phone}>{formatPhone(user.phone)}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={16} color={colors.warning} />
-            <Text style={styles.rating}>{user.ratingAvg.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>({user.ratingCount} avis)</Text>
-          </View>
+          {(() => {
+            const r = formatRating(user.ratingAvg, user.ratingCount);
+            return (
+              <View style={styles.ratingRow}>
+                <Ionicons
+                  name="star"
+                  size={16}
+                  color={r.hasRatings ? colors.warning : colors.textTertiary}
+                />
+                <Text style={styles.rating}>{r.value}</Text>
+                <Text style={styles.ratingCount}>· {r.label}</Text>
+              </View>
+            );
+          })()}
         </View>
 
         <Card style={styles.menu}>
