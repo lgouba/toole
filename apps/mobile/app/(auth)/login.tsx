@@ -137,7 +137,7 @@ export default function LoginScreen() {
             )}
             <TextInput
               style={styles.identifierInput}
-              placeholder="70 12 34 56 ou email"
+              placeholder="Numéro de téléphone ou email"
               placeholderTextColor={colors.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"

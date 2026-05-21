@@ -5,7 +5,10 @@ function normalizeUser(raw: any): User {
   return {
     id: raw.id,
     phone: raw.phone,
+    firstName: raw.firstName ?? undefined,
+    lastName: raw.lastName ?? undefined,
     fullName: raw.fullName,
+    dateOfBirth: raw.dateOfBirth ?? undefined,
     email: raw.email ?? undefined,
     userType: raw.userType,
     avatarUrl: raw.avatarUrl ?? undefined,
