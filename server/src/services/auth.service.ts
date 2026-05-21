@@ -45,7 +45,9 @@ export async function sendOtp(
   if (isEmail && channel !== 'email') channel = 'email';
   if (!isEmail && channel === 'email') channel = 'sms';
 
-  const code = generateOtp();
+  // OTP : code reel pour email (SMTP livre vraiment), code dev pour SMS
+  // tant que le provider SMS reel n'est pas branche.
+  const code = generateOtp(channel);
   await prisma.otpCode.create({
     data: {
       identifier: normalized,
