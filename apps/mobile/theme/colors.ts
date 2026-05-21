@@ -12,28 +12,33 @@
  * IMMEDIATS, il faut une clef de re-render (cf. ThemeGate dans
  * providers/ThemeGate.tsx).
  */
+/**
+ * Palette "Friendly & Local" (Concept C) — terra cotta + sable + vert kola.
+ * Chaleureux, ancre localement, evoque les couleurs du Burkina Faso.
+ * L'admin peut surcharger primary + secondary via Parametres.
+ */
 export const colors = {
-  primary: '#1D9E75',
-  primaryDark: '#0F6E56',
-  primaryLight: '#E1F5EE',
-  secondary: '#D85A30',
-  secondaryLight: '#FFF0EB',
-  warning: '#EF9F27',
-  warningLight: '#FFF8E7',
-  error: '#DC3545',
-  errorLight: '#FFE8EA',
-  success: '#1D9E75',
-  successLight: '#E1F5EE',
-  background: '#FFFFFF',
-  surface: '#F5F5F0',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#6B6B6B',
-  textTertiary: '#9B9B9B',
-  border: '#E5E5E0',
-  borderFocus: '#1D9E75',
+  primary: '#C2410C',        // Terra cotta : couleur principale
+  primaryDark: '#9A3412',
+  primaryLight: '#FED7AA',   // Pastel pour fonds doux
+  secondary: '#15803D',      // Vert kola : success + CTA secondaire
+  secondaryLight: '#D1FAE5',
+  warning: '#D97706',
+  warningLight: '#FEF3C7',
+  error: '#DC2626',
+  errorLight: '#FEE2E2',
+  success: '#15803D',
+  successLight: '#D1FAE5',
+  background: '#FFFBEB',      // Sable doux pour le fond global
+  surface: '#FEF3C7',         // Sable un peu plus marque pour les zones
+  textPrimary: '#1C1917',
+  textSecondary: '#57534E',
+  textTertiary: '#A8A29E',
+  border: '#E7E5E4',
+  borderFocus: '#C2410C',
   white: '#FFFFFF',
-  black: '#000000',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  black: '#0A0A0A',
+  overlay: 'rgba(28, 25, 23, 0.55)',
 };
 
 export type ColorName = keyof typeof colors;
@@ -42,8 +47,8 @@ export type ColorName = keyof typeof colors;
  * Palette par defaut, gardee en référence pour pouvoir reset les
  * couleurs derivees (light/dark) quand l'admin remet les defauts.
  */
-const DEFAULT_PRIMARY = '#1D9E75';
-const DEFAULT_SECONDARY = '#D85A30';
+const DEFAULT_PRIMARY = '#C2410C';
+const DEFAULT_SECONDARY = '#15803D';
 
 function mixWithWhite(hex: string, ratio = 0.86): string {
   try {

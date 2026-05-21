@@ -7,7 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { typography, borderRadius, sizes, spacing, useColors } from '@/theme';
+import { typography, borderRadius, sizes, spacing, useColors, colors } from '@/theme';
 import { haptic } from '@/utils/haptics';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -104,17 +104,27 @@ export function Button({
 const styles = StyleSheet.create({
   container: {
     height: sizes.buttonHeight,
-    borderRadius: borderRadius.md,
+    // Design "Friendly & Local" : coins tres arrondis pour CTA accueillants.
+    borderRadius: borderRadius.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+    // Ombre douce pour donner du relief au CTA principal.
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 5,
   },
   containerSmall: {
     height: sizes.buttonHeightSmall,
     paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
   },
   disabled: {
     opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
