@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api';
 import { formatDate, formatPhone } from '../utils';
 
@@ -42,6 +42,7 @@ export default function UsersList({
   role: 'client' | 'driver';
   title: string;
 }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,7 +140,11 @@ export default function UsersList({
               {items.map((u) => {
                 const status = userStatus(u);
                 return (
-                  <tr key={u.id}>
+                  <tr
+                    key={u.id}
+                    className="row-link"
+                    onClick={() => navigate(`/users/${u.id}`)}
+                  >
                     <td>
                       <div className="table-avatar">
                         <div className="circle">{initials(u.fullName)}</div>

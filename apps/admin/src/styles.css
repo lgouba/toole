@@ -662,6 +662,21 @@ table tr:hover td {
   min-width: 900px; /* garantit que les colonnes gardent leurs largeurs */
 }
 
+/* Card qui contient une table : autorise le scroll horizontal pour ne pas
+   cacher la colonne actions sur les ecrans etroits. */
+.card:has(.users-table) {
+  overflow-x: auto;
+}
+
+/* Ligne entiere cliquable : navigue vers /users/:id au clic n'importe ou. */
+.users-table tbody tr.row-link {
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+.users-table tbody tr.row-link:hover {
+  background-color: var(--surface-2, #f9fafb);
+}
+
 .users-table th,
 .users-table td {
   vertical-align: middle;
