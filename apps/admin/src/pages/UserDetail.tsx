@@ -51,6 +51,68 @@ interface UserDetailData {
   }>;
 }
 
+/**
+ * Lightbox simple : photo en plein ecran sur fond noir, ferme au clic.
+ * Utilise pour zoomer sur les documents KYC du livreur.
+ */
+function PhotoLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.92)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        cursor: 'zoom-out',
+        padding: 40,
+      }}
+    >
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 24,
+          background: 'rgba(255,255,255,0.15)',
+          border: 'none',
+          color: 'white',
+          padding: '10px 16px',
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        ✕ Fermer
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          maxWidth: '95vw',
+          maxHeight: '90vh',
+          objectFit: 'contain',
+          borderRadius: 8,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 export default function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
@@ -59,6 +121,8 @@ export default function UserDetail() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [kycNote, setKycNote] = useState('');
+  // Lightbox : { src, alt } quand un document est ouvert en grand.
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   const load = async () => {
     if (!id) return;
@@ -298,30 +362,29 @@ export default function UserDetail() {
             ) : null}
 
             <div className="photos-row">
-              {user.driverProfile.cnibPhotoUrl ? (
-                <div>
-                  <div className="muted">CNIB recto</div>
-                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.cnibPhotoUrl)!} alt="CNIB recto" />
-                </div>
-              ) : null}
-              {user.driverProfile.cnibPhotoBackUrl ? (
-                <div>
-                  <div className="muted">CNIB verso</div>
-                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.cnibPhotoBackUrl)!} alt="CNIB verso" />
-                </div>
-              ) : null}
-              {user.driverProfile.licensePhotoUrl ? (
-                <div>
-                  <div className="muted">Permis</div>
-                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.licensePhotoUrl)!} alt="Permis" />
-                </div>
-              ) : null}
-              {user.driverProfile.vehiclePhotoUrl ? (
-                <div>
-                  <div className="muted">Véhicule</div>
-                  <img className="photo-thumb" src={resolveUploadUrl(user.driverProfile.vehiclePhotoUrl)!} alt="Vehicule" />
-                </div>
-              ) : null}
+              {([
+                ['CNIB recto', user.driverProfile.cnibPhotoUrl],
+                ['CNIB verso', user.driverProfile.cnibPhotoBackUrl],
+                ['Permis', user.driverProfile.licensePhotoUrl],
+                ['Véhicule', user.driverProfile.vehiclePhotoUrl],
+              ] as const)
+                .filter(([, url]) => !!url)
+                .map(([label, url]) => {
+                  const src = resolveUploadUrl(url!)!;
+                  return (
+                    <div key={label}>
+                      <div className="muted">{label}</div>
+                      <img
+                        className="photo-thumb"
+                        src={src}
+                        alt={label}
+                        style={{ cursor: 'zoom-in' }}
+                        onClick={() => setLightbox({ src, alt: label })}
+                        title="Cliquer pour agrandir"
+                      />
+                    </div>
+                  );
+                })}
               {!user.driverProfile.cnibPhotoUrl &&
               !user.driverProfile.cnibPhotoBackUrl &&
               !user.driverProfile.licensePhotoUrl &&
@@ -388,6 +451,15 @@ export default function UserDetail() {
           </tbody>
         </table>
       </div>
+
+      {/* Lightbox plein ecran pour les photos KYC (s'ouvre au clic) */}
+      {lightbox ? (
+        <PhotoLightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          onClose={() => setLightbox(null)}
+        />
+      ) : null}
     </>
   );
 }
