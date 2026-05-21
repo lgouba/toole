@@ -40,6 +40,11 @@ interface AuthState {
     vehiclePlate?: string;
     /** Code de parrainage saisi (optionnel, stockage only pour l'instant). */
     referralCode?: string;
+    /** Si true, on cree le compte + stocke les tokens, mais on NE set PAS
+     *  isAuthenticated=true. Utilise par le flow KYC driver qui doit pouvoir
+     *  uploader des photos avec le token tout en restant sur la page register
+     *  (sinon l'auth guard du _layout redirige vers /(driver) instantanement). */
+    deferAuth?: boolean;
   }) => Promise<boolean>;
   completeOnboarding: () => void;
   /** Marque le tutoriel post-login comme vu pour un role donne. */
@@ -134,12 +139,22 @@ export const useAuthStore = create<AuthState>()(
       register: async (payload) => {
         set({ isLoading: true });
         try {
+          const { deferAuth, ...rest } = payload;
           const user = await authService.registerUser({
             phone: get().phoneNumber,
             otpCode: get().lastOtpCode,
-            ...payload,
+            ...rest,
           });
-          set({ user, isAuthenticated: true, isLoading: false, lastOtpCode: '' });
+          // Si deferAuth=true (cas du driver qui doit encore uploader son KYC),
+          // on stocke l'user et garde les tokens (deja poses par registerUser)
+          // mais on NE bascule PAS isAuthenticated=true. L'ecran register reste
+          // affiche pour completer l'upload KYC, puis logout proprement.
+          set({
+            user,
+            isAuthenticated: deferAuth ? false : true,
+            isLoading: false,
+            lastOtpCode: '',
+          });
           return true;
         } catch {
           set({ isLoading: false });

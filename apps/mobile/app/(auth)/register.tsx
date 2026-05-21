@@ -17,6 +17,9 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { UserRole } from '@/types';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '@/services/upload.service';
+import { api } from '@/services/api.client';
 
 type VehicleType = 'moto' | 'velo' | 'voiture' | 'tricycle';
 
@@ -75,7 +78,44 @@ function VehicleIcon({
   return <Ionicons name={name as any} size={size} color={color} />;
 }
 
-type Step = 'role' | 'identity' | 'vehicle';
+type Step = 'role' | 'identity' | 'vehicle' | 'kyc';
+
+import { Image } from 'react-native';
+
+function KycPhotoButton({
+  label,
+  uri,
+  onPress,
+}: {
+  label: string;
+  uri: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.kycPhotoBtn,
+        uri ? styles.kycPhotoBtnFilled : undefined,
+      ]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {uri ? (
+        <>
+          <Image source={{ uri }} style={styles.kycPhotoThumb} />
+          <View style={styles.kycPhotoOverlay}>
+            <Ionicons name="camera" size={18} color={colors.white} />
+          </View>
+        </>
+      ) : (
+        <>
+          <Ionicons name="camera-outline" size={26} color={colors.primary} />
+          <Text style={styles.kycPhotoBtnLabel}>{label}</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -120,23 +160,31 @@ export default function RegisterScreen() {
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
   const [vehiclePlate, setVehiclePlate] = useState('');
 
+  // Driver KYC : email + photos piece d'identite (recto + verso)
+  const [email, setEmail] = useState('');
+  const [cnibFrontUri, setCnibFrontUri] = useState<string | null>(null);
+  const [cnibBackUri, setCnibBackUri] = useState<string | null>(null);
+  const [submittingKyc, setSubmittingKyc] = useState(false);
+
   // Code de parrainage (optionnel) — actuellement stocke seulement, la logique
   // de bonus (parrain X FCFA / parraine Y FCFA) sera activee plus tard.
   const [referralCode, setReferralCode] = useState('');
 
   const [error, setError] = useState('');
 
-  const totalSteps = selectedRole === 'driver' ? 3 : 2;
+  const totalSteps = selectedRole === 'driver' ? 4 : 2;
   const currentStepIndex = useMemo(() => {
     if (step === 'role') return 1;
     if (step === 'identity') return 2;
-    return 3;
+    if (step === 'vehicle') return 3;
+    return 4; // kyc
   }, [step]);
 
   const handleBack = () => {
     setError('');
     if (step === 'identity') return setStep('role');
     if (step === 'vehicle') return setStep('identity');
+    if (step === 'kyc') return setStep('vehicle');
     // Step 'role' : back to login
     logout();
     router.replace('/(auth)/login');
@@ -171,9 +219,96 @@ export default function RegisterScreen() {
     await doRegister();
   };
 
-  const handleVehicleConfirm = async () => {
+  const handleVehicleConfirm = () => {
     if (!vehicleType) return;
-    await doRegister();
+    // Pour les drivers, on enchaine sur le step KYC (email + 2 photos d'identite).
+    // Le register lui-meme se fait apres soumission du KYC, pour que le compte
+    // soit cree avec les justificatifs deja attaches (etat 'pending').
+    setStep('kyc');
+  };
+
+  const pickPhoto = async (which: 'front' | 'back') => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== 'granted') {
+      setError(
+        "Permission appareil photo refusee. Activez-la dans les reglages.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      if (which === 'front') setCnibFrontUri(result.assets[0].uri);
+      else setCnibBackUri(result.assets[0].uri);
+    }
+  };
+
+  const handleKycSubmit = async () => {
+    setError('');
+    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError('Entrez une adresse email valide.');
+      return;
+    }
+    if (!cnibFrontUri) {
+      setError("Ajoutez la photo recto de votre piece d'identite.");
+      return;
+    }
+    if (!cnibBackUri) {
+      setError("Ajoutez la photo verso de votre piece d'identite.");
+      return;
+    }
+
+    setSubmittingKyc(true);
+    try {
+      // 1) Cree d'abord le compte driver (avec email). Le register utilise
+      //    l'OTP deja valide, le compte sera cree en isActive=false +
+      //    verificationStatus=pending.
+      await doRegister();
+
+      // 2) Upload des deux photos. On parallelise pour gagner du temps.
+      const [front, back] = await Promise.all([
+        uploadImage(cnibFrontUri, 'kyc'),
+        uploadImage(cnibBackUri, 'kyc'),
+      ]);
+      if (!front || !back) {
+        setError(
+          "Une des photos n'a pas pu etre envoyee. Reessayez avec une meilleure connexion.",
+        );
+        setSubmittingKyc(false);
+        return;
+      }
+
+      // 3) Attache les URLs photos au profil driver via PUT /drivers/me/kyc.
+      await api.put('/drivers/me/kyc', {
+        cnibPhotoUrl: front.url,
+        cnibPhotoBackUrl: back.url,
+      });
+
+      // 4) Logout + redirection ecran login avec message d'attente.
+      // Comme le compte est isActive=false, on ne peut pas rester loggue.
+      // L'utilisateur sera notifie quand l'admin validera.
+      logout();
+      router.replace('/(auth)/login');
+      // Petit alert pour le rassurer.
+      setTimeout(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { Alert } = require('react-native');
+        Alert.alert(
+          'Inscription envoyée',
+          "Vos justificatifs sont en cours de validation par notre equipe (24-48h). Vous recevrez une notification des l'activation de votre compte.",
+        );
+      }, 200);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error?.message ??
+          'Impossible de soumettre le KYC. Reessayez dans un instant.',
+      );
+    } finally {
+      setSubmittingKyc(false);
+    }
   };
 
   const doRegister = async () => {
@@ -187,16 +322,18 @@ export default function RegisterScreen() {
       userType: selectedRole,
       vehicleType: vehicleType ?? undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
+      email: email.trim() || undefined,
       referralCode: referralCode.trim() || undefined,
+      // Pour le driver, on differe l'authentification : sinon l'auth guard
+      // redirige immediatement vers /(driver) et empeche l'upload KYC qui suit.
+      deferAuth: selectedRole === 'driver',
     });
     if (!ok) {
-      setError('Impossible de créer le compte. Vérifiez votre connexion.');
-      return;
+      throw new Error('Impossible de créer le compte. Vérifiez votre connexion.');
     }
-    // Redirection selon le role
-    if (selectedRole === 'driver') {
-      router.replace('/(driver)');
-    } else {
+    // Pour client : redirection direct sur la home.
+    // Pour driver : on continue le flow KYC (pas de redirection ici).
+    if (selectedRole === 'client') {
       router.replace('/(client)');
     }
   };
@@ -463,6 +600,59 @@ export default function RegisterScreen() {
               </View>
             </>
           )}
+
+          {step === 'kyc' && (
+            <>
+              <View style={styles.header}>
+                <Text style={styles.title}>Justificatifs d'identité</Text>
+                <Text style={styles.subtitle}>
+                  Notre équipe a besoin de vérifier ces documents avant
+                  d'activer votre compte (24-48h).
+                </Text>
+              </View>
+
+              <Input
+                label="Email professionnel"
+                placeholder="vous@exemple.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                containerStyle={styles.inputMargin}
+              />
+
+              <Text style={styles.kycSectionLabel}>
+                Pièce d'identité (CNIB, passeport, permis)
+              </Text>
+              <View style={styles.kycPhotoRow}>
+                <KycPhotoButton
+                  label="Recto"
+                  uri={cnibFrontUri}
+                  onPress={() => pickPhoto('front')}
+                />
+                <KycPhotoButton
+                  label="Verso"
+                  uri={cnibBackUri}
+                  onPress={() => pickPhoto('back')}
+                />
+              </View>
+
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+
+              <View style={styles.infoBox}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.infoText}>
+                  Vos documents sont chiffrés et utilisés uniquement pour
+                  vérifier votre identité. Conformément à notre politique de
+                  confidentialité.
+                </Text>
+              </View>
+            </>
+          )}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -482,10 +672,18 @@ export default function RegisterScreen() {
           )}
           {step === 'vehicle' && (
             <Button
-              title="Créer mon compte"
+              title="Continuer"
               onPress={handleVehicleConfirm}
               loading={isLoading}
               disabled={!vehicleType}
+            />
+          )}
+          {step === 'kyc' && (
+            <Button
+              title="Soumettre mes documents"
+              onPress={handleKycSubmit}
+              loading={submittingKyc || isLoading}
+              disabled={!email.trim() || !cnibFrontUri || !cnibBackUri}
             />
           )}
         </View>
@@ -682,6 +880,59 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textTertiary,
     marginTop: 4,
+  },
+  // ============ Step KYC ============
+  kycSectionLabel: {
+    ...typography.captionMedium,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  kycPhotoRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  kycPhotoBtn: {
+    flex: 1,
+    aspectRatio: 1.4,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    overflow: 'hidden',
+  },
+  kycPhotoBtnFilled: {
+    borderStyle: 'solid',
+    borderColor: colors.primary,
+  },
+  kycPhotoBtnLabel: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  kycPhotoThumb: {
+    ...StyleSheet.absoluteFillObject,
+    resizeMode: 'cover',
+  },
+  kycPhotoOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputMargin: {
+    marginTop: spacing.md,
   },
   infoBox: {
     flexDirection: 'row',

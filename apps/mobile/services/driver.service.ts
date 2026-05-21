@@ -69,6 +69,8 @@ export interface DriverKyc {
   vehiclePhotoUrl: string | null;
   cnibNumber: string | null;
   cnibPhotoUrl: string | null;
+  /** Photo verso de la CNIB (alignee avec le KYC d'inscription). */
+  cnibPhotoBackUrl: string | null;
   licenseNumber: string | null;
   licensePhotoUrl: string | null;
   verificationStatus: 'pending' | 'verified' | 'rejected';
@@ -83,6 +85,7 @@ function normalizeKyc(raw: any): DriverKyc {
     vehiclePhotoUrl: raw.vehiclePhotoUrl ?? null,
     cnibNumber: raw.cnibNumber ?? null,
     cnibPhotoUrl: raw.cnibPhotoUrl ?? null,
+    cnibPhotoBackUrl: raw.cnibPhotoBackUrl ?? null,
     licenseNumber: raw.licenseNumber ?? null,
     licensePhotoUrl: raw.licensePhotoUrl ?? null,
     verificationStatus: raw.verificationStatus,

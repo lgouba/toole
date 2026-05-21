@@ -62,6 +62,8 @@ export default function DriverKycScreen() {
   const [vehiclePhotoUrl, setVehiclePhotoUrl] = useState<string | null>(null);
   const [cnibNumber, setCnibNumber] = useState('');
   const [cnibPhotoUrl, setCnibPhotoUrl] = useState<string | null>(null);
+  /** CNIB verso : ajoute au registration KYC, modifiable ensuite ici. */
+  const [cnibPhotoBackUrl, setCnibPhotoBackUrl] = useState<string | null>(null);
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licensePhotoUrl, setLicensePhotoUrl] = useState<string | null>(null);
 
@@ -77,6 +79,7 @@ export default function DriverKycScreen() {
         setVehiclePhotoUrl(data.vehiclePhotoUrl);
         setCnibNumber(data.cnibNumber ?? '');
         setCnibPhotoUrl(data.cnibPhotoUrl);
+        setCnibPhotoBackUrl(data.cnibPhotoBackUrl ?? null);
         setLicenseNumber(data.licenseNumber ?? '');
         setLicensePhotoUrl(data.licensePhotoUrl);
       }
@@ -85,7 +88,7 @@ export default function DriverKycScreen() {
   }, []);
 
   const pickAndUpload = async (
-    field: 'vehicle' | 'cnib' | 'license',
+    field: 'vehicle' | 'cnib' | 'cnibBack' | 'license',
     setter: (url: string) => void,
   ) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -117,6 +120,7 @@ export default function DriverKycScreen() {
       vehiclePhotoUrl: vehiclePhotoUrl ?? undefined,
       cnibNumber: cnibNumber.trim() || undefined,
       cnibPhotoUrl: cnibPhotoUrl ?? undefined,
+      cnibPhotoBackUrl: cnibPhotoBackUrl ?? undefined,
       licenseNumber: licenseNumber.trim() || undefined,
       licensePhotoUrl: licensePhotoUrl ?? undefined,
     });
@@ -246,10 +250,16 @@ export default function DriverKycScreen() {
           autoCapitalize="characters"
         />
         <DocField
-          label="Photo de la CNIB"
+          label="Photo de la CNIB (recto)"
           url={cnibPhotoUrl}
           uploading={uploadingField === 'cnib'}
           onPick={() => pickAndUpload('cnib', setCnibPhotoUrl)}
+        />
+        <DocField
+          label="Photo de la CNIB (verso)"
+          url={cnibPhotoBackUrl}
+          uploading={uploadingField === 'cnibBack'}
+          onPick={() => pickAndUpload('cnibBack', setCnibPhotoBackUrl)}
         />
 
         {/* Permis */}

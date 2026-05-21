@@ -17,6 +17,8 @@
     "db:studio": "prisma studio",
     "seed:admin": "node dist/scripts/seed-admin.js",
     "seed:admin:dev": "tsx src/scripts/seed-admin.ts",
+    "migrate:names": "node dist/scripts/migrate-fullname-to-first-last.js",
+    "migrate:names:dev": "tsx src/scripts/migrate-fullname-to-first-last.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
