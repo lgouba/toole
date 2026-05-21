@@ -579,7 +579,15 @@ export async function resetUserOtp(userId: string) {
   // On vide les OTP codes existants pour ce user.
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new HttpError(404, 'NOT_FOUND', 'Utilisateur introuvable');
-  await prisma.otpCode.deleteMany({ where: { phone: user.phone } });
+  // Identifier peut etre soit le phone soit l'email — on supprime les deux.
+  await prisma.otpCode.deleteMany({
+    where: {
+      OR: [
+        { identifier: user.phone },
+        ...(user.email ? [{ identifier: user.email.toLowerCase() }] : []),
+      ],
+    },
+  });
   // On invalide tous les refresh tokens (force le livreur/client a relogin)
   await prisma.refreshToken.deleteMany({ where: { userId } });
   return { ok: true };

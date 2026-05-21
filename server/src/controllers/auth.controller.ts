@@ -13,16 +13,36 @@ const phoneSchema = z
   .trim()
   .regex(/^\+?[0-9]{8,15}$/, 'Invalid phone number');
 
+/** Phone OU email. Tolere les deux formes : digits ou format email. */
+const identifierSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .refine(
+    (v) =>
+      /^\+?[0-9]{8,15}$/.test(v) ||
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+    { message: 'Doit etre un numero (8-15 chiffres) ou un email valide' },
+  );
+
 const sendOtpSchema = z.object({
-  phone: phoneSchema,
-  /** Canal d'envoi du code. Defaut: sms. */
-  channel: z.enum(['sms', 'whatsapp']).optional(),
+  // Accepte phone ou email. `phone` reste accepte pour retrocompatibilite.
+  identifier: identifierSchema.optional(),
+  phone: phoneSchema.optional(),
+  /** Canal d'envoi. Defaut: deduit (sms si phone, email si email). */
+  channel: z.enum(['sms', 'whatsapp', 'email']).optional(),
 });
 
 export async function sendOtpCtrl(req: Request, res: Response, next: NextFunction) {
   try {
-    const { phone, channel } = sendOtpSchema.parse(req.body);
-    const result = await sendOtp(phone, channel ?? 'sms');
+    const body = sendOtpSchema.parse(req.body);
+    const identifier = body.identifier ?? body.phone;
+    if (!identifier) {
+      return next(
+        new Error('Vous devez fournir un numero de telephone ou un email.'),
+      );
+    }
+    const result = await sendOtp(identifier, body.channel ?? 'sms');
     return success(res, result);
   } catch (err) {
     next(err);
@@ -30,14 +50,21 @@ export async function sendOtpCtrl(req: Request, res: Response, next: NextFunctio
 }
 
 const verifyOtpSchema = z.object({
-  phone: phoneSchema,
+  identifier: identifierSchema.optional(),
+  phone: phoneSchema.optional(),
   code: z.string().length(4),
 });
 
 export async function verifyOtpCtrl(req: Request, res: Response, next: NextFunction) {
   try {
-    const { phone, code } = verifyOtpSchema.parse(req.body);
-    const result = await verifyOtpFlow(phone, code);
+    const body = verifyOtpSchema.parse(req.body);
+    const identifier = body.identifier ?? body.phone;
+    if (!identifier) {
+      return next(
+        new Error('Vous devez fournir un numero de telephone ou un email.'),
+      );
+    }
+    const result = await verifyOtpFlow(identifier, body.code);
     if (result.isNewUser) {
       return success(res, {
         user: null,
@@ -64,7 +91,8 @@ const registerSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   userType: z.enum(['client', 'driver', 'merchant']),
   otpCode: z.string().length(4),
-  email: z.string().trim().email().optional().or(z.literal('')),
+  // Email obligatoire pour pouvoir recevoir l'OTP par email + recuperation de compte.
+  email: z.string().trim().email('Email invalide'),
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
   vehiclePlate: z.string().trim().max(20).optional().or(z.literal('')),
   /** Code de parrainage saisi. La logique de bonus sera ajoutee plus tard. */
@@ -81,7 +109,7 @@ export async function registerCtrl(req: Request, res: Response, next: NextFuncti
       dateOfBirth: body.dateOfBirth,
       userType: body.userType,
       otpCode: body.otpCode,
-      email: body.email || undefined,
+      email: body.email,
       vehicleType: body.vehicleType,
       vehiclePlate: body.vehiclePlate || undefined,
       referralCode: body.referralCode || undefined,

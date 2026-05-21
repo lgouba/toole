@@ -294,14 +294,19 @@ model RefreshToken {
   @@index([token])
 }
 
+/// Code OTP envoye a un utilisateur (phone OU email) pour inscription/login.
+/// `identifier` contient soit le numero E.164 (ex "226XXXXXXXX"), soit l'email
+/// (lowercase). Le canal d'envoi est determine cote service par la forme.
 model OtpCode {
-  id        String   @id @default(uuid()) @db.Uuid
-  phone     String
-  code      String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  /// Numero ou email auquel l'OTP a ete envoye. Format libre, le service
+  /// applique la normalisation (phone -> digits, email -> lowercase).
+  identifier String
+  code       String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 
-  @@index([phone])
+  @@index([identifier])
 }
 
 /// Tracabilite: journal des positions GPS des livreurs.

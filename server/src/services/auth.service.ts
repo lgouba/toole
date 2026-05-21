@@ -11,31 +11,79 @@ import { logger } from '../lib/logger.js';
 import { sendOtpMessage, type MessageChannel } from '../lib/sms.js';
 import { env } from '../config/env.js';
 import { emitToAdmins } from './notification.service.js';
-import { sendAdminAlert } from '../lib/mailer.js';
+import { sendAdminAlert, sendEmail } from '../lib/mailer.js';
 import { getAppSettings } from './settings.service.js';
 
+/**
+ * Detecte si un identifier est un email (sinon considere comme phone).
+ * Phone : suite de chiffres avec eventuellement un + au debut.
+ * Email : doit contenir @ et un .
+ */
+export function isEmailIdentifier(identifier: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim());
+}
+
+/** Normalise un identifier pour la DB : email lowercase, phone digits-only. */
+export function normalizeIdentifier(identifier: string): string {
+  const trimmed = identifier.trim();
+  if (isEmailIdentifier(trimmed)) return trimmed.toLowerCase();
+  return trimmed.replace(/\D/g, '');
+}
+
+/**
+ * Envoie un OTP au phone OU email donne. Le canal est deduit :
+ *   - email -> email (SMTP Hostinger)
+ *   - phone -> SMS par defaut, ou WhatsApp si channel='whatsapp'
+ */
 export async function sendOtp(
-  phone: string,
-  channel: MessageChannel = 'sms',
+  identifier: string,
+  channel: MessageChannel | 'email' = 'sms',
 ): Promise<{ success: true }> {
+  const normalized = normalizeIdentifier(identifier);
+  const isEmail = isEmailIdentifier(normalized);
+
+  if (isEmail && channel !== 'email') channel = 'email';
+  if (!isEmail && channel === 'email') channel = 'sms';
+
   const code = generateOtp();
   await prisma.otpCode.create({
     data: {
-      phone,
+      identifier: normalized,
       code,
       expiresAt: otpExpiryDate(),
     },
   });
   logger.info(
-    { phone, channel, code: env.SMS_PROVIDER === 'dev' ? code : '****' },
+    {
+      identifier: normalized,
+      channel,
+      code: env.SMS_PROVIDER === 'dev' ? code : '****',
+    },
     'OTP generated',
   );
 
   try {
-    await sendOtpMessage(phone, code, channel);
+    if (isEmail) {
+      await sendEmail({
+        to: normalized,
+        subject: 'Votre code Tolle',
+        html: `<p>Votre code de vérification Tollé : <b style="font-size:22px">${code}</b></p><p>Ce code expire dans 10 minutes.</p>`,
+        text: `Votre code Tolle : ${code} (valide 10 min)`,
+      });
+    } else {
+      await sendOtpMessage(normalized, code, channel as MessageChannel);
+    }
   } catch (err) {
-    // Si l'envoi echoue, on invalide le code pour ne pas laisser un OTP fantome.
-    await prisma.otpCode.deleteMany({ where: { phone, code } });
+    await prisma.otpCode.deleteMany({
+      where: { identifier: normalized, code },
+    });
+    if (isEmail) {
+      throw new HttpError(
+        502,
+        'EMAIL_FAILED',
+        "Impossible d'envoyer le code par email. Verifiez l'adresse.",
+      );
+    }
     const isWhatsApp = channel === 'whatsapp';
     throw new HttpError(
       502,
@@ -49,9 +97,10 @@ export async function sendOtp(
   return { success: true };
 }
 
-export async function verifyOtpCode(phone: string, code: string): Promise<void> {
+export async function verifyOtpCode(identifier: string, code: string): Promise<void> {
+  const normalized = normalizeIdentifier(identifier);
   const otp = await prisma.otpCode.findFirst({
-    where: { phone, code },
+    where: { identifier: normalized, code },
     orderBy: { createdAt: 'desc' },
   });
   if (!otp) {
@@ -75,10 +124,13 @@ export async function issueTokens(userId: string, userType: string) {
   return { accessToken, refreshToken };
 }
 
-export async function verifyOtpFlow(phone: string, code: string) {
-  await verifyOtpCode(phone, code);
-  const user = await prisma.user.findUnique({
-    where: { phone },
+export async function verifyOtpFlow(identifier: string, code: string) {
+  const normalized = normalizeIdentifier(identifier);
+  await verifyOtpCode(normalized, code);
+  // L'identifier peut etre soit un phone soit un email. On cherche par les deux.
+  const isEmail = isEmailIdentifier(normalized);
+  const user = await prisma.user.findFirst({
+    where: isEmail ? { email: normalized } : { phone: normalized },
     include: { driverProfile: true },
   });
   if (!user) {
@@ -87,7 +139,7 @@ export async function verifyOtpFlow(phone: string, code: string) {
 
   if (!user.isActive) {
     logger.warn(
-      { userId: user.id, phone, userType: user.userType },
+      { userId: user.id, identifier: normalized, userType: user.userType },
       'Login attempt on inactive/suspended account',
     );
     // Cas specifique du livreur en attente de validation KYC : on lui dit
@@ -140,18 +192,45 @@ export async function registerUser(args: {
    *  applique (le mecanisme bonus parrain/parraine sera ajoute plus tard). */
   referralCode?: string;
 }) {
-  await verifyOtpCode(args.phone, args.otpCode);
+  // L'OTP peut avoir ete envoye sur le phone OU sur l'email. On cherche les
+  // deux pour valider. Le client mobile envoie le canal effectif via otpChannel.
+  const phoneNormalized = args.phone.replace(/\D/g, '');
+  const emailNormalized = args.email?.trim().toLowerCase() || null;
+
+  let otpValidated = false;
+  try {
+    await verifyOtpCode(phoneNormalized, args.otpCode);
+    otpValidated = true;
+  } catch {
+    // OTP pas sur le phone, on essaie sur l'email si fourni.
+  }
+  if (!otpValidated && emailNormalized) {
+    await verifyOtpCode(emailNormalized, args.otpCode);
+    otpValidated = true;
+  }
+  if (!otpValidated) {
+    throw new HttpError(400, 'INVALID_OTP', 'Invalid verification code');
+  }
+
   if (args.referralCode) {
     logger.info(
       { phone: args.phone, referralCode: args.referralCode, userType: args.userType },
       'Referral code submitted at registration (no reward applied yet)',
     );
   }
-  const existing = await prisma.user.findUnique({ where: { phone: args.phone } });
+  // On verifie unicite du phone ET de l'email (si fourni).
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { phone: phoneNormalized },
+        ...(emailNormalized ? [{ email: emailNormalized }] : []),
+      ],
+    },
+  });
   if (existing) {
-    throw new HttpError(409, 'USER_EXISTS', 'A user with this phone already exists');
+    throw new HttpError(409, 'USER_EXISTS', 'A user with this phone or email already exists');
   }
-  const email = args.email?.trim() || null;
+  const email = emailNormalized;
   const firstName = args.firstName.trim();
   const lastName = args.lastName.trim();
   const fullName = `${firstName} ${lastName}`;
@@ -163,7 +242,7 @@ export async function registerUser(args: {
 
   const user = await prisma.user.create({
     data: {
-      phone: args.phone,
+      phone: phoneNormalized,
       firstName,
       lastName,
       fullName,

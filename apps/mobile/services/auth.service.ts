@@ -20,18 +20,31 @@ function normalizeUser(raw: any): User {
   };
 }
 
-export type OtpChannel = 'sms' | 'whatsapp';
+export type OtpChannel = 'sms' | 'whatsapp' | 'email';
+
+/**
+ * Detecte si l'identifier saisi par l'utilisateur est un email.
+ * Sinon, considere comme phone.
+ */
+export function isEmail(identifier: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier.trim());
+}
 
 export async function sendOtp(
-  phone: string,
+  identifier: string,
   channel: OtpChannel = 'sms',
 ): Promise<{ success: boolean }> {
-  const res = await api.post('/auth/send-otp', { phone, channel });
+  // Si l'identifier est un email, on force le canal email automatiquement.
+  const effectiveChannel = isEmail(identifier) ? 'email' : channel;
+  const res = await api.post('/auth/send-otp', {
+    identifier,
+    channel: effectiveChannel,
+  });
   return unwrap(res);
 }
 
 export async function verifyOtp(
-  phone: string,
+  identifier: string,
   code: string
 ): Promise<{
   success: boolean;
@@ -45,7 +58,7 @@ export async function verifyOtp(
   errorMessage?: string;
 }> {
   try {
-    const res = await api.post('/auth/verify-otp', { phone, code });
+    const res = await api.post('/auth/verify-otp', { identifier, code });
     const data = unwrap<{
       user?: any;
       isNewUser: boolean;

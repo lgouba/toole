@@ -17,10 +17,12 @@ interface AuthState {
   phoneNumber: string;
   lastOtpCode: string;
 
-  setPhoneNumber: (phone: string) => void;
+  /** `phoneNumber` est en fait un identifier : peut etre un phone (digits)
+   *  ou un email. Le nom historique est garde pour eviter de tout casser. */
+  setPhoneNumber: (identifier: string) => void;
   sendOtp: (
-    phone: string,
-    channel?: 'sms' | 'whatsapp',
+    identifier: string,
+    channel?: 'sms' | 'whatsapp' | 'email',
   ) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (
     code: string,
