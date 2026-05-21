@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tollé — Choisir un design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0F172A;
+    color: white;
+    padding: 60px 24px;
+    min-height: 100vh;
+  }
+  h1 { font-size: 42px; font-weight: 800; text-align: center; letter-spacing: -1px; }
+  .lead { text-align: center; color: rgba(255,255,255,0.7); margin-top: 12px; font-size: 17px; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .cards {
+    margin-top: 60px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .card {
+    border-radius: 24px;
+    padding: 32px;
+    text-decoration: none;
+    color: white;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .card:hover { transform: translateY(-6px); }
+  .card .emoji { font-size: 56px; margin-bottom: 16px; }
+  .card .name { font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+  .card .title { font-size: 26px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px; }
+  .card .desc { margin-top: 12px; font-size: 14px; opacity: 0.9; line-height: 1.5; }
+  .card .palette { display: flex; gap: 6px; margin-top: 20px; }
+  .card .palette span { width: 32px; height: 32px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
+  .card .open { display: inline-block; margin-top: 20px; padding: 10px 20px; border-radius: 12px; background: rgba(255,255,255,0.2); font-weight: 700; font-size: 14px; backdrop-filter: blur(10px); }
+
+  .card-a { background: linear-gradient(135deg, #064E3B, #16A34A 60%, #FB7185); }
+  .card-b { background: linear-gradient(135deg, #18181B, #27272A); border: 1px solid #FCD34D; box-shadow: 0 20px 60px rgba(252,211,77,0.15); }
+  .card-c { background: linear-gradient(135deg, #9A3412, #C2410C 50%, #FED7AA); color: white; }
+
+  .footer { text-align: center; margin-top: 60px; color: rgba(255,255,255,0.5); font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Choisis ton design Tollé</h1>
+  <p class="lead">3 concepts proposés. Clique sur celui qui te parle, mate les 3 écrans (Login · Home · Suivi course), et reviens me dire lequel tu valides ou si tu veux mixer.</p>
+
+  <div class="cards">
+    <a href="design-a.html" class="card card-a">
+      <div class="emoji">🌴</div>
+      <div class="name">Concept A</div>
+      <div class="title">Tropical Energy</div>
+      <div class="desc">Énergique, jeune, urbain. Vert émeraude + accent corail. Style Bolt Food / Glovo.</div>
+      <div class="palette">
+        <span style="background:#16A34A"></span>
+        <span style="background:#FB7185"></span>
+        <span style="background:#FFFBEB"></span>
+        <span style="background:#18181B"></span>
+      </div>
+      <div class="open">Voir →</div>
+    </a>
+
+    <a href="design-b.html" class="card card-b">
+      <div class="emoji">🖤</div>
+      <div class="name">Concept B</div>
+      <div class="title">Premium Minimal</div>
+      <div class="desc">Sombre, mystérieux, premium. Noir profond + accent doré rare. Style Arc / Linear.</div>
+      <div class="palette">
+        <span style="background:#0A0A0A"></span>
+        <span style="background:#FCD34D"></span>
+        <span style="background:#FAFAFA"></span>
+        <span style="background:#A1A1AA"></span>
+      </div>
+      <div class="open">Voir →</div>
+    </a>
+
+    <a href="design-c.html" class="card card-c">
+      <div class="emoji">🌍</div>
+      <div class="name">Concept C</div>
+      <div class="title">Friendly & Local</div>
+      <div class="desc">Chaleureux, ancré localement. Terra cotta + sable + vert kola. Évoque la terre du Burkina.</div>
+      <div class="palette">
+        <span style="background:#C2410C"></span>
+        <span style="background:#FEF3C7"></span>
+        <span style="background:#15803D"></span>
+        <span style="background:#4F46E5"></span>
+      </div>
+      <div class="open">Voir →</div>
+    </a>
+  </div>
+
+  <p class="footer">Tu peux aussi mixer — par exemple "palette de C avec animations de A".</p>
+</body>
+</html>

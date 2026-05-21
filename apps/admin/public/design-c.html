@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tollé — Concept C · Friendly & Local</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Lora:ital,wght@1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #C2410C;
+    --primary-dark: #9A3412;
+    --primary-light: #FED7AA;
+    --sand: #FEF3C7;
+    --sand-soft: #FFFBEB;
+    --kola: #15803D;
+    --indigo: #4F46E5;
+    --text: #1C1917;
+    --text-soft: #57534E;
+    --border: #E7E5E4;
+    --white: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background:
+      radial-gradient(circle at 20% 30%, #FED7AA 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, #FEF3C7 0%, transparent 50%),
+      #FFFBEB;
+    min-height: 100vh;
+    padding: 40px 20px;
+    color: var(--text);
+  }
+  h1.page-title {
+    font-weight: 800;
+    font-size: 42px;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -1px;
+    color: var(--primary-dark);
+  }
+  .subtitle { color: var(--text-soft); text-align: center; margin-bottom: 40px; font-size: 16px; }
+  .subtitle em { font-family: 'Lora', serif; }
+  .phones {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .phone {
+    width: 320px;
+    height: 660px;
+    background: var(--sand-soft);
+    border-radius: 40px;
+    box-shadow: 0 30px 60px rgba(194,65,12,0.2), 0 0 0 12px #1C1917, 0 0 0 14px #44403C;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone .notch {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 25px; background: #1C1917; border-radius: 14px; z-index: 10;
+  }
+  .phone .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 28px 6px; font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .phone-label {
+    color: var(--primary-dark); text-align: center; margin-top: 12px;
+    font-weight: 700; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* ====== SCREEN 1 — LOGIN ====== */
+  .login { padding: 24px; height: calc(100% - 50px); display: flex; flex-direction: column; position: relative; }
+  .login::before {
+    content: '🛵'; position: absolute; top: 50px; right: 30px;
+    font-size: 50px; opacity: 0.4; transform: rotate(-15deg);
+  }
+  .login .logo {
+    font-weight: 800;
+    font-size: 50px;
+    margin-top: 40px;
+    color: var(--primary);
+    letter-spacing: -2.5px;
+  }
+  .login .tagline {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    color: var(--text-soft);
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  .login h2 {
+    font-weight: 800;
+    font-size: 28px;
+    margin-top: 60px;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+  }
+  .login h2 .wave { display: inline-block; animation: wave 1.5s infinite; }
+  @keyframes wave { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(20deg)} 75%{transform:rotate(-10deg)} }
+  .login p { color: var(--text-soft); margin-top: 8px; font-size: 14px; line-height: 1.5; }
+  .login .input-row { display: flex; gap: 8px; margin-top: 28px; }
+  .login .input-prefix {
+    background: var(--white); border: 2px solid var(--primary-light); border-radius: 18px;
+    padding: 0 16px; display: flex; align-items: center; font-weight: 700; color: var(--primary-dark);
+  }
+  .login .input {
+    flex: 1; background: var(--white); border: 2px solid var(--primary-light); border-radius: 18px;
+    padding: 14px; font-family: inherit; font-size: 16px; font-weight: 600;
+  }
+  .login .channels { display: flex; gap: 8px; margin-top: 18px; }
+  .login .chip {
+    flex: 1; border: 2px solid var(--border); border-radius: 16px;
+    padding: 10px; text-align: center; font-size: 13px; font-weight: 700;
+    background: var(--white);
+  }
+  .login .chip.active { border-color: var(--kola); background: rgba(21,128,61,0.1); color: var(--kola); }
+  .login .btn-primary {
+    margin-top: auto; margin-bottom: 20px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 24px; padding: 20px;
+    font-family: inherit; font-size: 17px; font-weight: 800;
+    box-shadow: 0 10px 24px rgba(194,65,12,0.4);
+  }
+  .login .register-link { text-align: center; font-size: 14px; color: var(--text-soft); margin-bottom: 8px; }
+  .login .register-link b { color: var(--primary); font-weight: 800; }
+
+  /* ====== SCREEN 2 — CLIENT HOME ====== */
+  .home {
+    height: calc(100% - 50px);
+    position: relative;
+    background:
+      radial-gradient(circle at 30% 30%, var(--sand) 0%, transparent 60%),
+      radial-gradient(circle at 70% 70%, var(--primary-light) 0%, transparent 60%),
+      var(--sand-soft);
+    overflow: hidden;
+  }
+  .home .greeting {
+    position: absolute; top: 60px; left: 16px; right: 16px;
+    background: var(--white); border-radius: 28px; padding: 18px 20px;
+    box-shadow: 0 12px 30px rgba(194,65,12,0.15);
+    border: 2px solid var(--primary-light);
+  }
+  .home .greeting .hi { font-weight: 800; font-size: 20px; }
+  .home .greeting .hi .wave { display: inline-block; animation: wave 1.5s infinite; }
+  .home .greeting .sub { font-family: 'Lora', serif; font-style: italic; font-size: 13px; color: var(--text-soft); margin-top: 4px; }
+  .home .driver-pin {
+    position: absolute; top: 290px; left: 130px;
+    width: 64px; height: 64px;
+    background: var(--white); border-radius: 50%;
+    box-shadow: 0 10px 30px rgba(194,65,12,0.4);
+    border: 4px solid var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+  }
+  .home .driver-pin::before {
+    content: ''; position: absolute; inset: -12px;
+    border: 3px solid rgba(194,65,12,0.3); border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.8);opacity:0} }
+  .home .cta-card {
+    position: absolute; bottom: 24px; left: 16px; right: 16px;
+    background: var(--white); border-radius: 28px; padding: 22px;
+    box-shadow: 0 -10px 30px rgba(194,65,12,0.15);
+    border: 2px solid var(--primary-light);
+  }
+  .home .cta-card .estimate { display: flex; justify-content: space-between; margin-bottom: 16px; }
+  .home .cta-card .estimate-label { font-size: 11px; color: var(--text-soft); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+  .home .cta-card .estimate-value { font-weight: 800; font-size: 17px; color: var(--primary-dark); margin-top: 2px; }
+  .home .cta-card .btn {
+    width: 100%; background: var(--primary); color: white;
+    border: none; border-radius: 24px; padding: 18px;
+    font-family: inherit; font-size: 17px; font-weight: 800;
+    box-shadow: 0 10px 22px rgba(194,65,12,0.4);
+  }
+
+  /* ====== SCREEN 3 — TRACKING ====== */
+  .track {
+    height: calc(100% - 50px);
+    background: var(--sand-soft);
+    position: relative;
+  }
+  .track .header {
+    padding: 50px 24px 60px;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-bottom-left-radius: 40px;
+    border-bottom-right-radius: 40px;
+    position: relative;
+  }
+  .track .header::after {
+    content: '🛵'; position: absolute; right: 30px; bottom: 30px; font-size: 40px; opacity: 0.4;
+  }
+  .track .step { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .track .status { font-weight: 800; font-size: 26px; margin-top: 4px; letter-spacing: -0.5px; }
+  .track .driver-card {
+    margin: -30px 16px 0; background: var(--white);
+    border-radius: 24px; padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 20px 40px rgba(194,65,12,0.2);
+    border: 2px solid var(--primary-light);
+    position: relative;
+  }
+  .track .driver-avatar {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--primary);
+    color: white; font-weight: 800; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .track .driver-info { flex: 1; }
+  .track .driver-name { font-weight: 800; font-size: 16px; }
+  .track .driver-eta { font-family: 'Lora', serif; font-style: italic; font-size: 13px; color: var(--text-soft); margin-top: 2px; }
+  .track .driver-call {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--kola);
+    color: white; display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .track .code-box {
+    margin: 20px 16px; background: var(--white); border-radius: 28px; padding: 24px;
+    text-align: center; box-shadow: 0 10px 25px rgba(194,65,12,0.15);
+    border: 2px dashed var(--primary);
+  }
+  .track .code-label { font-size: 11px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; }
+  .track .code { font-weight: 800; font-size: 52px; letter-spacing: 14px; color: var(--primary); margin-top: 6px; line-height: 1; }
+  .track .code-hint { font-family: 'Lora', serif; font-style: italic; font-size: 12px; color: var(--text-soft); margin-top: 6px; }
+</style>
+</head>
+<body>
+  <h1 class="page-title">Concept C · Friendly & Local 🌍</h1>
+  <p class="subtitle"><em>Chaleureux, ancré localement</em> · Terra cotta + sable + vert kola</p>
+
+  <div class="phones">
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="login">
+        <div class="logo">Tollé</div>
+        <div class="tagline">Vos colis livrés en confiance</div>
+        <h2>Bienvenue <span class="wave">👋</span><br/>chez nous !</h2>
+        <p>On vous envoie un petit code par WhatsApp pour vous connecter.</p>
+        <div class="input-row">
+          <div class="input-prefix">+226</div>
+          <input class="input" placeholder="70 12 34 56" value="70 12 34 56" />
+        </div>
+        <div class="channels">
+          <div class="chip active">📱 WhatsApp</div>
+          <div class="chip">💬 SMS</div>
+        </div>
+        <button class="btn-primary">Continuer ✨</button>
+        <div class="register-link">Première fois ici ? <b>S'inscrire</b></div>
+      </div>
+    </div>
+    <div class="phone-label">Login</div>
+    </div>
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="home">
+        <div class="greeting">
+          <div class="hi">Bonjour Léon <span class="wave">👋</span></div>
+          <div class="sub">Que livrons-nous pour vous aujourd'hui ?</div>
+        </div>
+        <div class="driver-pin">🛵</div>
+        <div class="cta-card">
+          <div class="estimate">
+            <div><div class="estimate-label">Distance</div><div class="estimate-value">2.4 km</div></div>
+            <div><div class="estimate-label">Estimation</div><div class="estimate-value">1 900 FCFA</div></div>
+          </div>
+          <button class="btn">📦 Envoyer un colis</button>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Home client</div>
+    </div>
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="track">
+        <div class="header">
+          <div class="step">Étape 3 / 4</div>
+          <div class="status">Votre livreur arrive !</div>
+        </div>
+        <div class="driver-card">
+          <div class="driver-avatar">RK</div>
+          <div class="driver-info">
+            <div class="driver-name">Rasmane K.</div>
+            <div class="driver-eta">⭐ 4.9 · arrive dans 3 minutes</div>
+          </div>
+          <div class="driver-call">📞</div>
+        </div>
+        <div class="code-box">
+          <div class="code-label">Code à donner au livreur</div>
+          <div class="code">4 7 2 8</div>
+          <div class="code-hint">Gardez-le secret jusqu'à la remise du colis</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Suivi course</div>
+    </div>
+
+  </div>
+</body>
+</html>

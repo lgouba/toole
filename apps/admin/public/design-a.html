@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tollé — Concept A · Tropical Energy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #16A34A;
+    --primary-dark: #15803D;
+    --coral: #FB7185;
+    --cream: #FFFBEB;
+    --text: #18181B;
+    --text-soft: #525252;
+    --border: #E5E7EB;
+    --white: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #064E3B 0%, #16A34A 100%);
+    min-height: 100vh;
+    padding: 40px 20px;
+    color: var(--text);
+  }
+  h1.page-title {
+    color: var(--white);
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 38px;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle { color: rgba(255,255,255,0.85); text-align: center; margin-bottom: 40px; }
+  .phones {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .phone {
+    width: 320px;
+    height: 660px;
+    background: var(--cream);
+    border-radius: 40px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.4), 0 0 0 12px #1F2937, 0 0 0 14px #374151;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone .notch {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 25px; background: #1F2937; border-radius: 14px; z-index: 10;
+  }
+  .phone .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 28px 6px; font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .phone-label {
+    color: white; text-align: center; margin-top: 12px;
+    font-weight: 600; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* ====== SCREEN 1 — LOGIN ====== */
+  .login {
+    padding: 24px;
+    height: calc(100% - 50px);
+    display: flex;
+    flex-direction: column;
+  }
+  .login .logo {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 48px;
+    color: var(--primary-dark);
+    margin-top: 40px;
+    letter-spacing: -2px;
+  }
+  .login .logo .dot { color: var(--coral); }
+  .login h2 {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    margin-top: 60px;
+    line-height: 1.15;
+  }
+  .login p { color: var(--text-soft); margin-top: 8px; font-size: 14px; line-height: 1.5; }
+  .login .input-row { display: flex; gap: 8px; margin-top: 30px; }
+  .login .input-prefix {
+    background: white; border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 0 14px; display: flex; align-items: center; font-weight: 600;
+    color: var(--text);
+  }
+  .login .input {
+    flex: 1; background: white; border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px; font-family: inherit; font-size: 16px; font-weight: 500;
+  }
+  .login .channels { display: flex; gap: 8px; margin-top: 20px; }
+  .login .chip {
+    flex: 1; border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 10px; text-align: center; font-size: 13px; font-weight: 600;
+    background: white;
+  }
+  .login .chip.active { border-color: var(--primary); background: rgba(22,163,74,0.08); color: var(--primary-dark); }
+  .login .btn-primary {
+    margin-top: auto; margin-bottom: 20px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 16px; padding: 18px;
+    font-family: 'Manrope', sans-serif; font-size: 17px; font-weight: 700;
+    box-shadow: 0 8px 20px rgba(22,163,74,0.4);
+  }
+  .login .register-link { text-align: center; font-size: 13px; color: var(--text-soft); margin-bottom: 8px; }
+  .login .register-link b { color: var(--primary-dark); }
+
+  /* ====== SCREEN 2 — CLIENT HOME (map) ====== */
+  .home {
+    height: calc(100% - 50px);
+    position: relative;
+    background:
+      radial-gradient(circle at 30% 40%, #BBF7D0 0%, transparent 50%),
+      radial-gradient(circle at 70% 70%, #FED7AA 0%, transparent 50%),
+      #D1FAE5;
+    overflow: hidden;
+  }
+  .home::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath d='M0 5h10M5 0v10' stroke='%23A7F3D0' stroke-width='0.5'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+  .home .greeting {
+    position: absolute; top: 60px; left: 16px; right: 16px;
+    background: white; border-radius: 20px; padding: 16px 18px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  }
+  .home .greeting .hi { font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 19px; }
+  .home .greeting .sub { font-size: 13px; color: var(--text-soft); margin-top: 2px; }
+  .home .driver-pin {
+    position: absolute; top: 280px; left: 130px;
+    width: 60px; height: 60px;
+    background: white; border-radius: 50%;
+    box-shadow: 0 8px 20px rgba(22,163,74,0.4);
+    border: 4px solid var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .home .driver-pin::before {
+    content: ''; position: absolute; inset: -10px;
+    border: 3px solid rgba(22,163,74,0.3); border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.8);opacity:0} }
+  .home .cta-card {
+    position: absolute; bottom: 24px; left: 16px; right: 16px;
+    background: white; border-radius: 24px; padding: 20px;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+  }
+  .home .cta-card .estimate { display: flex; justify-content: space-between; margin-bottom: 14px; }
+  .home .cta-card .estimate-label { font-size: 12px; color: var(--text-soft); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+  .home .cta-card .estimate-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px; }
+  .home .cta-card .btn {
+    width: 100%; background: var(--primary); color: white;
+    border: none; border-radius: 18px; padding: 18px;
+    font-family: 'Manrope', sans-serif; font-size: 17px; font-weight: 700;
+    box-shadow: 0 8px 20px rgba(22,163,74,0.4);
+  }
+
+  /* ====== SCREEN 3 — TRACKING ====== */
+  .track {
+    height: calc(100% - 50px);
+    position: relative;
+    background:
+      radial-gradient(circle at 30% 30%, #BBF7D0, transparent 60%),
+      radial-gradient(circle at 80% 80%, #FED7AA, transparent 60%),
+      #D1FAE5;
+  }
+  .track .header {
+    padding: 60px 20px 20px; background: linear-gradient(180deg, var(--primary-dark), transparent);
+    color: white;
+  }
+  .track .header .step { font-size: 13px; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .track .header .status { font-family: 'Manrope', sans-serif; font-size: 24px; font-weight: 800; margin-top: 4px; }
+  .track .driver-card {
+    margin: 200px 16px 0; background: white;
+    border-radius: 24px; padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  }
+  .track .driver-avatar {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--coral);
+    color: white; font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .track .driver-info { flex: 1; }
+  .track .driver-name { font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 16px; }
+  .track .driver-eta { font-size: 13px; color: var(--text-soft); margin-top: 2px; }
+  .track .driver-call {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--primary);
+    color: white; display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .track .code-box {
+    margin: 20px 16px; background: white; border-radius: 24px; padding: 20px;
+    text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  }
+  .track .code-label { font-size: 12px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .track .code { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 48px; letter-spacing: 12px; color: var(--primary-dark); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1 class="page-title">Concept A · Tropical Energy 🌴</h1>
+  <p class="subtitle">Énergique, jeune, urbain · Vert émeraude + corail accent</p>
+
+  <div class="phones">
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="login">
+        <div class="logo">Tollé<span class="dot">.</span></div>
+        <h2>Entrez votre<br/>numéro</h2>
+        <p>Nous vous enverrons un code de vérification par WhatsApp.</p>
+        <div class="input-row">
+          <div class="input-prefix">+226</div>
+          <input class="input" placeholder="70 12 34 56" value="70 12 34 56" />
+        </div>
+        <div class="channels">
+          <div class="chip active">✅ WhatsApp</div>
+          <div class="chip">SMS</div>
+        </div>
+        <button class="btn-primary">Continuer →</button>
+        <div class="register-link">Pas encore de compte ? <b>S'inscrire</b></div>
+      </div>
+    </div>
+    <div class="phone-label">Login</div>
+    </div>
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="home">
+        <div class="greeting">
+          <div class="hi">Bonjour Léon 👋</div>
+          <div class="sub">Où envoyez-vous aujourd'hui ?</div>
+        </div>
+        <div class="driver-pin">🛵</div>
+        <div class="cta-card">
+          <div class="estimate">
+            <div><div class="estimate-label">Distance</div><div class="estimate-value">2.4 km</div></div>
+            <div><div class="estimate-label">Tarif estimé</div><div class="estimate-value">1 900 FCFA</div></div>
+          </div>
+          <button class="btn">📦 Envoyer un colis</button>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Home Client</div>
+    </div>
+
+    <div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="status-bar"><span>09:41</span><span>📶 100%</span></div>
+      <div class="track">
+        <div class="header">
+          <div class="step">Étape 3 sur 4</div>
+          <div class="status">Votre livreur arrive 🛵</div>
+        </div>
+        <div class="driver-card">
+          <div class="driver-avatar">RK</div>
+          <div class="driver-info">
+            <div class="driver-name">Rasmane K.</div>
+            <div class="driver-eta">⭐ 4.9 · Arrive dans 3 min</div>
+          </div>
+          <div class="driver-call">📞</div>
+        </div>
+        <div class="code-box">
+          <div class="code-label">Code à donner au livreur</div>
+          <div class="code">4 7 2 8</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">Suivi course</div>
+    </div>
+
+  </div>
+</body>
+</html>
