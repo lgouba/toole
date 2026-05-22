@@ -30,6 +30,24 @@ eas update --branch production --message "..."
 
 **`eas update` cible déjà iOS + Android par défaut.** Ne PAS ajouter `--platform all`, c'est inutile et ça fait râler le user.
 
+### Mobile — REBUILD NATIF requis quand ?
+
+Un OTA `eas update` ne suffit PAS si on touche :
+- `app.json` → `ios.infoPlist`, `ios.entitlements`, `android.permissions`, `plugins`
+- Native modules ajoutés/changés (`expo-*` natif)
+- `google-services.json`, certificats APNs
+
+Dans ces cas :
+
+```bash
+cd /Users/macos/Tollé/apps/mobile
+eas build --platform ios     --profile preview        # TestFlight
+eas build --platform android --profile preview        # APK / Play Internal
+# Après validation testeurs :
+eas build --platform ios     --profile production
+eas build --platform android --profile production
+```
+
 Branches EAS : `preview` (testeurs) et `production` (live).
 
 ### Git workflow
