@@ -118,6 +118,39 @@ export async function updateLocation(
     })();
   }
 
+  // 📍 SUIVI TEMPS REEL CLIENT : si le livreur a une course active, on forward
+  // sa position au client (sender) pour qu'il voie le marker bouger sur sa carte.
+  //
+  // Cette branche existe AUSSI dans le socket handler `driver:update_location`,
+  // mais on la duplique ici via le path HTTP pour la robustesse : si le socket
+  // du livreur est mort au moment du tick (zone flaky, ecran verrouille, app
+  // backgrounded), le heartbeat HTTP arrive quand meme et le client recoit la
+  // mise a jour. Le sender peut donc recevoir un evenement par les deux chemins
+  // (idempotent cote client : juste set la meme position).
+  void (async () => {
+    try {
+      const activeDelivery = await prisma.delivery.findFirst({
+        where: {
+          driverId: userId,
+          status: { in: ['accepted', 'picking_up', 'picked_up', 'delivering'] },
+        },
+        select: { id: true, senderId: true },
+      });
+      if (activeDelivery) {
+        const { emitToUser } = await import('./notification.service.js');
+        emitToUser(activeDelivery.senderId, 'delivery:driver_location', {
+          deliveryId: activeDelivery.id,
+          driverId: userId,
+          latitude,
+          longitude,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      logger.warn({ err, userId }, 'Failed to forward driver location to sender');
+    }
+  })();
+
   return profile;
 }
 
