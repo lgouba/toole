@@ -111,21 +111,46 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         // suivantes ne nous trouve PAS via findNearbyDrivers (filtre sur
         // lastLocationUpdate < 2 min). Le bug "il faut toggle off/on pour
         // recevoir les notifs" venait de la.
+        //
+        // ⚡ PERF : on a longtemps fait getCurrentPositionAsync({BestForNavigation})
+        // ici, ce qui pouvait bloquer 5-15s sur un GPS froid → bouton "passer
+        // en ligne" lent. Strategie multi-paliers maintenant :
+        //   1) getLastKnownPositionAsync() : instant (cache OS), souvent OK
+        //      si l'app vient d'utiliser le GPS recemment.
+        //   2) sinon getCurrentPositionAsync({Balanced}, timeout 4s) : fix
+        //      rapide a ~50m de precision, largement suffisant pour le
+        //      filtre findNearbyDrivers (radius par defaut ~5km).
+        //   3) Le tracking heartbeat (startLocationTracking) continuera en
+        //      BestForNavigation → la precision sera affinee en arriere-plan
+        //      des le 1er tick (10s plus tard).
         let initialLoc: LatLng | null = null;
         try {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.BestForNavigation,
+          // Palier 1 : derniere position connue (instant).
+          const last = await Location.getLastKnownPositionAsync({
+            maxAge: 60_000, // accepte une position cache de moins d'1 min
+            requiredAccuracy: 200, // 200m suffit pour findNearbyDrivers
           });
-          initialLoc = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          };
+          if (last) {
+            initialLoc = {
+              latitude: last.coords.latitude,
+              longitude: last.coords.longitude,
+            };
+          } else {
+            // Palier 2 : fix rapide ~1s.
+            const pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            initialLoc = {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            };
+          }
           await driverService.updateLocation(initialLoc);
         } catch (err) {
           console.warn('[driver] initial GPS push failed', err);
           // Pas bloquant : on continue mais on previent que la position n'a
           // pas encore ete envoyee (notifs immediates risquent de manquer
-          // jusqu'au prochain heartbeat).
+          // jusqu'au prochain heartbeat ~10s).
         }
 
         // Maintenant que la position est fraiche cote serveur, on peut
@@ -137,7 +162,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
           ...(initialLoc ? { currentLocation: initialLoc } : {}),
         });
 
-        // Lance le heartbeat regulier (push position toutes les 10s)
+        // Lance le heartbeat regulier en haute precision (push position
+        // toutes les 10s). Affinera la position fournie en palier 1/2.
         startLocationTracking((loc) => set({ currentLocation: loc }));
       } catch {
         Alert.alert('Erreur', 'Impossible de passer en ligne. Réessayez.');
