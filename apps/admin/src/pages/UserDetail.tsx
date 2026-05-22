@@ -124,9 +124,13 @@ export default function UserDetail() {
   // Lightbox : { src, alt } quand un document est ouvert en grand.
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
+  // ⚠️ Ne PAS remettre `loading=true` ici : sinon chaque refetch post-action
+  // (activate/suspend/setKyc...) demonte toute la page, le bouton disparait
+  // pendant la requete, et un second click tombe dans le vide → bug "rien ne
+  // se passe quand je clique". On garde la page rendue, seul `data` est
+  // remplace a la fin. Le bouton reste disabled via `busy`.
   const load = async () => {
     if (!id) return;
-    setLoading(true);
     try {
       const res = await api.get(`/admin/users/${id}`);
       const raw = unwrap<UserDetailData>(res);
@@ -138,6 +142,8 @@ export default function UserDetail() {
   };
 
   useEffect(() => {
+    // Premier chargement : on affiche le loader plein ecran.
+    setLoading(true);
     load();
     // eslint-disable-next-line
   }, [id]);
