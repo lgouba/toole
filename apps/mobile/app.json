@@ -20,7 +20,11 @@
         "NSLocationWhenInUseUsageDescription": "Tolle utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
         "NSCameraUsageDescription": "Tolle utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
         "NSPhotoLibraryUsageDescription": "Tolle acces votre galerie pour ajouter des photos de profil et de colis.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {

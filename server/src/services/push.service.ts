@@ -12,6 +12,15 @@ interface ExpoPushMessage {
   priority?: 'default' | 'normal' | 'high';
   channelId?: string;
   badge?: number;
+  ttl?: number;
+  /**
+   * iOS 15+ : bypasse Focus / Ne pas deranger / Mode sommeil.
+   * 'time-sensitive' affiche la notif sur l'ecran verrouille meme en Focus.
+   * Indispensable pour les notifications de course livreur (sinon le livreur
+   * en mode "concentration" / "sommeil" / "voiture" rate toutes les notifs).
+   */
+  _contentAvailable?: boolean;
+  interruptionLevel?: 'passive' | 'active' | 'time-sensitive' | 'critical';
 }
 
 export async function registerPushToken(userId: string, token: string, platform?: string) {
@@ -48,6 +57,20 @@ export async function sendPushToUser(
     'Sending push notification',
   );
 
+  // Determination du caractere "time-sensitive" : pour les notifs
+  // critiques metier (nouvelle course, course annulee, code recupere),
+  // on demande a iOS de bypass Focus/DND/Mode sommeil. Les notifs
+  // informatives ordinaires (gain credite, message admin) restent en
+  // priorite normale pour respecter le user.
+  const dataType = (data as any)?.type;
+  const isUrgent = [
+    'new_request',
+    'delivery_cancelled',
+    'driver_cancelled',
+    'pickup_code',
+    'delivery_code',
+  ].includes(dataType);
+
   const messages: ExpoPushMessage[] = tokens.map((t) => ({
     to: t.token,
     title,
@@ -62,7 +85,8 @@ export async function sendPushToUser(
     // arrivent ne servant a rien et risquant d'irriter l'utilisateur.
     ttl: 120,
     // iOS : alert+sound immediat. Equivalent apns-priority: 10
-    _contentAvailable: false,
+    _contentAvailable: true,
+    interruptionLevel: isUrgent ? 'time-sensitive' : 'active',
   }));
 
   try {
