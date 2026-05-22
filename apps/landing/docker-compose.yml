@@ -1,0 +1,15 @@
+# Standalone docker-compose pour deployer la landing sur le VPS.
+# Sur le VPS : /opt/toole/landing/
+#   docker compose up -d --build tolle-landing
+#
+# Puis configurer nginx/caddy pour proxy 80/443 → 127.0.0.1:3001.
+
+services:
+  tolle-landing:
+    build: .
+    container_name: tolle-landing
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      - NODE_ENV=production

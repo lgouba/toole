@@ -1,0 +1,87 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Palette Tollé — alignée sur l'app mobile (Concept C - Friendly & Local) */
+  --color-terra-50: #fff7ed;
+  --color-terra-100: #ffedd5;
+  --color-terra-200: #fed7aa;
+  --color-terra-300: #fdba74;
+  --color-terra-400: #fb923c;
+  --color-terra-500: #f97316;
+  --color-terra-600: #ea580c;
+  --color-terra-700: #c2410c;
+  --color-terra-800: #9a3412;
+  --color-terra-900: #7c2d12;
+
+  --color-kola-50: #f0fdf4;
+  --color-kola-100: #dcfce7;
+  --color-kola-200: #bbf7d0;
+  --color-kola-300: #86efac;
+  --color-kola-400: #4ade80;
+  --color-kola-500: #22c55e;
+  --color-kola-600: #16a34a;
+  --color-kola-700: #15803d;
+  --color-kola-800: #166534;
+  --color-kola-900: #14532d;
+
+  --color-sand-50: #fffbeb;
+  --color-sand-100: #fef3c7;
+  --color-sand-200: #fde68a;
+
+  --color-ink-900: #1c1917;
+  --color-ink-700: #44403c;
+  --color-ink-500: #78716c;
+  --color-ink-300: #d6d3d1;
+
+  --font-display: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html,
+body {
+  background: var(--color-sand-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle mesh-gradient background */
+.bg-mesh {
+  background-color: var(--color-sand-50);
+  background-image:
+    radial-gradient(at 15% 20%, color-mix(in oklab, var(--color-terra-200) 60%, transparent) 0px, transparent 50%),
+    radial-gradient(at 85% 0%, color-mix(in oklab, var(--color-kola-200) 50%, transparent) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, color-mix(in oklab, var(--color-sand-200) 70%, transparent) 0px, transparent 50%);
+}
+
+/* Glow utility */
+.glow-terra {
+  box-shadow: 0 30px 60px -20px rgba(194, 65, 12, 0.45);
+}
+.glow-kola {
+  box-shadow: 0 30px 60px -20px rgba(21, 128, 61, 0.45);
+}
+
+/* Halo derrière le téléphone mockup */
+.phone-halo::before {
+  content: '';
+  position: absolute;
+  inset: -40px;
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(194, 65, 12, 0.18), transparent 65%);
+  z-index: -1;
+}
+
+/* Reveal animations replacement (no JS) */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
