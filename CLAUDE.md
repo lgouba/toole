@@ -30,6 +30,14 @@ eas update --branch production --message "..."
 
 **`eas update` cible déjà iOS + Android par défaut.** Ne PAS ajouter `--platform all`, c'est inutile et ça fait râler le user.
 
+### Mobile — Quel profile EAS Build pour quoi (iOS)
+
+Dans `apps/mobile/eas.json` :
+- `preview` = `distribution: "internal"` → **ad-hoc**, install par UDID/QR, demande à enregistrer les devices à chaque nouveau testeur. Pas TestFlight.
+- `production` = `distribution: "store"` (défaut) → **TestFlight** + App Store. Pas d'UDID.
+
+**Pour envoyer aux testeurs sur TestFlight, c'est TOUJOURS `--profile production`**, jamais `preview`. Le `preview` ne sert que pour install direct sur device sans passer par Apple Review.
+
 ### Mobile — REBUILD NATIF requis quand ?
 
 Un OTA `eas update` ne suffit PAS si on touche :
