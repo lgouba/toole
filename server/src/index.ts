@@ -132,12 +132,14 @@ async function start() {
       );
     }, 30_000);
 
-    // Scan toutes les 30s pour passer en offline les livreurs sans heartbeat recent
+    // Scan periodique des livreurs "online" sans heartbeat recent (monitoring
+    // uniquement, ne mute plus isOnline — voir markStaleDriversOffline pour le
+    // contexte du bug). Frequence reduite a 5 min car simple observation.
     setInterval(() => {
       markStaleDriversOffline().catch((err) =>
         logger.error({ err }, 'markStaleDriversOffline failed'),
       );
-    }, 30_000);
+    }, 5 * 60_000);
 
     // Scan toutes les 60s pour activer les livraisons programmees dont l'heure est arrivee
     setInterval(() => {

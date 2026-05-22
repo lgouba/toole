@@ -255,13 +255,28 @@ export async function getPublicDriverProfile(userId: string) {
 }
 
 /**
- * Passe automatiquement en offline les livreurs marques "online" mais sans heartbeat recent.
- * Evite les livreurs zombies (app fermee sans clic sur "Hors ligne").
+ * Observation des livreurs marques "online" mais sans heartbeat recent.
+ *
+ * ⚠️ NE MUTE PLUS `isOnline`. Ancien comportement : on flippait isOnline=false
+ * automatiquement, ce qui causait LE bug bloquant prod : sur une simple
+ * deconnexion socket flaky (transport close / ping timeout ~100s en zone
+ * reseau instable), le cron forcait le livreur offline meme si l'app etait
+ * toujours en route et le tracking GPS continuait. Pour recevoir a nouveau
+ * des courses il fallait toggle off/on manuellement.
+ *
+ * `isOnline` est desormais controle UNIQUEMENT par le user (toggle dans
+ * l'app) ou par un logout/uninstall explicite. La fraicheur GPS est deja
+ * filtree dans `findNearbyDrivers` (lastLocationUpdate >= activeCutoff),
+ * donc les livreurs "zombies" (app fermee, plus de heartbeat) ne reçoivent
+ * naturellement plus de courses sans qu'on ait besoin de muter leur etat.
+ *
+ * On garde ce hook pour logguer la presence eventuelle de livreurs stale
+ * (utile pour le monitoring) mais sans effet de bord destructif.
  */
 export async function markStaleDriversOffline() {
   const maxAgeMs = await getActiveDriverMaxAgeMs();
   const cutoff = new Date(Date.now() - maxAgeMs);
-  const result = await prisma.driverProfile.updateMany({
+  const stale = await prisma.driverProfile.count({
     where: {
       isOnline: true,
       OR: [
@@ -269,9 +284,11 @@ export async function markStaleDriversOffline() {
         { lastLocationUpdate: null },
       ],
     },
-    data: { isOnline: false },
   });
-  if (result.count > 0) {
-    logger.info({ count: result.count }, 'Auto-offlined stale drivers');
+  if (stale > 0) {
+    logger.debug(
+      { count: stale, cutoffMs: maxAgeMs },
+      'Stale online drivers detected (no auto-offline, filtered by findNearbyDrivers)',
+    );
   }
 }
