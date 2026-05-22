@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar, Card } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
@@ -19,7 +19,18 @@ const menuItems = [
 
 export default function DriverProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, refreshUser } = useAuthStore();
+
+  // Refetch /auth/me a chaque focus de l'ecran pour avoir ratingCount/ratingAvg
+  // a jour : la DB est mise a jour cote serveur des qu'un client note le livreur,
+  // mais le mobile garde un User cache depuis le login.
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser().catch(() => {
+        /* silencieux : on garde le cache si reseau KO */
+      });
+    }, [refreshUser]),
+  );
 
   if (!user) return null;
 

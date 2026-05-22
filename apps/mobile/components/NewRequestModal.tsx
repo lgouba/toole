@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { typography, spacing, borderRadius } from '@/theme';
+import { useColors, type ThemeColors } from '@/theme/useColors';
 import { useDriverStore } from '@/stores/driver.store';
 import { useCountdown } from '@/hooks/useCountdown';
 import { alertConfirmSuccess, alertRejection, stopAlert } from '@/utils/alerts';
@@ -56,6 +57,16 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
  */
 export function NewRequestModal() {
   const router = useRouter();
+  const colors = useColors();
+  // Recalcul des styles a chaque changement de couleur primaire/secondaire
+  // (admin peut changer la palette en live). useMemo sur primary+secondary
+  // permet d'eviter le recompute a chaque render mais de bien reagir aux
+  // changements de theme.
+  const styles = useMemo(
+    () => createStyles(colors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [colors.primary, colors.primaryDark, colors.secondary, colors.background, colors.surface],
+  );
   const { currentRequest, acceptRequest, rejectRequest } = useDriverStore();
 
   const { remaining, start } = useCountdown(TIMEOUT_SECONDS, () => {
@@ -301,6 +312,12 @@ export function NewRequestModal() {
 }
 
 function TimerRing({ seconds, progress }: { seconds: number; progress: number }) {
+  const colors = useColors();
+  const styles = useMemo(
+    () => createStyles(colors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [colors.primary, colors.primaryDark, colors.secondary, colors.background, colors.surface],
+  );
   const SIZE = 56;
   const STROKE = 5;
   const RADIUS = (SIZE - STROKE) / 2;
@@ -350,6 +367,12 @@ function Stat({
   value: string;
   label: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(
+    () => createStyles(colors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [colors.primary, colors.primaryDark, colors.secondary, colors.background, colors.surface],
+  );
   return (
     <View style={styles.stat}>
       <Ionicons name={icon} size={18} color={colors.white} style={{ opacity: 0.8 }} />
@@ -374,6 +397,12 @@ function RoutePoint({
   details?: string | null;
   isLast?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(
+    () => createStyles(colors),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [colors.primary, colors.primaryDark, colors.secondary, colors.background, colors.surface],
+  );
   return (
     <View style={styles.routePoint}>
       <View style={[styles.routeDot, { backgroundColor: dotColor }]} />
@@ -392,7 +421,7 @@ function RoutePoint({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.primaryDark,
@@ -712,3 +741,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
