@@ -32,7 +32,12 @@ export async function connectSocket(): Promise<Socket> {
     },
     transports: ['websocket'],
     reconnection: true,
-    reconnectionDelay: 1000,
+    // Reconnect agressif : 500ms initial, +500ms par tentative, cap a 3s.
+    // Reseau BF tres flaky → on veut etre back online le plus vite possible
+    // pour ne pas rater de notifs de course.
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 3_000,
+    randomizationFactor: 0.3,
     reconnectionAttempts: Infinity,
     timeout: 10_000,
   });

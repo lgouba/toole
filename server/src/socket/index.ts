@@ -103,6 +103,15 @@ export function initSocket(httpServer: HttpServer): IoServer {
       origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
       credentials: true,
     },
+    // ⚡ Detection rapide des sockets morts (reseau flaky BF).
+    // Defaults socket.io : pingInterval=25s, pingTimeout=20s → jusqu'a 45s
+    // avant qu'un socket mort soit detecte → le livreur ne reçoit aucune
+    // course pendant ce temps. On serre la vis :
+    //   - ping toutes les 10s (charge negligeable)
+    //   - timeout 8s avant de considerer mort
+    // → max 18s entre "le socket meurt" et "le client tente une reconnexion"
+    pingInterval: 10_000,
+    pingTimeout: 8_000,
   });
 
   io.use((socket, next) => {

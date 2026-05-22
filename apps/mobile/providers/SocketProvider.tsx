@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuthStore } from '@/stores/auth.store';
@@ -441,8 +442,29 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
+    // 🔌 Force reconnect quand l'app revient en foreground.
+    // Sans ca, si le socket meurt silencieusement pendant que l'app est en
+    // background (changement de reseau wifi/4G, ecran verrouille), il faut
+    // attendre le ping timeout (~20s) + reconnect exponential backoff avant
+    // qu'il revienne. Resultat : le livreur peut rater des notifs de course
+    // jusqu'a 1-2 minutes apres le retour de l'app. Ici on verifie a chaque
+    // transition vers 'active' que le socket est bel et bien connecte, sinon
+    // on force un nouveau connectSocket() (qui jette l'ancien et reouvre).
+    const onAppStateChange = (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      const s = getSocket();
+      if (!s || !s.connected) {
+        console.log('[Socket] AppState active + socket dead → reconnect');
+        connectSocket()
+          .then(() => useConnectionStore.getState().setConnected(true))
+          .catch((err) => console.warn('[Socket] reconnect on foreground failed', err));
+      }
+    };
+    const appStateSub = AppState.addEventListener('change', onAppStateChange);
+
     return () => {
       mounted = false;
+      appStateSub.remove();
       const socket = getSocket();
       if (socket) {
         socket.off('delivery:accepted');

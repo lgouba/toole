@@ -7,7 +7,7 @@ import {
   BackHandler,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -58,6 +58,12 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export function NewRequestModal() {
   const router = useRouter();
   const colors = useColors();
+  // ⚠️ SafeAreaView a l'interieur d'un <Modal> RN ne recoit pas toujours
+  // les bons insets sur iOS (le Modal monte dans une window native separee).
+  // useSafeAreaInsets() lit le context React qui traverse correctement les
+  // portails de modal. On applique le top inset manuellement sur le header
+  // pour eviter le chevauchement avec le Dynamic Island / encoche.
+  const insets = useSafeAreaInsets();
   // Recalcul des styles a chaque changement de couleur primaire/secondaire
   // (admin peut changer la palette en live). useMemo sur primary+secondary
   // permet d'eviter le recompute a chaque render mais de bien reagir aux
@@ -140,10 +146,13 @@ export function NewRequestModal() {
         <View style={styles.backdrop} pointerEvents="auto" />
 
         <SafeAreaView style={styles.safeArea} pointerEvents="box-none">
-          {/* Header : titre + timer rond */}
+          {/* Header : titre + timer rond. paddingTop dynamique base sur les
+              vrais safe area insets — gere notch iPhone, Dynamic Island,
+              status bar Android translucide, etc. Minimum 12px pour les
+              ecrans sans encoche. */}
           <Animated.View
             entering={FadeIn.duration(400)}
-            style={styles.header}
+            style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}
             pointerEvents="box-none"
           >
             <View style={styles.headerLeft}>
