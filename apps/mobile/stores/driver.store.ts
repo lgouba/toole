@@ -105,8 +105,39 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       }
 
       try {
+        // ⚠️ ORDRE CRITIQUE : pousser la position GPS AVANT de marquer en
+        // ligne. Sinon le serveur marque isOnline=true avec un currentLat
+        // null/perime, et tout client qui cree une course dans les ~10s
+        // suivantes ne nous trouve PAS via findNearbyDrivers (filtre sur
+        // lastLocationUpdate < 2 min). Le bug "il faut toggle off/on pour
+        // recevoir les notifs" venait de la.
+        let initialLoc: LatLng | null = null;
+        try {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.BestForNavigation,
+          });
+          initialLoc = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          };
+          await driverService.updateLocation(initialLoc);
+        } catch (err) {
+          console.warn('[driver] initial GPS push failed', err);
+          // Pas bloquant : on continue mais on previent que la position n'a
+          // pas encore ete envoyee (notifs immediates risquent de manquer
+          // jusqu'au prochain heartbeat).
+        }
+
+        // Maintenant que la position est fraiche cote serveur, on peut
+        // passer en ligne. Le notifyPendingDeliveriesToDriver cote serveur
+        // trouvera notre position et nous enverra les courses pending.
         await driverService.setOnlineStatus(true);
-        set({ isOnline: true });
+        set({
+          isOnline: true,
+          ...(initialLoc ? { currentLocation: initialLoc } : {}),
+        });
+
+        // Lance le heartbeat regulier (push position toutes les 10s)
         startLocationTracking((loc) => set({ currentLocation: loc }));
       } catch {
         Alert.alert('Erreur', 'Impossible de passer en ligne. Réessayez.');
