@@ -84,7 +84,7 @@ export default function Balances() {
         <div>
           <h1 className="page-title">Soldes livreurs</h1>
           <p className="muted">
-            Ce que la plateforme doit aux livreurs (gains online) et ce que les livreurs doivent à la plateforme (commissions cash).
+            Ce que la plateforme doit aux livreurs (gains online à verser) et ce que les livreurs doivent à la plateforme (commissions cash — reversées par le livreur via l'app, à valider dans Transactions).
           </p>
         </div>
       </header>
@@ -200,14 +200,14 @@ export default function Balances() {
                     )}
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    {d.cashDebt > 0 ? (
-                      <button className="btn btn-sm" onClick={() => setSettleFor(d)}>
-                        Encaisser
-                      </button>
-                    ) : d.availableForPayout > 0 ? (
+                    {d.availableForPayout > 0 ? (
                       <button className="btn btn-sm btn-success" onClick={() => setSettleFor(d)}>
                         Verser
                       </button>
+                    ) : d.cashDebt > 0 ? (
+                      <span className="muted" title="Le livreur reversera sa commission via l'app">
+                        En attente
+                      </span>
                     ) : (
                       <span className="muted">À jour</span>
                     )}
