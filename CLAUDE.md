@@ -20,6 +20,20 @@ cd /opt/toole/server && docker compose logs -f tolle-api --tail=50
 
 Le service docker s'appelle **`tolle-api`** (pas `server`, pas `api`). Le path sur le VPS est **`/opt/toole/server`** (pas `/opt/tolle`, pas `~/tolle`).
 
+### Admin (VPS)
+
+```bash
+cd /opt/toole/admin && docker compose up -d --build tolle-admin
+```
+
+Service Docker : **`tolle-admin`** · path VPS : **`/opt/toole/admin`** · domaine : `admin-tolle.qalitylabs.fr` (via nginx-proxy externe).
+
+### Landing (VPS)
+
+```bash
+cd /opt/toole/landing && docker compose up -d --build tolle-landing
+```
+
 ### Mobile (EAS OTA — iOS + Android en un seul update)
 
 ```bash
