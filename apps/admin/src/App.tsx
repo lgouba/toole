@@ -12,6 +12,7 @@ import DeliveryDetail from './pages/DeliveryDetail';
 import DriverTracking from './pages/DriverTracking';
 import Settings from './pages/Settings';
 import Transactions from './pages/Transactions';
+import Balances from './pages/Balances';
 import Notifications from './pages/Notifications';
 import PromoCodes from './pages/PromoCodes';
 import PublicTracking from './pages/PublicTracking';
@@ -63,6 +64,7 @@ function AdminApp({ loading, user }: { loading: boolean; user: any }) {
           <Route path="/users/:id" element={<UserDetail />} />
           <Route path="/drivers/:id/tracking" element={<DriverTracking />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/balances" element={<Balances />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/promo-codes" element={<PromoCodes />} />

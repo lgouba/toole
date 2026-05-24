@@ -586,3 +586,52 @@ export async function listNotificationsCtrl(
     next(err);
   }
 }
+
+// ────────────────────────────────────────────────────────────────────
+// SOLDES LIVREURS
+// ────────────────────────────────────────────────────────────────────
+
+export async function listDriverBalancesCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const filterRaw = req.query.filter;
+    const filter =
+      filterRaw === 'debtors' || filterRaw === 'creditors' || filterRaw === 'all'
+        ? filterRaw
+        : 'all';
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const result = await adminService.listDriverBalances({ filter, search });
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const settleSchema = z.object({
+  kind: z.enum(['collect', 'payout']),
+  amount: z.number().int().positive(),
+  paymentMethod: z.enum(['cash', 'orange_money', 'moov_money', 'wallet']),
+  reference: z.string().max(120).optional(),
+  note: z.string().max(500).optional(),
+});
+
+export async function settleDriverBalanceCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = settleSchema.parse(req.body ?? {});
+    const profile = await adminService.settleDriverBalance({
+      driverUserId: req.params.id,
+      adminId: req.user!.id,
+      ...body,
+    });
+    return success(res, profile);
+  } catch (err) {
+    next(err);
+  }
+}

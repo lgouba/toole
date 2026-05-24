@@ -228,6 +228,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span>Livraisons</span>
           </NavLink>
           <NavLink
+            to="/balances"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Icon name="money" />
+            </span>
+            <span>Soldes livreurs</span>
+          </NavLink>
+          <NavLink
             to="/transactions"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >

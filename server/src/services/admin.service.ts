@@ -725,3 +725,175 @@ export async function forceCancelDelivery(deliveryId: string, note?: string) {
     },
   });
 }
+
+// ────────────────────────────────────────────────────────────────────
+// SOLDES LIVREURS — vue comptable simplifiee pour l'admin
+// ────────────────────────────────────────────────────────────────────
+//
+// Le `walletBalance` du DriverProfile concentre TOUTE l'information :
+//   - walletBalance < 0  → le livreur DOIT ce montant a la plateforme
+//                         (cumul de commission_debt sur les paiements cash)
+//   - walletBalance > 0  → la plateforme DOIT ce montant au livreur
+//                         (gains online qui n'ont pas encore ete reverses)
+//   - walletBalance == 0 → a jour, rien a faire
+//
+// La page admin "Soldes" expose ces deux soldes en deux colonnes claires
+// avec un bouton d'action par livreur pour "Encaisser" / "Verser".
+//
+// L'historique des transactions reste accessible via /admin/transactions.
+
+export async function listDriverBalances(params: {
+  filter?: 'debtors' | 'creditors' | 'all';
+  search?: string;
+} = {}) {
+  const where: Prisma.UserWhereInput = {
+    userType: 'driver',
+    isActive: true,
+  };
+  if (params.search) {
+    where.OR = [
+      { fullName: { contains: params.search, mode: 'insensitive' } },
+      { phone: { contains: params.search } },
+    ];
+  }
+
+  const drivers = await prisma.user.findMany({
+    where,
+    include: { driverProfile: true },
+    orderBy: { driverProfile: { walletBalance: 'asc' } },
+  });
+
+  const items = drivers
+    .filter((d) => d.driverProfile)
+    .map((d) => {
+      const wb = d.driverProfile!.walletBalance;
+      return {
+        userId: d.id,
+        fullName: d.fullName,
+        phone: d.phone,
+        avatarUrl: d.avatarUrl,
+        walletBalance: wb,
+        cashDebt: Math.max(0, -wb),
+        availableForPayout: Math.max(0, wb),
+        totalDeliveries: d.driverProfile!.totalDeliveries,
+        ratingAvg: Number(d.ratingAvg),
+        ratingCount: d.ratingCount,
+      };
+    })
+    .filter((d) => {
+      if (params.filter === 'debtors') return d.cashDebt > 0;
+      if (params.filter === 'creditors') return d.availableForPayout > 0;
+      return true;
+    });
+
+  const totalToCollect = items.reduce((s, i) => s + i.cashDebt, 0);
+  const totalToPay = items.reduce((s, i) => s + i.availableForPayout, 0);
+
+  return {
+    items,
+    summary: {
+      totalToCollect,
+      totalToPay,
+      debtorCount: items.filter((i) => i.cashDebt > 0).length,
+      creditorCount: items.filter((i) => i.availableForPayout > 0).length,
+    },
+  };
+}
+
+/**
+ * Enregistre un reglement admin : soit on encaisse la dette cash du
+ * livreur (kind='collect' → topup completed), soit on verse au livreur
+ * son solde online (kind='payout' → withdrawal completed).
+ * Met a jour walletBalance en consequence dans la meme transaction.
+ */
+export async function settleDriverBalance(args: {
+  driverUserId: string;
+  adminId: string;
+  kind: 'collect' | 'payout';
+  amount: number;
+  paymentMethod: 'cash' | 'orange_money' | 'moov_money' | 'wallet';
+  reference?: string;
+  note?: string;
+}) {
+  if (args.amount <= 0) {
+    throw new HttpError(400, 'INVALID_AMOUNT', 'Montant doit etre positif');
+  }
+  return prisma.$transaction(async (tx) => {
+    const profile = await tx.driverProfile.findUnique({
+      where: { userId: args.driverUserId },
+      include: { user: { select: { fullName: true, userType: true } } },
+    });
+    if (!profile) {
+      throw new HttpError(404, 'NOT_FOUND', 'Livreur introuvable');
+    }
+    if (profile.user.userType !== 'driver') {
+      throw new HttpError(400, 'INVALID_TARGET', 'Utilisateur non-livreur');
+    }
+
+    if (args.kind === 'collect') {
+      const debt = Math.max(0, -profile.walletBalance);
+      if (debt <= 0) {
+        throw new HttpError(400, 'NO_DEBT', 'Ce livreur n\'a aucune dette');
+      }
+      if (args.amount > debt) {
+        throw new HttpError(
+          400,
+          'AMOUNT_TOO_HIGH',
+          `Dette actuelle = ${debt} FCFA, ne peut pas collecter plus`,
+        );
+      }
+      await tx.transaction.create({
+        data: {
+          userId: args.driverUserId,
+          type: 'topup',
+          amount: args.amount,
+          paymentMethod: args.paymentMethod,
+          paymentReference: args.reference ?? null,
+          note: args.note ?? 'Collecte admin (commission cash)',
+          processedBy: args.adminId,
+          processedAt: new Date(),
+          status: 'completed',
+        },
+      });
+      await tx.driverProfile.update({
+        where: { userId: args.driverUserId },
+        data: { walletBalance: { increment: args.amount } },
+      });
+    } else {
+      // payout
+      const available = Math.max(0, profile.walletBalance);
+      if (available <= 0) {
+        throw new HttpError(400, 'NO_BALANCE', 'Ce livreur n\'a aucun solde a recevoir');
+      }
+      if (args.amount > available) {
+        throw new HttpError(
+          400,
+          'AMOUNT_TOO_HIGH',
+          `Disponible = ${available} FCFA, ne peut pas verser plus`,
+        );
+      }
+      await tx.transaction.create({
+        data: {
+          userId: args.driverUserId,
+          type: 'withdrawal',
+          amount: args.amount,
+          paymentMethod: args.paymentMethod,
+          paymentReference: args.reference ?? null,
+          note: args.note ?? 'Versement admin (gain online)',
+          processedBy: args.adminId,
+          processedAt: new Date(),
+          status: 'completed',
+        },
+      });
+      await tx.driverProfile.update({
+        where: { userId: args.driverUserId },
+        data: { walletBalance: { decrement: args.amount } },
+      });
+    }
+
+    const updated = await tx.driverProfile.findUnique({
+      where: { userId: args.driverUserId },
+    });
+    return updated;
+  });
+}

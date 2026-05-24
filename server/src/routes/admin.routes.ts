@@ -23,6 +23,8 @@ import {
   confirmTopupCtrl,
   rejectTopupCtrl,
   adjustWalletCtrl,
+  listDriverBalancesCtrl,
+  settleDriverBalanceCtrl,
   listDeliveriesAdminCtrl,
   getDeliveryAdminCtrl,
   forceCancelDeliveryCtrl,
@@ -76,6 +78,10 @@ router.post('/transactions/:id/reject', rejectWithdrawalCtrl);
 router.post('/transactions/:id/confirm-topup', confirmTopupCtrl);
 router.post('/transactions/:id/reject-topup', rejectTopupCtrl);
 router.post('/users/:id/wallet-adjust', adjustWalletCtrl);
+
+// Soldes livreurs (vue comptable + reglements admin)
+router.get('/driver-balances', listDriverBalancesCtrl);
+router.post('/driver-balances/:id/settle', settleDriverBalanceCtrl);
 
 // Deliveries
 router.get('/deliveries', listDeliveriesAdminCtrl);
