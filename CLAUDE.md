@@ -23,18 +23,18 @@ Le service docker s'appelle **`tolle-api`** (pas `server`, pas `api`). Le path s
 ### Admin (VPS)
 
 ```bash
-cd /opt/apps/admin && docker compose up -d --build tolle-admin
+cd /opt/toole/apps/admin && docker compose up -d --build tolle-admin
 ```
 
-Service Docker : **`tolle-admin`** · path VPS : **`/opt/apps/admin`** (PAS `/opt/toole/admin`) · domaine : `admin-tolle.qalitylabs.fr` (via nginx-proxy externe).
+Service Docker : **`tolle-admin`** · path VPS : **`/opt/toole/apps/admin`** · domaine : `admin-tolle.qalitylabs.fr` (via nginx-proxy externe).
+
+⚠️ Le path est `/opt/toole/apps/admin` (PAS `/opt/toole/admin`, PAS `/opt/apps/admin`). Le serveur est `/opt/toole/server` mais l'admin/landing sont sous `/opt/toole/apps/`.
 
 ### Landing (VPS)
 
 ```bash
-cd /opt/apps/landing && docker compose up -d --build tolle-landing
+cd /opt/toole/apps/landing && docker compose up -d --build tolle-landing
 ```
-
-(Path à confirmer côté VPS au premier déploiement.)
 
 ### Mobile (EAS OTA — iOS + Android en un seul update)
 
