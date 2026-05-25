@@ -92,12 +92,14 @@ export async function getDashboardStats() {
     cancelledLast30d,
     revenueLast30dAgg,
     commissionLast30dAgg,
-    newUsersLast7d,
+    newClientsLast7d,
+    newDriversLast7d,
     pendingKyc,
     topDrivers,
     recentDeliveries,
     pendingActivationCount,
     pendingActivationDrivers,
+    treasuryAggregates,
   ] = await Promise.all([
     prisma.user.count({ where: { userType: 'client' } }),
     prisma.user.count({ where: { userType: 'driver' } }),
@@ -133,7 +135,12 @@ export async function getDashboardStats() {
       where: { status: 'delivered', deliveredAt: { gte: start30d } },
       _sum: { platformFee: true },
     }),
-    prisma.user.count({ where: { createdAt: { gte: start7d } } }),
+    prisma.user.count({
+      where: { userType: 'client', createdAt: { gte: start7d } },
+    }),
+    prisma.user.count({
+      where: { userType: 'driver', createdAt: { gte: start7d } },
+    }),
     prisma.driverProfile.count({ where: { verificationStatus: 'pending' } }),
     prisma.user.findMany({
       where: { userType: 'driver' },
@@ -158,13 +165,32 @@ export async function getDashboardStats() {
       take: 10,
       include: { driverProfile: true },
     }),
+    // Tresorerie : agregats sur les soldes des livreurs.
+    // walletBalance > 0 → plateforme doit verser (somme = a payer)
+    // walletBalance < 0 → livreur doit reverser (somme abs = a collecter)
+    prisma.driverProfile.findMany({
+      select: { walletBalance: true },
+    }),
   ]);
+
+  // Agrege la tresorerie : on parcourt les walletBalance des livreurs
+  // - balance > 0 → la plateforme doit verser (gain online en attente)
+  // - balance < 0 → le livreur doit reverser (commission cash en attente)
+  let toPayout = 0;
+  let toCollect = 0;
+  for (const p of treasuryAggregates) {
+    if (p.walletBalance > 0) toPayout += p.walletBalance;
+    else if (p.walletBalance < 0) toCollect += -p.walletBalance;
+  }
 
   return {
     users: {
       clients: totalClients,
       drivers: totalDrivers,
-      newLast7d: newUsersLast7d,
+      newClientsLast7d,
+      newDriversLast7d,
+      // Conserve pour retrocompat (anciens admin builds).
+      newLast7d: newClientsLast7d + newDriversLast7d,
     },
     deliveries: {
       total: totalDeliveries,
@@ -184,6 +210,10 @@ export async function getDashboardStats() {
     revenue: {
       grossLast30d: revenueLast30dAgg._sum.price ?? 0,
       commissionLast30d: commissionLast30dAgg._sum.platformFee ?? 0,
+    },
+    treasury: {
+      toPayout,    // somme des walletBalance > 0 (en dette envers livreurs)
+      toCollect,   // somme des walletBalance < 0 abs (a encaisser des livreurs)
     },
     topDrivers,
     recentDeliveries,

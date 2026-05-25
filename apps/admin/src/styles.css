@@ -1703,3 +1703,22 @@ table tr:hover td {
   padding: 60px 20px;
   text-align: center;
 }
+
+/* Titres de section du tableau de bord */
+.dashboard-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 28px 0 12px;
+}
+.dashboard-section-title:first-of-type {
+  margin-top: 20px;
+}
+
+/* Grille 2 colonnes pour la section Utilisateurs */
+.stat-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  max-width: 720px;
+}

@@ -6,7 +6,13 @@ import { BarChart } from '../components/BarChart';
 import { useDialog } from '../components/DialogProvider';
 
 interface Stats {
-  users: { clients: number; drivers: number; newLast7d: number };
+  users: {
+    clients: number;
+    drivers: number;
+    newClientsLast7d?: number;
+    newDriversLast7d?: number;
+    newLast7d: number; // retrocompat
+  };
   deliveries: {
     total: number;
     deliveredAll: number;
@@ -19,6 +25,7 @@ interface Stats {
   };
   drivers: { online: number; pendingKyc: number; pendingActivation: number };
   revenue: { grossLast30d: number; commissionLast30d: number };
+  treasury?: { toPayout: number; toCollect: number };
   topDrivers: Array<{
     id: string;
     fullName: string;
@@ -278,42 +285,122 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Top row: hero + key counters */}
+      {/* ──────────────────────────────────────────────
+          SECTION 1 : TRÉSORERIE (l'argent en jeu)
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Trésorerie</h2>
       <div className="stat-grid">
         <Stat
           hero
           icon="money"
           label="Chiffre d'affaires 30j"
           value={formatCFA(stats.revenue.grossLast30d)}
-          hint={`Commission: ${formatCFA(stats.revenue.commissionLast30d)} (15%)`}
+          hint={`Commission: ${formatCFA(stats.revenue.commissionLast30d)}`}
         />
         <Stat
-          icon="client"
-          label="Clients inscrits"
-          value={stats.users.clients}
+          icon="trending"
+          label="Commission générée 30j"
+          value={formatCFA(stats.revenue.commissionLast30d)}
+          accent="teal"
+          hint="Part plateforme sur le CA"
+        />
+        <Stat
+          icon="money"
+          label="À verser aux livreurs"
+          value={formatCFA(stats.treasury?.toPayout ?? 0)}
+          accent="primary"
+          hint={
+            (stats.treasury?.toPayout ?? 0) > 0
+              ? 'Gains online en attente'
+              : 'À jour'
+          }
+          hintType={(stats.treasury?.toPayout ?? 0) > 0 ? 'negative' : 'positive'}
+        />
+        <Stat
+          icon="clock"
+          label="À collecter (cash)"
+          value={formatCFA(stats.treasury?.toCollect ?? 0)}
+          accent="orange"
+          hint={
+            (stats.treasury?.toCollect ?? 0) > 0
+              ? 'Commission cash non reversée'
+              : 'À jour'
+          }
+          hintType={(stats.treasury?.toCollect ?? 0) > 0 ? 'negative' : 'positive'}
+        />
+      </div>
+
+      {/* ──────────────────────────────────────────────
+          SECTION 2 : ACTIVITÉ (opérationnel)
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Activité</h2>
+      <div className="stat-grid">
+        <Stat
+          icon="check"
+          label="Livraisons aujourd'hui"
+          value={stats.deliveries.deliveredToday}
+          accent="primary"
+        />
+        <Stat
+          icon="calendar"
+          label="Livraisons cette semaine"
+          value={stats.deliveries.deliveredLast7d}
           accent="blue"
-          hint={`+${stats.users.newLast7d} cette semaine`}
-          hintType={stats.users.newLast7d > 0 ? 'positive' : 'neutral'}
         />
         <Stat
           icon="driver"
-          label="Livreurs"
-          value={stats.users.drivers}
-          accent="purple"
-          hint={`${stats.drivers.online} en ligne`}
+          label="Livreurs en ligne"
+          value={stats.drivers.online}
+          accent="teal"
+          hint={`${stats.users.drivers} au total`}
           hintType={stats.drivers.online > 0 ? 'positive' : 'neutral'}
         />
         <Stat
           icon="shield"
-          label="Livreurs a activer"
+          label="Livreurs à activer"
           value={stats.drivers.pendingActivation}
           accent="orange"
           hint={
             stats.drivers.pendingActivation > 0
               ? 'Action requise'
-              : 'A jour'
+              : 'À jour'
           }
           hintType={stats.drivers.pendingActivation > 0 ? 'negative' : 'positive'}
+        />
+      </div>
+
+      {/* ──────────────────────────────────────────────
+          SECTION 3 : UTILISATEURS (croissance)
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Utilisateurs</h2>
+      <div className="stat-grid stat-grid-2">
+        <Stat
+          icon="client"
+          label="Clients inscrits"
+          value={stats.users.clients}
+          accent="blue"
+          hint={
+            (stats.users.newClientsLast7d ?? 0) > 0
+              ? `+${stats.users.newClientsLast7d} cette semaine`
+              : 'Aucune nouvelle inscription cette semaine'
+          }
+          hintType={
+            (stats.users.newClientsLast7d ?? 0) > 0 ? 'positive' : 'neutral'
+          }
+        />
+        <Stat
+          icon="driver"
+          label="Livreurs inscrits"
+          value={stats.users.drivers}
+          accent="purple"
+          hint={
+            (stats.users.newDriversLast7d ?? 0) > 0
+              ? `+${stats.users.newDriversLast7d} cette semaine`
+              : 'Aucune nouvelle inscription cette semaine'
+          }
+          hintType={
+            (stats.users.newDriversLast7d ?? 0) > 0 ? 'positive' : 'neutral'
+          }
         />
       </div>
 
@@ -377,11 +464,14 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {/* Evolution graphique */}
+      {/* ──────────────────────────────────────────────
+          SECTION 5 : ÉVOLUTION (graphiques)
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Évolution</h2>
       <div className="grid-2">
         <div className="card">
           <div className="card-header">
-            <h2>Evolution des livraisons</h2>
+            <h2>Évolution des livraisons</h2>
             <div style={{ display: 'flex', gap: 4 }}>
               {([7, 30, 90] as const).map((d) => (
                 <button
@@ -519,7 +609,10 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {/* Deliveries breakdown */}
+      {/* ──────────────────────────────────────────────
+          SECTION 4 : DÉTAIL LIVRAISONS (vue agrégée)
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Détail livraisons</h2>
       <div className="stat-grid">
         <Stat
           icon="box"
@@ -533,34 +626,26 @@ export default function Dashboard() {
           label="En attente"
           value={stats.deliveries.pending}
           accent="orange"
-          hint="A trouver un livreur"
-        />
-        <Stat
-          icon="check"
-          label="Livrees aujourd'hui"
-          value={stats.deliveries.deliveredToday}
-          accent="primary"
-        />
-        <Stat
-          icon="calendar"
-          label="Livrees 7 derniers jours"
-          value={stats.deliveries.deliveredLast7d}
-          accent="blue"
+          hint="À trouver un livreur"
         />
         <Stat
           icon="trending"
-          label="Livrees 30 derniers jours"
+          label="Livrées 30 derniers jours"
           value={stats.deliveries.deliveredLast30d}
           accent="primary"
         />
         <Stat
           icon="x"
-          label="Annulees / expirees (30j)"
+          label="Annulées / expirées (30j)"
           value={stats.deliveries.cancelledLast30d}
           accent="pink"
         />
       </div>
 
+      {/* ──────────────────────────────────────────────
+          SECTION 6 : INSIGHTS & ACTIVITÉ RÉCENTE
+          ────────────────────────────────────────────── */}
+      <h2 className="dashboard-section-title">Insights & activité récente</h2>
       <div className="grid-2">
         <div className="card">
           <div className="card-header">
