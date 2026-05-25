@@ -23,7 +23,7 @@ export default function Login() {
         <div className="login-brand">
           <div className="logo-mark">T</div>
           <div className="login-brand-text">
-            <span className="brand">Tollé</span>
+            <span className="brand">Tôllé</span>
             <span className="sub">Administration</span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tollé",
+    "name": "Tôllé",
     "slug": "tolle",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,9 +17,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.qalitylabs.tolle",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Tollé utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
-        "NSCameraUsageDescription": "Tollé utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
-        "NSPhotoLibraryUsageDescription": "Tollé accède à votre galerie pour ajouter des photos de profil et de colis.",
+        "NSLocationWhenInUseUsageDescription": "Tôllé utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
+        "NSCameraUsageDescription": "Tôllé utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
+        "NSPhotoLibraryUsageDescription": "Tôllé accède à votre galerie pour ajouter des photos de profil et de colis.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["remote-notification"]
       },
@@ -56,14 +56,14 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Tollé utilise votre position pour trouver les livreurs proches et suivre les livraisons."
+          "locationAlwaysAndWhenInUsePermission": "Tôllé utilise votre position pour trouver les livreurs proches et suivre les livraisons."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Tollé utilise l'appareil photo pour photographier les colis (preuve de livraison).",
-          "photosPermission": "Tollé accède à vos photos pour les colis et votre avatar."
+          "cameraPermission": "Tôllé utilise l'appareil photo pour photographier les colis (preuve de livraison).",
+          "photosPermission": "Tôllé accède à vos photos pour les colis et votre avatar."
         }
       ],
       [

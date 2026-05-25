@@ -66,12 +66,12 @@ export default function AboutScreen() {
   const callSupport = () => openUrl(`tel:${SUPPORT_PHONE}`, 'Impossible d\'ouvrir le composeur.');
   const emailSupport = () =>
     openUrl(
-      `mailto:${SUPPORT_EMAIL}?subject=Demande%20support%20Tollé`,
+      `mailto:${SUPPORT_EMAIL}?subject=Demande%20support%20Tôllé`,
       "Impossible d'ouvrir l'application mail.",
     );
   const whatsappSupport = () => {
     const cleanNumber = SUPPORT_WHATSAPP.replace(/[^0-9]/g, '');
-    const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent('Bonjour, j\'ai besoin d\'aide avec l\'application Tollé.')}`;
+    const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent('Bonjour, j\'ai besoin d\'aide avec l\'application Tôllé.')}`;
     openUrl(url, "Impossible d'ouvrir WhatsApp.");
   };
 
@@ -91,7 +91,7 @@ export default function AboutScreen() {
           <View style={styles.logoCircle}>
             <Text style={styles.logoText}>T</Text>
           </View>
-          <Text style={styles.appName}>Tollé</Text>
+          <Text style={styles.appName}>Tôllé</Text>
           <Text style={styles.version}>Version {appVersion}</Text>
           <Text style={styles.tagline}>
             Service de livraison à domicile au Burkina Faso
@@ -215,7 +215,7 @@ export default function AboutScreen() {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2026 Tollé · Tous droits réservés</Text>
+          <Text style={styles.footerText}>© 2026 Tôllé · Tous droits réservés</Text>
           <Text style={styles.footerText}>Fait avec ❤️ au Burkina Faso</Text>
           {/* Diagnostic technique - en bas, discret. Utile pour verifier
               qu'une OTA s'est bien appliquee (l'updateId change a chaque update). */}

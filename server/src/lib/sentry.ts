@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/node';
 import { env } from '../config/env.js';
 
 /**
- * Initialisation Sentry pour le serveur Tollé.
+ * Initialisation Sentry pour le serveur Tôllé.
  *
  * IMPORTANT : doit etre appele AVANT tout autre import d'Express, pour que
  * l'instrumentation auto (http, express, prisma) puisse hook les bons modules.

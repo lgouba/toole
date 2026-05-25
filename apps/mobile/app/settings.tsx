@@ -140,7 +140,7 @@ export default function SettingsScreen() {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.version}>Tollé v1.0.0</Text>
+          <Text style={styles.version}>Tôllé v1.0.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

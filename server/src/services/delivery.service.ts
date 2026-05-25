@@ -247,7 +247,7 @@ async function notifyRecipientNewDelivery(delivery: Delivery): Promise<void> {
 
   // SMS court (160 caracteres GSM idealement pour eviter le multi-segment)
   const parts: string[] = [
-    `Tollé : un colis vous est envoyé.`,
+    `Tôllé : un colis vous est envoyé.`,
     `Code à donner au livreur à l'arrivée : ${code}.`,
   ];
   if (trackingUrl) parts.push(`Suivi: ${trackingUrl}`);
@@ -415,7 +415,7 @@ async function notifyNearbyDrivers(
   // peut etre intrusive pendant leur course actuelle).
   const freeIds = eligible.filter((e) => !e.isChained).map((e) => e.userId);
   if (freeIds.length) {
-    const title = 'Nouvelle course Tollé';
+    const title = 'Nouvelle course Tôllé';
     const body = `Récupération : ${delivery.pickupAddress}`;
     for (const userId of freeIds) {
       void sendPushToUser(userId, title, body, {

@@ -183,7 +183,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <div className="logo">
           <div className="logo-mark">T</div>
           <div className="logo-text">
-            <span className="brand">Tollé</span>
+            <span className="brand">Tôllé</span>
             <span className="sub">Admin</span>
           </div>
         </div>

@@ -105,9 +105,9 @@ export async function sendOtp(
     if (isEmail) {
       await sendEmail({
         to: normalized,
-        subject: 'Votre code Tollé',
-        html: `<p>Votre code de vérification Tollé : <b style="font-size:22px">${code}</b></p><p>Ce code expire dans 10 minutes.</p>`,
-        text: `Votre code Tollé : ${code} (valide 10 min)`,
+        subject: 'Votre code Tôllé',
+        html: `<p>Votre code de vérification Tôllé : <b style="font-size:22px">${code}</b></p><p>Ce code expire dans 10 minutes.</p>`,
+        text: `Votre code Tôllé : ${code} (valide 10 min)`,
         // Si le mail ne part pas, on remonte une vraie erreur a l'utilisateur
         // (sinon il attend un mail qui n'arrivera jamais).
         throwOnError: true,
@@ -327,7 +327,7 @@ export async function registerUser(args: {
     // Email d'alerte vers l'adresse configuree dans ADMIN_ALERT_EMAIL
     void (async () => {
       const settings = await getAppSettings().catch(() => null);
-      const appName = settings?.appName ?? 'Tollé';
+      const appName = settings?.appName ?? 'Tôllé';
       const dob = user.dateOfBirth
         ? new Date(user.dateOfBirth).toLocaleDateString('fr-FR')
         : '—';

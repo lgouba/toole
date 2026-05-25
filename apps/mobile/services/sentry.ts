@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 
 /**
- * Initialisation Sentry pour Tollé Mobile.
+ * Initialisation Sentry pour Tôllé Mobile.
  *
  * Appele AU TOUT DEBUT de l'app (dans _layout.tsx, avant tout le reste).
  *

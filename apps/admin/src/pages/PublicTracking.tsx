@@ -325,7 +325,7 @@ function Address({ dotColor, label, address }: { dotColor: string; label: string
 function Footer() {
   return (
     <div style={{ textAlign: 'center', padding: 16, fontSize: 12, color: '#9ca3af' }}>
-      Tollé · Suivi sécurisé
+      Tôllé · Suivi sécurisé
     </div>
   );
 }

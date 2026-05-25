@@ -1,8 +1,8 @@
-# Tollé — Mémoire projet (Claude)
+# Tôllé — Mémoire projet (Claude)
 
 App de livraison Burkina Faso. Mobile RN/Expo, backend Node/Express/Prisma/Postgres, admin React/Vite.
 
-**⚠️ Nom officiel : `Tollé` (avec accent aigu sur le É), JAMAIS `Tolle` sans accent.** S'applique partout : SMS, emails, UI mobile/admin/landing, app.json (`name: "Tollé"`), titres push, OG metadata. Le user râle si on perd l'accent.
+**⚠️ Nom officiel : `Tôllé` (avec accent aigu sur le É), JAMAIS `Tolle` sans accent.** S'applique partout : SMS, emails, UI mobile/admin/landing, app.json (`name: "Tôllé"`), titres push, OG metadata. Le user râle si on perd l'accent.
 
 ---
 
@@ -41,7 +41,7 @@ cd /opt/toole/apps/landing && docker compose up -d --build tolle-landing
 ### Mobile (EAS OTA — iOS + Android en un seul update)
 
 ```bash
-cd /Users/macos/Tollé/apps/mobile
+cd /Users/macos/Tôllé/apps/mobile
 eas update --branch preview    --message "..."
 eas update --branch production --message "..."
 ```
@@ -66,7 +66,7 @@ Un OTA `eas update` ne suffit PAS si on touche :
 Dans ces cas :
 
 ```bash
-cd /Users/macos/Tollé/apps/mobile
+cd /Users/macos/Tôllé/apps/mobile
 eas build --platform ios     --profile preview        # TestFlight
 eas build --platform android --profile preview        # APK / Play Internal
 # Après validation testeurs :
@@ -84,9 +84,9 @@ Repo `lgouba/toole` sur GitHub, branche `main`. Push direct sur main (pas de PR 
 
 ## Architecture
 
-- `/Users/macos/Tollé/apps/mobile` — Expo app (client + driver dans la même app, rôle dans User)
-- `/Users/macos/Tollé/apps/admin` — Vite/React admin
-- `/Users/macos/Tollé/server` — Express API + Socket.io
+- `/Users/macos/Tôllé/apps/mobile` — Expo app (client + driver dans la même app, rôle dans User)
+- `/Users/macos/Tôllé/apps/admin` — Vite/React admin
+- `/Users/macos/Tôllé/server` — Express API + Socket.io
 - Postgres + Prisma. Migrations via `prisma db push` (pas migrate dev en prod).
 - Stores : Zustand (`apps/mobile/stores/*.store.ts`)
 - Socket : `server/src/socket/index.ts` + `apps/mobile/services/socket.client.ts`
