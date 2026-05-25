@@ -19,13 +19,18 @@ const envSchema = z.object({
   // --- OTP / SMS ---
   // 'dev'           -> fixed OTP code (OTP_DEV_CODE), no SMS sent
   // 'africastalking' -> random OTP code, SMS sent via Africa's Talking
-  SMS_PROVIDER: z.enum(['dev', 'africastalking']).default('dev'),
+  // 'aqilas'        -> random OTP code, SMS sent via Aqilas (Burkina Faso)
+  SMS_PROVIDER: z.enum(['dev', 'africastalking', 'aqilas']).default('dev'),
   OTP_DEV_CODE: z.string().default('1234'),
 
   // Africa's Talking
   AT_USERNAME: z.string().optional(),
   AT_API_KEY: z.string().optional(),
   AT_SENDER_ID: z.string().optional(), // e.g. "TOLLE" (optional, uses shortcode if empty)
+
+  // Aqilas (provider SMS Burkina Faso — https://www.aqilas.com/app/api)
+  AQILAS_API_KEY: z.string().optional(),
+  AQILAS_SENDER_ID: z.string().default('TOLLE'), // expediteur visible par le destinataire
 
   // SMTP (Hostinger, Gmail, etc.) — si non renseigne, les emails ne sont pas envoyes
   SMTP_HOST: z.string().optional(),
@@ -65,6 +70,13 @@ if (env.SMS_PROVIDER === 'africastalking') {
     console.error(
       'SMS_PROVIDER=africastalking but AT_USERNAME or AT_API_KEY is missing',
     );
+    process.exit(1);
+  }
+}
+if (env.SMS_PROVIDER === 'aqilas') {
+  if (!env.AQILAS_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.error('SMS_PROVIDER=aqilas but AQILAS_API_KEY is missing');
     process.exit(1);
   }
 }

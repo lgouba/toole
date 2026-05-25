@@ -12,6 +12,48 @@ function normalizePhone(raw: string): string {
   return raw.startsWith('+') ? raw : `+${digits}`;
 }
 
+/**
+ * Envoi SMS via Aqilas (https://www.aqilas.com/app/api).
+ *
+ * Endpoint : POST https://www.aqilas.com/api/v1/sms
+ * Auth     : header X-AUTH-TOKEN = AQILAS_API_KEY
+ * Body     : { from: senderId, text: message, to: ["+22670XXXXXXX"] }
+ * Reponse  : 200/201 + { bulk_id } sur succes, { message } sur erreur.
+ *
+ * Le sender ID 'from' doit etre valide cote Aqilas (alphanumerique <=11 chars,
+ * configure dans le compte Aqilas — sinon SMS rejetes / non delivres).
+ */
+async function sendViaAqilas(to: string, message: string): Promise<void> {
+  const phone = normalizePhone(to);
+  const body = {
+    from: env.AQILAS_SENDER_ID,
+    to: [phone],
+    text: message,
+  };
+
+  const res = await fetch('https://www.aqilas.com/api/v1/sms', {
+    method: 'POST',
+    headers: {
+      'X-AUTH-TOKEN': env.AQILAS_API_KEY!,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const json: any = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const errMsg = json?.message ?? `HTTP ${res.status}`;
+    throw new Error(`Aqilas SMS failed: ${errMsg}`);
+  }
+
+  logger.info(
+    { to: phone, bulkId: json?.bulk_id, from: env.AQILAS_SENDER_ID },
+    'SMS sent via Aqilas',
+  );
+}
+
 async function sendViaAfricasTalking(to: string, message: string): Promise<void> {
   const params = new URLSearchParams({
     username: env.AT_USERNAME!,
@@ -66,8 +108,16 @@ export async function sendSms(to: string, message: string): Promise<void> {
       await sendViaAfricasTalking(to, message);
     } catch (err) {
       logger.error({ err, to }, 'Failed to send SMS via Africa\'s Talking');
-      // On ne throw pas : l'utilisateur verra "code non recu" et pourra retry.
-      // En dev / staging le code OTP reste dispo dans les logs.
+      throw err;
+    }
+    return;
+  }
+
+  if (env.SMS_PROVIDER === 'aqilas') {
+    try {
+      await sendViaAqilas(to, message);
+    } catch (err) {
+      logger.error({ err, to }, 'Failed to send SMS via Aqilas');
       throw err;
     }
     return;
