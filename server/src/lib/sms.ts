@@ -212,7 +212,7 @@ export async function sendOtpMessage(
   code: string,
   channel: MessageChannel = 'sms',
 ): Promise<void> {
-  const smsText = `Tolle: votre code de verification est ${code}. Valide 5 minutes.`;
+  const smsText = `Tollé: votre code de verification est ${code}. Valide 5 minutes.`;
 
   // Mode dev : on log, pas d'envoi reel
   if (env.SMS_PROVIDER === 'dev') {

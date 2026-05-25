@@ -300,7 +300,7 @@ export default function ActiveDeliveryScreen() {
             style={styles.shareBtn}
             onPress={async () => {
               const url = `${TRACKING_BASE_URL}/track/${delivery.trackingToken}`;
-              const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Tolle (réf. ${delivery.reference}) : ${url}`;
+              const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Tollé (réf. ${delivery.reference}) : ${url}`;
               try {
                 await Share.share({ message, url });
               } catch (err) {

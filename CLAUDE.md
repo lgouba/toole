@@ -2,6 +2,8 @@
 
 App de livraison Burkina Faso. Mobile RN/Expo, backend Node/Express/Prisma/Postgres, admin React/Vite.
 
+**⚠️ Nom officiel : `Tollé` (avec accent aigu sur le É), JAMAIS `Tolle` sans accent.** S'applique partout : SMS, emails, UI mobile/admin/landing, app.json (`name: "Tollé"`), titres push, OG metadata. Le user râle si on perd l'accent.
+
 ---
 
 ## ⚠️ Commandes de déploiement (NE PAS INVENTER)
