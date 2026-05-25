@@ -44,10 +44,15 @@ export async function sendOtpCtrl(req: Request, res: Response, next: NextFunctio
         new Error('Vous devez fournir un numero de telephone ou un email.'),
       );
     }
+    // ⚠️ Default 'login' : si le client n'a pas explicitement specifie
+    // 'register', on considere que c'est une demande de connexion et on verifie
+    // que le numero existe avant d'envoyer le SMS (anti-gaspillage Aqilas +
+    // anti-enumeration). Les anciens builds mobile sans champ `purpose`
+    // beneficient automatiquement de cette protection.
     const result = await sendOtp(
       identifier,
       body.channel ?? 'sms',
-      body.purpose,
+      body.purpose ?? 'login',
     );
     return success(res, result);
   } catch (err) {

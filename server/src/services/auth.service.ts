@@ -51,6 +51,10 @@ export async function sendOtp(
   if (!isEmail && channel === 'email') channel = 'sms';
 
   // Verification de l'existence du compte selon le purpose.
+  // - 'login'    : refuse si le numero/email n'est PAS en base (anti-gaspillage
+  //                SMS Aqilas + anti-enumeration)
+  // - 'register' : refuse si le numero/email EST deja en base
+  // - undefined  : pas de check (wallet OTP, ou cas internes)
   // Message d'erreur volontairement generique pour ne pas reveler a un
   // attaquant si un identifier existe ou non dans la base.
   if (purpose === 'login' || purpose === 'register') {
@@ -58,6 +62,10 @@ export async function sendOtp(
       where: isEmail ? { email: normalized } : { phone: normalized },
       select: { id: true },
     });
+    logger.info(
+      { identifier: normalized, purpose, existsInDb: !!existing },
+      'OTP request : checking identifier existence',
+    );
     if (purpose === 'login' && !existing) {
       throw new HttpError(
         404,
