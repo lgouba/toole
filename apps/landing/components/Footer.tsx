@@ -3,12 +3,9 @@ export function Footer() {
     <footer className="border-t border-ink-900/10 bg-sand-50 py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-6 md:flex-row md:items-center">
         <div className="flex items-center gap-3">
-          <img src="/icon.svg" alt="Tôllé" className="h-10 w-10 rounded-xl" />
-          <div>
-            <div className="text-lg font-semibold">Tôllé</div>
-            <div className="text-sm text-ink-500">
-              Livraison rapide · Burkina Faso
-            </div>
+          <img src="/logo.svg" alt="Tôllé" className="h-10" />
+          <div className="text-sm text-ink-500">
+            Livraison rapide · Burkina Faso
           </div>
         </div>
 
