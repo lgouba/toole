@@ -121,7 +121,7 @@ Repo `lgouba/toole` sur GitHub, branche `main`. Push direct sur main (pas de PR 
 - `sendEmail` accepte `throwOnError: true` pour les chemins critiques (OTP).
 - Dev : OTP SMS fixé à `1234`. OTP email = code réel généré.
 - WhatsApp Cloud API en attente validation Meta Business.
-- Termii à intégrer pour remplacer Africa's Talking.
+- **Provider SMS prod = Aqilas** (https://www.aqilas.com/app/api). Endpoint `POST /api/v1/sms`, auth `X-AUTH-TOKEN`, body `{ from, to: [phone], text }`. Env vars : `SMS_PROVIDER=aqilas`, `AQILAS_API_KEY`, `AQILAS_SENDER_ID=TOLLE`.
 
 Driver inactif (KYC en cours) → backend renvoie code `DRIVER_KYC_PENDING`, mobile affiche "en attente de validation" (PAS "Compte indisponible").
 
@@ -138,7 +138,7 @@ Palette : terra cotta + sable + vert kola. Admin peut configurer la couleur prim
 - [ ] Refactor `useColors()` hook (propagation couleur primaire admin)
 - [ ] Phase 5/6 : redesign écrans client/driver avec Concept C
 - [ ] WhatsApp OTP (attente Meta)
-- [ ] Provider SMS Termii (remplace Africa's Talking)
+- [x] ~~Provider SMS Termii~~ → Aqilas intégré (commit `b662c3f`), reste à configurer `AQILAS_API_KEY` sur le VPS
 - [ ] Logs Sentry auto quand `findNearbyDrivers` retourne 0 candidats (visibilité prod)
 
 ---
