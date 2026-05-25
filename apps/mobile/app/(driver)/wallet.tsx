@@ -173,15 +173,38 @@ export default function WalletScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.metricLabel}>Gain Net Total</Text>
+                      <Text style={styles.metricLabel}>Disponible à retirer</Text>
                       <Text style={styles.metricHint}>
-                        Après commission · cash + en ligne confondus
+                        Solde net après dette commission
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.metricValueGain}>
-                    {formatCFA(totalEarned)}
+                    {formatCFA(balance)}
                   </Text>
+
+                  {/* Detail secondaire : total gagne historique + dette en cours.
+                      Aide le livreur a comprendre pourquoi disponible < gains. */}
+                  {(totalEarned !== balance || hasDebt) && (
+                    <View style={styles.gainBreakdown}>
+                      <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>Total gagné</Text>
+                        <Text style={styles.breakdownValue}>
+                          {formatCFA(totalEarned)}
+                        </Text>
+                      </View>
+                      {hasDebt && (
+                        <View style={styles.breakdownRow}>
+                          <Text style={[styles.breakdownLabel, { color: colors.error }]}>
+                            Commission à reverser
+                          </Text>
+                          <Text style={[styles.breakdownValue, { color: colors.error }]}>
+                            −{formatCFA(debt)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
 
                   {/* Bouton retrait : visible des qu'il y a quelque chose
                       de retirable via OM (paiements en ligne accumules dans
@@ -190,7 +213,7 @@ export default function WalletScreen() {
                   {canWithdraw ? (
                     <TouchableOpacity
                       style={styles.actionBtnGain}
-                      onPress={() => router.push('/wallet-flow?mode=withdraw')}
+                      onPress={() => router.push(`/wallet-flow?mode=withdraw&max=${balance}`)}
                       activeOpacity={0.85}
                     >
                       <Ionicons
@@ -569,6 +592,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.sm + 2,
     gap: 6,
+  },
+  gainBreakdown: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm + 2,
+    gap: 6,
+    marginTop: 4,
   },
   breakdownRow: {
     flexDirection: 'row',

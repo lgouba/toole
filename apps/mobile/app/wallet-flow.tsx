@@ -38,9 +38,12 @@ const OPERATORS: {
 
 export default function WalletFlowScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string; amount?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; amount?: string; max?: string }>();
   const mode: Mode = params.mode === 'topup' ? 'topup' : 'withdraw';
   const initialAmount = params.amount ? String(params.amount) : '';
+  // Max disponible passe en query string par l'ecran wallet (= walletBalance).
+  // Utilise pour valider localement et afficher le plafond.
+  const maxAmount = params.max ? parseInt(String(params.max), 10) : 0;
   // Pour un règlement de dette, le montant est impose (= dette totale).
   // Le livreur ne peut pas payer partiellement : il a déjà encaisse le cash.
   const amountLocked = mode === 'topup' && !!initialAmount;
@@ -83,8 +86,13 @@ export default function WalletFlowScreen() {
 
   const goToPhone = () => {
     setError('');
+    const value = parseInt(amount || '0', 10);
     if (!amountValid) {
       setError('Montant invalide');
+      return;
+    }
+    if (mode === 'withdraw' && maxAmount > 0 && value > maxAmount) {
+      setError(`Maximum disponible : ${formatCFA(maxAmount)}`);
       return;
     }
     setStep('phone');
@@ -212,7 +220,11 @@ export default function WalletFlowScreen() {
                   ? 'Combien voulez-vous retirer ?'
                   : 'Combien voulez-vous régler ?'}
               </Text>
-              <Text style={styles.stepHint}>Entrez le montant en FCFA</Text>
+              <Text style={styles.stepHint}>
+                {mode === 'withdraw' && maxAmount > 0
+                  ? `Maximum disponible : ${formatCFA(maxAmount)}`
+                  : 'Entrez le montant en FCFA'}
+              </Text>
 
               <View style={styles.amountContainer}>
                 <TextInput
@@ -228,9 +240,13 @@ export default function WalletFlowScreen() {
                 <Text style={styles.amountCurrency}>FCFA</Text>
               </View>
 
-              {/* Suggestions de montants rapides */}
+              {/* Suggestions de montants rapides. En mode withdraw, on filtre
+                  les valeurs > maxAmount et on ajoute un bouton "Tout retirer". */}
               <View style={styles.quickAmountsRow}>
-                {[1000, 2000, 5000, 10000].map((v) => (
+                {(mode === 'withdraw' && maxAmount > 0
+                  ? [1000, 2000, 5000, 10000].filter((v) => v <= maxAmount)
+                  : [1000, 2000, 5000, 10000]
+                ).map((v) => (
                   <TouchableOpacity
                     key={v}
                     style={styles.quickAmountChip}
@@ -241,6 +257,16 @@ export default function WalletFlowScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
+                {mode === 'withdraw' && maxAmount > 0 && (
+                  <TouchableOpacity
+                    style={[styles.quickAmountChip, { backgroundColor: colors.primary }]}
+                    onPress={() => setAmount(String(maxAmount))}
+                  >
+                    <Text style={[styles.quickAmountText, { color: colors.white, fontWeight: '700' }]}>
+                      Tout ({formatCFA(maxAmount)})
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
