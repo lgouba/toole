@@ -56,6 +56,10 @@ Dans `apps/mobile/eas.json` :
 
 **Pour envoyer aux testeurs sur TestFlight, c'est TOUJOURS `--profile production`**, jamais `preview`. Le `preview` ne sert que pour install direct sur device sans passer par Apple Review.
 
+**Statut actuel des plateformes** (à jour 2026-05-25) :
+- iOS → **production** (TestFlight). C'est ce qu'on rebuild quand l'app évolue.
+- Android → **preview** (APK ad-hoc, distribué directement aux testeurs). Pas encore sur Play Store. Pour Android : `eas build --platform android --profile preview`.
+
 ### Mobile — REBUILD NATIF requis quand ?
 
 Un OTA `eas update` ne suffit PAS si on touche :
