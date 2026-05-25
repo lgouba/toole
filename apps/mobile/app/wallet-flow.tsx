@@ -368,7 +368,6 @@ export default function WalletFlowScreen() {
                   +226 {formattedPhoneForInput(phone)}
                 </Text>
               </Text>
-              <Text style={styles.devHint}>Code test : 1234</Text>
 
               <View style={{ marginTop: spacing.lg }}>
                 <OtpInput

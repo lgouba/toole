@@ -214,11 +214,9 @@ export default function OtpScreen() {
               {isEmail(phoneNumber) ? phoneNumber : formatPhone(phoneNumber)}
             </Text>
           </Text>
-          {/* Code test 1234 uniquement pour SMS/WhatsApp (en attendant un
-              vrai provider). Pour email, le SMTP livre un vrai code. */}
-          {!isEmail(phoneNumber) ? (
-            <Text style={styles.devHint}>Code test: 1234</Text>
-          ) : null}
+          {/* Hint dev '1234' retire : on est en prod sur Aqilas (SMS reel).
+              Pour tester en dev local, le code 1234 reste valide quand
+              SMS_PROVIDER=dev cote serveur, sans affichage UI. */}
         </View>
 
         <OtpInput
