@@ -41,6 +41,9 @@ services:
       AT_USERNAME: ${AT_USERNAME:-}
       AT_API_KEY: ${AT_API_KEY:-}
       AT_SENDER_ID: ${AT_SENDER_ID:-}
+      # Aqilas (provider SMS Burkina Faso)
+      AQILAS_API_KEY: ${AQILAS_API_KEY:-}
+      AQILAS_SENDER_ID: ${AQILAS_SENDER_ID:-TOLLE}
       # SMTP (Hostinger, Gmail, etc.)
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
