@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gsq" gradientUnits="userSpaceOnUse" x1="0" y1="-167" x2="660" y2="0">
+      <stop offset="0" stop-color="#0B7C4F"/>
+      <stop offset="1" stop-color="#76E6A0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="0" fill="#16132E"/>
+  <!-- Wordmark agrandi (scale 1.4 vs 0.8794 d'origine) + recentré -->
+  <g transform="translate(60,620) scale(1.4) skewX(-13)">
+    <path d="M470 512V0H249V512H23V688H695V512Z" transform="translate(0.00,0.00) scale(0.18000,-0.18000)" fill="url(#gsq)"/>
+    <path d="M788 344Q788 170 691.0 79.0Q594 -12 416 -12Q238 -12 141.5 78.5Q45 169 45 344Q45 519 141.5 609.5Q238 700 416 700Q594 700 691.0 609.0Q788 518 788 344ZM271 376V312Q271 239 308.0 196.0Q345 153 416 153Q487 153 524.5 196.0Q562 239 562 312V376Q562 449 524.5 492.0Q487 535 416 535Q345 535 308.0 492.0Q271 449 271 376Z" transform="translate(131.96,0.00) scale(0.18000,-0.18000)" fill="url(#gsq)"/>
+    <path d="M74 688H295V176H648V0H74Z" transform="translate(283.90,0.00) scale(0.18000,-0.18000)" fill="url(#gsq)"/>
+    <path d="M74 688H295V176H648V0H74Z" transform="translate(405.96,0.00) scale(0.18000,-0.18000)" fill="url(#gsq)"/>
+    <path d="M74 688H669V523H295V428H615V270H295V165H676V0H74Z" transform="translate(528.02,0.00) scale(0.18000,-0.18000)" fill="url(#gsq)"/>
+    <polyline points="161.9,-138.6 206.9,-167.4 251.9,-138.6" fill="none" stroke="white" stroke-width="15.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="582.0" y1="-136.4" x2="609.0" y2="-165.2" stroke="white" stroke-width="15.3" stroke-linecap="round"/>
+  </g>
+</svg>
