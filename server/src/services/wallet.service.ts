@@ -2,6 +2,8 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
 import { getAppSettings } from './settings.service.js';
+import { emitToAdmins } from './notification.service.js';
+import { sendPushToUser } from './push.service.js';
 
 /**
  * Portefeuille livreur.
@@ -164,6 +166,24 @@ export async function requestWithdrawal(args: {
     { userId: args.userId, amount: args.amount, txId: tx.id },
     'Withdrawal requested',
   );
+
+  // Notif admin (socket temps reel) pour qu'il traite le retrait sans
+  // avoir a actualiser manuellement la page Transactions.
+  const driver = await prisma.user.findUnique({
+    where: { id: args.userId },
+    select: { fullName: true, phone: true },
+  });
+  emitToAdmins('admin:withdrawal_requested', {
+    transactionId: tx.id,
+    driverId: args.userId,
+    driverName: driver?.fullName ?? 'Livreur',
+    driverPhone: driver?.phone ?? null,
+    amount: args.amount,
+    paymentMethod: args.paymentMethod,
+    phoneNumber: args.phoneNumber,
+    requestedAt: tx.createdAt.toISOString(),
+  });
+
   return tx;
 }
 
@@ -188,8 +208,10 @@ export async function processWithdrawal(args: {
     throw new HttpError(400, 'INVALID_STATE', 'Cette transaction est deja traitee');
   }
 
+  const amount = Math.abs(tx.amount);
+
   if (args.decision === 'complete') {
-    return prisma.transaction.update({
+    const updated = await prisma.transaction.update({
       where: { id: tx.id },
       data: {
         status: 'completed',
@@ -198,13 +220,23 @@ export async function processWithdrawal(args: {
         note: args.note ?? null,
       },
     });
+
+    // Push livreur : retrait valide.
+    void sendPushToUser(
+      tx.userId,
+      'Retrait validé ✓',
+      `Votre retrait de ${amount.toLocaleString('fr-FR')} FCFA a été envoyé sur votre Mobile Money.`,
+      { type: 'withdrawal_completed', transactionId: tx.id, amount },
+    ).catch(() => {});
+
+    return updated;
   }
 
   // reject -> rembourser le solde et marquer failed
-  return prisma.$transaction(async (trx) => {
+  const updated = await prisma.$transaction(async (trx) => {
     await trx.driverProfile.update({
       where: { userId: tx.userId },
-      data: { walletBalance: { increment: Math.abs(tx.amount) } },
+      data: { walletBalance: { increment: amount } },
     });
     return trx.transaction.update({
       where: { id: tx.id },
@@ -216,6 +248,18 @@ export async function processWithdrawal(args: {
       },
     });
   });
+
+  // Push livreur : retrait refuse.
+  void sendPushToUser(
+    tx.userId,
+    'Retrait refusé',
+    args.note
+      ? `Votre demande de retrait a été refusée. Motif : ${args.note}. Le montant a été remis sur votre wallet.`
+      : `Votre demande de retrait a été refusée. Le montant a été remis sur votre wallet.`,
+    { type: 'withdrawal_rejected', transactionId: tx.id, amount },
+  ).catch(() => {});
+
+  return updated;
 }
 
 /**

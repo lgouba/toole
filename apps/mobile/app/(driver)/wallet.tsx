@@ -199,7 +199,7 @@ export default function WalletScreen() {
                         color={colors.white}
                       />
                       <Text style={styles.actionBtnText}>
-                        Retirer {formatCFA(balance)}
+                        Retirer
                       </Text>
                     </TouchableOpacity>
                   ) : null}

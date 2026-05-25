@@ -7,6 +7,7 @@ import { sendOtp as sendAuthOtp, verifyOtpCode } from '../services/auth.service.
 import { prisma } from '../lib/prisma.js';
 import { getAppSettings } from '../services/settings.service.js';
 import { logger } from '../lib/logger.js';
+import { emitToAdmins } from '../services/notification.service.js';
 
 /** Format local 8 chiffres "XX XX XX XX" ou +226XXXXXXXX */
 const phoneSchema = z
@@ -170,6 +171,19 @@ export async function requestTopupCtrl(
       { userId: req.user!.id, amount: body.amount, txId: tx.id },
       'Topup requested',
     );
+
+    // Notif admin (socket) pour validation rapide.
+    emitToAdmins('admin:topup_requested', {
+      transactionId: tx.id,
+      driverId: req.user!.id,
+      driverName: req.user!.fullName ?? 'Livreur',
+      driverPhone: req.user!.phone ?? null,
+      amount: body.amount,
+      paymentMethod: body.paymentMethod,
+      phoneNumber: body.phone,
+      requestedAt: tx.createdAt.toISOString(),
+    });
+
     return success(res, tx);
   } catch (err) {
     next(err);

@@ -495,7 +495,7 @@ export async function confirmTopup(args: {
     throw new HttpError(400, 'INVALID_STATE', 'Cette transaction est deja traitee');
   }
 
-  return prisma.$transaction(async (trx) => {
+  const updated = await prisma.$transaction(async (trx) => {
     await trx.driverProfile.update({
       where: { userId: tx.userId },
       data: { walletBalance: { increment: tx.amount } },
@@ -510,6 +510,17 @@ export async function confirmTopup(args: {
       },
     });
   });
+
+  // Push livreur : reversement valide.
+  const { sendPushToUser } = await import('./push.service.js');
+  void sendPushToUser(
+    tx.userId,
+    'Reversement validé ✓',
+    `Votre reversement de ${tx.amount.toLocaleString('fr-FR')} FCFA a été enregistré.`,
+    { type: 'topup_completed', transactionId: tx.id, amount: tx.amount },
+  ).catch(() => {});
+
+  return updated;
 }
 
 export async function rejectTopup(args: {
@@ -517,7 +528,7 @@ export async function rejectTopup(args: {
   adminId: string;
   note?: string;
 }) {
-  return prisma.transaction.update({
+  const updated = await prisma.transaction.update({
     where: { id: args.transactionId },
     data: {
       status: 'failed',
@@ -526,6 +537,18 @@ export async function rejectTopup(args: {
       note: args.note ?? 'Rejete par admin (paiement non recu)',
     },
   });
+
+  const { sendPushToUser } = await import('./push.service.js');
+  void sendPushToUser(
+    updated.userId,
+    'Reversement refusé',
+    args.note
+      ? `Votre reversement a été refusé. Motif : ${args.note}`
+      : `Votre reversement a été refusé (paiement non reçu côté admin).`,
+    { type: 'topup_rejected', transactionId: updated.id, amount: updated.amount },
+  ).catch(() => {});
+
+  return updated;
 }
 
 export async function setUserActive(
