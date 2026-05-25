@@ -22,10 +22,9 @@ export function Navbar() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="#top" className="flex items-center gap-2.5">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-terra-700 text-white font-bold text-lg shadow-lg shadow-terra-700/30">
-            T
-          </div>
-          <span className="text-xl font-semibold tracking-tight">Tollé</span>
+          {/* Logo officiel : icone TÔ carrée navy + texte Tôllé */}
+          <img src="/icon.svg" alt="Tôllé" className="h-10 w-10 rounded-xl shadow-lg" />
+          <span className="text-xl font-semibold tracking-tight">Tôllé</span>
         </a>
 
         <nav className="hidden gap-8 text-sm font-medium text-ink-700 md:flex">

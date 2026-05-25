@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Tôllé — Logo v2</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px;
+    background: #FAFAF7;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: #1C1917;
+  }
+  h1 { margin: 0 0 8px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  .subtitle { margin: 0 0 40px; color: #78716C; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 24px;
+    max-width: 1280px;
+  }
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 28px 24px;
+    border: 1px solid #f0ebe0;
+  }
+  .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #78716C;
+    margin-bottom: 4px;
+  }
+  .name { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .desc { color: #78716C; font-size: 13px; margin-bottom: 20px; }
+  .logo-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0 8px;
+    min-height: 240px;
+  }
+  .icon-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+    align-items: center;
+    justify-content: center;
+  }
+  .app-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .specs {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #f0ebe0;
+    font-size: 12px;
+    color: #78716C;
+    line-height: 1.55;
+  }
+</style>
+</head>
+<body>
+
+<h1>Tôllé — V2 / 4 styles très différents</h1>
+<p class="subtitle">Concept livreur+moto+sac • approches visuelles distinctes</p>
+
+<div class="grid">
+
+  <!-- ════════════════════════════════════════════════════
+       E — Silhouette monochrome
+       Tout en noir sauf le sac jaune qui ressort
+       Inspiration : pictogrammes signalisation
+       ════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="label">Style E</div>
+    <div class="name">Silhouette signalétique</div>
+    <div class="desc">Pictogramme franc · le sac est le héros</div>
+
+    <div class="logo-wrap">
+      <svg width="280" height="240" viewBox="0 0 280 240" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(20, 30)">
+          <!-- Roues pleines (style pictogramme) -->
+          <circle cx="50" cy="160" r="22" fill="#111"/>
+          <circle cx="50" cy="160" r="10" fill="white"/>
+          <circle cx="50" cy="160" r="5" fill="#111"/>
+
+          <circle cx="200" cy="160" r="22" fill="#111"/>
+          <circle cx="200" cy="160" r="10" fill="white"/>
+          <circle cx="200" cy="160" r="5" fill="#111"/>
+
+          <!-- Châssis épais -->
+          <path d="M 60 152 Q 90 110 130 108 L 170 108 Q 192 112 200 152"
+                fill="#111" stroke="#111" stroke-width="2" stroke-linejoin="round"/>
+
+          <!-- Guidon -->
+          <path d="M 175 110 L 200 90 L 215 85" stroke="#111" stroke-width="9"
+                stroke-linecap="round" fill="none"/>
+
+          <!-- Silhouette livreur compacte -->
+          <!-- Jambe -->
+          <path d="M 115 110 L 110 140 L 130 152" stroke="#111" stroke-width="11"
+                stroke-linecap="round" fill="none"/>
+          <!-- Bras -->
+          <path d="M 150 70 Q 170 80 184 92" stroke="#111" stroke-width="11"
+                stroke-linecap="round" fill="none"/>
+          <!-- Buste -->
+          <path d="M 100 70 Q 110 50 135 50 L 155 52 Q 165 70 158 95 L 120 105 Z"
+                fill="#111"/>
+          <!-- Casque rond plein -->
+          <circle cx="128" cy="38" r="22" fill="#111"/>
+          <!-- Visière fine -->
+          <rect x="115" y="34" width="26" height="6" rx="2" fill="white"/>
+
+          <!-- ============ SAC GROS PLAN ============ -->
+          <!-- Sangles -->
+          <line x1="106" y1="68" x2="78" y2="90" stroke="#111" stroke-width="4"/>
+          <line x1="130" y1="68" x2="78" y2="90" stroke="#111" stroke-width="4"/>
+          <!-- Boîte cube colorée (le seul élément non noir) -->
+          <rect x="34" y="34" width="80" height="80" rx="8" fill="#FCD34D"
+                stroke="#111" stroke-width="4"/>
+          <!-- Reflet top léger -->
+          <rect x="34" y="34" width="80" height="20" fill="white" opacity="0.15"/>
+          <!-- Texte Tôllé HYPER lisible sur la boîte -->
+          <text x="74" y="84" font-family="-apple-system, system-ui" font-size="22"
+                font-weight="900" fill="#111" text-anchor="middle"
+                letter-spacing="-0.5">Tôllé</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="icon-row">
+      <div class="app-icon" style="background:#111">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="18" y="20" width="44" height="44" rx="7" fill="#FCD34D"/>
+          <text x="40" y="48" font-family="system-ui" font-size="13" font-weight="900"
+                fill="#111" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+      <div class="app-icon" style="background:#FCD34D">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="18" y="20" width="44" height="44" rx="7" fill="#111"/>
+          <text x="40" y="48" font-family="system-ui" font-size="13" font-weight="900"
+                fill="#FCD34D" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+    </div>
+    <div class="specs">Picto en silhouette noire pleine. Le sac jaune est le seul élément coloré → l'œil va droit au wordmark. Très lisible même à 20px.</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       F — Vue de DOS du livreur
+       Le sac à dos prend toute la place, vue arrière
+       ════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="label">Style F</div>
+    <div class="name">Vue de dos · sac en plein cadre</div>
+    <div class="desc">Le livreur s'éloigne, on voit son sac · maximum d'impact</div>
+
+    <div class="logo-wrap">
+      <svg width="280" height="260" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(50, 30)">
+          <!-- Roues vues de derrière (ellipses) -->
+          <ellipse cx="50" cy="200" rx="14" ry="6" fill="#1E40AF" opacity="0.35"/>
+          <ellipse cx="130" cy="200" rx="14" ry="6" fill="#1E40AF" opacity="0.35"/>
+
+          <!-- Châssis (juste le bas) -->
+          <rect x="40" y="170" width="100" height="22" rx="8" fill="#1E40AF"/>
+
+          <!-- Selle vue de derrière -->
+          <ellipse cx="90" cy="170" rx="34" ry="8" fill="#1E3A8A"/>
+
+          <!-- Livreur de dos : jambes -->
+          <rect x="68" y="120" width="14" height="56" rx="6" fill="#1E40AF"/>
+          <rect x="98" y="120" width="14" height="56" rx="6" fill="#1E40AF"/>
+
+          <!-- Buste arrière sous le sac -->
+          <path d="M 60 80 L 60 130 Q 90 138 120 130 L 120 80 Z" fill="#1E40AF"/>
+
+          <!-- ============ GROS SAC à dos rectangulaire ============ -->
+          <!-- Ombre derrière -->
+          <rect x="38" y="22" width="104" height="100" rx="10" fill="#1E3A8A"/>
+          <!-- Boîte principale -->
+          <rect x="34" y="18" width="104" height="100" rx="10" fill="#FBBF24"
+                stroke="#111" stroke-width="3.5"/>
+          <!-- Highlight top -->
+          <rect x="34" y="18" width="104" height="22" rx="10" fill="white" opacity="0.25"/>
+          <!-- Bandeau central -->
+          <rect x="34" y="58" width="104" height="22" fill="#111"/>
+          <!-- Texte Tôllé blanc sur bandeau noir -->
+          <text x="86" y="76" font-family="-apple-system, system-ui" font-size="22"
+                font-weight="900" fill="white" text-anchor="middle"
+                letter-spacing="-0.5">Tôllé</text>
+          <!-- Petite poignée top -->
+          <rect x="78" y="6" width="16" height="14" rx="4" fill="#111"/>
+
+          <!-- Casque rond au-dessus -->
+          <circle cx="86" cy="50" r="20" fill="#1E40AF" opacity="0" />
+          <circle cx="86" cy="4" r="20" fill="#1E3A8A"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="icon-row">
+      <div class="app-icon" style="background:#1E3A8A">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="14" y="16" width="52" height="48" rx="8" fill="#FBBF24" stroke="#111" stroke-width="2"/>
+          <rect x="14" y="36" width="52" height="14" fill="#111"/>
+          <text x="40" y="48" font-family="system-ui" font-size="11" font-weight="900"
+                fill="white" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+      <div class="app-icon" style="background:#FBBF24">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="14" y="16" width="52" height="48" rx="8" fill="#1E3A8A" stroke="#111" stroke-width="2"/>
+          <rect x="14" y="36" width="52" height="14" fill="#FBBF24"/>
+          <text x="40" y="48" font-family="system-ui" font-size="11" font-weight="900"
+                fill="#1E3A8A" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+    </div>
+    <div class="specs">Le sac occupe toute la place — on voit ce que les gens voient dans la rue quand un livreur passe. Wordmark énorme et lisible.</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       G — Style monoline (Notion / Linear vibes)
+       Juste des lignes propres, pas de remplissage
+       ════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="label">Style G</div>
+    <div class="name">Monoline minimaliste</div>
+    <div class="desc">Style Notion · juste des lignes propres</div>
+
+    <div class="logo-wrap">
+      <svg width="320" height="240" viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="#111" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Roues -->
+          <circle cx="60" cy="170" r="26"/>
+          <circle cx="220" cy="170" r="26"/>
+          <!-- Châssis -->
+          <path d="M 76 158 Q 110 120 150 118 L 188 118 Q 210 122 218 152"/>
+          <!-- Guidon -->
+          <path d="M 200 122 L 220 100"/>
+          <!-- Selle -->
+          <path d="M 116 110 L 160 110"/>
+          <!-- Jambe livreur -->
+          <path d="M 140 122 L 130 154 L 148 168"/>
+          <!-- Bras -->
+          <path d="M 168 80 Q 188 92 200 100"/>
+          <!-- Buste -->
+          <path d="M 120 80 Q 122 60 142 58 L 162 60 Q 172 78 168 92"/>
+          <!-- Casque -->
+          <circle cx="138" cy="42" r="18"/>
+          <!-- Visière -->
+          <path d="M 124 42 L 152 42"/>
+
+          <!-- Sangles -->
+          <path d="M 124 76 L 100 90"/>
+          <path d="M 144 76 L 100 90"/>
+        </g>
+        <!-- Boîte (avec un fond couleur pour démarquer) -->
+        <rect x="56" y="38" width="76" height="76" rx="10" fill="#FAFAF7"
+              stroke="#111" stroke-width="4"/>
+        <!-- Texte Tôllé dans la boîte -->
+        <text x="94" y="84" font-family="-apple-system, system-ui" font-size="22"
+              font-weight="900" fill="#111" text-anchor="middle"
+              letter-spacing="-0.5">Tôllé</text>
+      </svg>
+    </div>
+
+    <div class="icon-row">
+      <div class="app-icon" style="background:white;border:2px solid #f0ebe0">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="16" y="18" width="48" height="48" rx="8" fill="none" stroke="#111" stroke-width="3"/>
+          <text x="40" y="48" font-family="system-ui" font-size="13" font-weight="900"
+                fill="#111" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+      <div class="app-icon" style="background:#111">
+        <svg width="52" height="52" viewBox="0 0 80 80">
+          <rect x="16" y="18" width="48" height="48" rx="8" fill="none" stroke="white" stroke-width="3"/>
+          <text x="40" y="48" font-family="system-ui" font-size="13" font-weight="900"
+                fill="white" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+    </div>
+    <div class="specs">Style éditorial moderne, traits fins. Très épuré, marche aussi bien en noir qu'en blanc. Vibe Notion / Linear / Vercel.</div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       H — Badge / Écusson circulaire
+       Moto+rider inscrits dans un cercle pro
+       ════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="label">Style H</div>
+    <div class="name">Écusson · badge pro</div>
+    <div class="desc">Format médaille · esprit corporate fiable</div>
+
+    <div class="logo-wrap">
+      <svg width="280" height="240" viewBox="0 0 280 240" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(140, 120)">
+          <!-- Cercle externe -->
+          <circle cx="0" cy="0" r="100" fill="#0A0A0A"/>
+          <!-- Anneau intérieur subtil -->
+          <circle cx="0" cy="0" r="92" fill="none" stroke="#404040" stroke-width="1"/>
+          <!-- Sol stylisé sous la moto -->
+          <line x1="-60" y1="55" x2="60" y2="55" stroke="#404040" stroke-width="2"
+                stroke-dasharray="3 5"/>
+
+          <!-- Scooter dans le cercle (échelle réduite) -->
+          <g transform="translate(-60, -10) scale(0.85)">
+            <circle cx="20" cy="80" r="14" fill="none" stroke="white" stroke-width="4"/>
+            <circle cx="20" cy="80" r="3" fill="white"/>
+            <circle cx="120" cy="80" r="14" fill="none" stroke="white" stroke-width="4"/>
+            <circle cx="120" cy="80" r="3" fill="white"/>
+            <path d="M 26 72 Q 50 50 80 48 L 105 48 Q 118 52 122 72"
+                  fill="white" stroke="white" stroke-width="1"/>
+            <path d="M 108 50 L 120 38" stroke="white" stroke-width="5" stroke-linecap="round"/>
+            <!-- Livreur stylise compact -->
+            <path d="M 68 50 L 64 70 L 76 78" stroke="white" stroke-width="6"
+                  stroke-linecap="round" fill="none"/>
+            <path d="M 60 24 Q 68 14 82 14 L 96 16 Q 102 26 98 44 L 70 50 Z" fill="white"/>
+            <path d="M 96 24 Q 105 30 116 38" stroke="white" stroke-width="6"
+                  stroke-linecap="round" fill="none"/>
+            <circle cx="76" cy="6" r="12" fill="white"/>
+            <!-- Sac avec Tôllé -->
+            <rect x="34" y="6" width="38" height="38" rx="4" fill="#FBBF24" stroke="white" stroke-width="2"/>
+            <text x="53" y="32" font-family="system-ui" font-size="13" font-weight="900"
+                  fill="#0A0A0A" text-anchor="middle">Tôllé</text>
+          </g>
+
+          <!-- Wordmark courbé en haut autour du cercle -->
+          <path id="topArc" d="M -72 -28 Q 0 -100 72 -28"
+                fill="none" stroke="none"/>
+          <text font-family="-apple-system, system-ui" font-size="13" font-weight="800"
+                fill="white" letter-spacing="3">
+            <textPath href="#topArc" startOffset="50%" text-anchor="middle">
+              LIVRAISON RAPIDE
+            </textPath>
+          </text>
+
+          <!-- Wordmark en bas -->
+          <text x="0" y="80" font-family="-apple-system, system-ui" font-size="11"
+                font-weight="700" fill="#FBBF24" text-anchor="middle" letter-spacing="3">
+            BURKINA FASO
+          </text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="icon-row">
+      <div class="app-icon" style="background:#0A0A0A">
+        <svg width="56" height="56" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" fill="#0A0A0A" stroke="#FBBF24" stroke-width="2"/>
+          <rect x="26" y="28" width="28" height="28" rx="4" fill="#FBBF24"/>
+          <text x="40" y="48" font-family="system-ui" font-size="11" font-weight="900"
+                fill="#0A0A0A" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+      <div class="app-icon" style="background:#FBBF24">
+        <svg width="56" height="56" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" fill="#0A0A0A"/>
+          <text x="40" y="46" font-family="system-ui" font-size="14" font-weight="900"
+                fill="#FBBF24" text-anchor="middle">Tôllé</text>
+        </svg>
+      </div>
+    </div>
+    <div class="specs">Style badge premium (genre Harley, FBI patches). Évoque l'établissement, le sérieux. Le picto vit dans son médaillon.</div>
+  </div>
+
+</div>
+
+</body>
+</html>

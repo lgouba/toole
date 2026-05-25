@@ -21,7 +21,7 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-brand">
-          <div className="logo-mark">T</div>
+          <img src="/favicon.png" alt="Tôllé" className="logo-mark-img" />
           <div className="login-brand-text">
             <span className="brand">Tôllé</span>
             <span className="sub">Administration</span>

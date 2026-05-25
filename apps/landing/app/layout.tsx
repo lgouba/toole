@@ -26,7 +26,11 @@ export const metadata: Metadata = {
       'Faites livrer vos colis en quelques minutes. Livreurs vérifiés, suivi temps réel, paiement mobile money.',
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/icon.svg',
   },
 };
 

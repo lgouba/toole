@@ -1722,3 +1722,18 @@ table tr:hover td {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   max-width: 720px;
 }
+
+/* Logo-mark image (remplace le bloc "T" terra cotta par le vrai favicon Tôllé) */
+.sidebar .logo-mark-img,
+.login-card .logo-mark-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.login-card .logo-mark-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}

@@ -1,0 +1,29 @@
+<!--
+  Tôllé · icon square (app icon)
+  Format : 1024 × 1024
+  Concept : "TÔ" centré, lettres vertes en italique bold, accent CIRCONFLEXE en blanc
+  AU-DESSUS du O (pas dedans)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5EEAD4"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="180" fill="#1a1a2e"/>
+
+  <g transform="translate(512, 640)">
+    <!-- TO sans accent -->
+    <text x="0" y="100" text-anchor="middle"
+          font-family="Inter, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif"
+          font-size="560" font-weight="900" font-style="italic"
+          fill="url(#greenGradient)" letter-spacing="-20">TO</text>
+
+    <!-- Accent circonflexe blanc AU-DESSUS du O (Le O est à droite du T en italique) -->
+    <path d="M 70 -440 L 190 -540 L 310 -440"
+          stroke="white" stroke-width="44" stroke-linecap="round"
+          stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

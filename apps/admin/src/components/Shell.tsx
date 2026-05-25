@@ -181,7 +181,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="logo">
-          <div className="logo-mark">T</div>
+          <img src="/favicon.png" alt="Tôllé" className="logo-mark-img" />
           <div className="logo-text">
             <span className="brand">Tôllé</span>
             <span className="sub">Admin</span>
