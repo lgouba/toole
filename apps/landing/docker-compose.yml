@@ -1,15 +1,26 @@
-# Standalone docker-compose pour deployer la landing sur le VPS.
-# Sur le VPS : /opt/toole/landing/
+# Landing page Tôllé · déployable sur le VPS via nginx-proxy + acme-companion.
+# Sur le VPS : /opt/toole/apps/landing/
 #   docker compose up -d --build tolle-landing
-#
-# Puis configurer nginx/caddy pour proxy 80/443 → 127.0.0.1:3001.
 
 services:
   tolle-landing:
     build: .
     container_name: tolle-landing
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3001:3001"
+    expose:
+      - "3001"
     environment:
-      - NODE_ENV=production
+      NODE_ENV: production
+      # nginx-proxy auto-config (HTTPS via Let's Encrypt)
+      VIRTUAL_HOST: tolle.qalitylabs.fr
+      VIRTUAL_PORT: "3001"
+      VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-apps_web}
+      LETSENCRYPT_HOST: tolle.qalitylabs.fr
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    networks:
+      - nginx-proxy
+
+networks:
+  nginx-proxy:
+    external: true
+    name: ${NGINX_PROXY_NETWORK:-apps_web}
