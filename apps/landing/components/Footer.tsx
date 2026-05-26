@@ -3,7 +3,7 @@ export function Footer() {
     <footer className="border-t border-ink-900/10 bg-sand-50 py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-6 md:flex-row md:items-center">
         <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Tôllé" className="h-10" />
+          <img src="/logo-wordmark.svg" alt="Tôllé" className="h-9" />
           <div className="text-sm text-ink-500">
             Livraison rapide · Burkina Faso
           </div>

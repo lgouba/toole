@@ -22,8 +22,8 @@ export function Navbar() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="#top" className="flex items-center gap-2.5">
-          {/* Logo officiel Tôllé : version horizontale */}
-          <img src="/logo.svg" alt="Tôllé" className="h-10" />
+          {/* Wordmark Tôllé transparent (sans le cadre navy) */}
+          <img src="/logo-wordmark.svg" alt="Tôllé" className="h-9" />
         </a>
 
         <nav className="hidden gap-8 text-sm font-medium text-ink-700 md:flex">
