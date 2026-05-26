@@ -26,15 +26,21 @@ export function Navbar() {
           <img src="/logo-wordmark-dark.svg" alt="Tôllé" className="h-9" />
         </a>
 
-        <nav className="hidden gap-8 text-sm font-medium text-white/70 md:flex">
+        <nav className="hidden gap-7 text-sm font-medium text-white/70 lg:flex">
+          <a className="transition hover:text-white" href="#features">
+            L'app
+          </a>
           <a className="transition hover:text-white" href="#how">
-            Comment ça marche
+            Fonctionnement
+          </a>
+          <a className="transition hover:text-white" href="#pricing">
+            Tarifs
           </a>
           <a className="transition hover:text-white" href="#driver">
-            Devenir livreur
+            Livreurs
           </a>
-          <a className="transition hover:text-white" href="#download">
-            Télécharger
+          <a className="transition hover:text-white" href="#faq">
+            FAQ
           </a>
         </nav>
 
