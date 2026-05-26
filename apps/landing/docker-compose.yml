@@ -12,10 +12,10 @@ services:
     environment:
       NODE_ENV: production
       # nginx-proxy auto-config (HTTPS via Let's Encrypt)
-      VIRTUAL_HOST: tolle.qalitylabs.fr
+      VIRTUAL_HOST: lancement-tolle.qalitylabs.fr
       VIRTUAL_PORT: "3001"
       VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-apps_web}
-      LETSENCRYPT_HOST: tolle.qalitylabs.fr
+      LETSENCRYPT_HOST: lancement-tolle.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks:
       - nginx-proxy
