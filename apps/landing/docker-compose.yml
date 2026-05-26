@@ -4,13 +4,18 @@
 
 services:
   tolle-landing:
-    build: .
+    build:
+      context: .
+      args:
+        # Date de lancement embarquee au build (Next inline les NEXT_PUBLIC_*)
+        NEXT_PUBLIC_LAUNCH_DATE: ${NEXT_PUBLIC_LAUNCH_DATE:-2026-06-09T12:00:00+00:00}
     container_name: tolle-landing
     restart: unless-stopped
     expose:
       - "3001"
     environment:
       NODE_ENV: production
+      NEXT_PUBLIC_LAUNCH_DATE: ${NEXT_PUBLIC_LAUNCH_DATE:-2026-06-09T12:00:00+00:00}
       # nginx-proxy auto-config (HTTPS via Let's Encrypt)
       VIRTUAL_HOST: lancement-tolle.qalitylabs.fr
       VIRTUAL_PORT: "3001"

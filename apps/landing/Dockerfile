@@ -10,6 +10,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Build-time args (Next.js inline les NEXT_PUBLIC_* dans le bundle)
+ARG NEXT_PUBLIC_LAUNCH_DATE
+ENV NEXT_PUBLIC_LAUNCH_DATE=${NEXT_PUBLIC_LAUNCH_DATE}
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
