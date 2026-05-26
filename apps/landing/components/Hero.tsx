@@ -7,8 +7,6 @@ import { DownloadQR } from './DownloadQR';
 import { PhoneMockup } from './PhoneMockup';
 
 // Date de lancement — paramétrable via env var NEXT_PUBLIC_LAUNCH_DATE
-// Format ISO 8601 (ex: '2026-06-09T12:00:00Z')
-// Defaut : ~2 semaines à partir du 26 mai 2026
 const DEFAULT_LAUNCH_DATE = '2026-06-09T12:00:00+00:00';
 
 function getLaunchDate(): Date {
@@ -31,7 +29,7 @@ export function Hero() {
   const dayLabel = formatFrenchDate(launchDate);
 
   return (
-    <section id="top" className="relative overflow-hidden bg-ink-900 pt-32 pb-24 md:pt-40 md:pb-32">
+    <section id="top" className="relative overflow-hidden bg-ink-900 pt-28 pb-20 md:pt-36 md:pb-28">
       {/* Halo gradient terra cotta + kola en fond */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-32 top-1/4 h-[500px] w-[500px] rounded-full bg-kola-600 opacity-20 blur-[120px]" />
@@ -39,7 +37,7 @@ export function Hero() {
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       </div>
 
-      {/* Mesh subtil grid pattern (look "tech") */}
+      {/* Grid subtil */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.04]"
         style={{
@@ -49,8 +47,8 @@ export function Hero() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-6">
-        {/* HEADER : "Lancement Tôllé" en gros */}
+      <div className="relative mx-auto max-w-7xl px-6">
+        {/* ======= LIGNE 1 : Badge + Titre + Tagline (pleine largeur centré) ======= */}
         <div className="text-center">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -69,101 +67,103 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="mt-8 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-8xl"
+            className="mt-6 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-white md:text-7xl"
           >
-            <span className="block text-white/70">Lancement</span>
-            <span className="mt-2 block bg-gradient-to-br from-kola-200 via-kola-300 to-kola-500 bg-clip-text text-transparent">
+            <span className="block text-white/60">Lancement</span>
+            <span className="mt-1 block bg-gradient-to-br from-kola-200 via-kola-300 to-kola-500 bg-clip-text text-transparent">
               Tôllé
             </span>
           </motion.h1>
 
+          {/* Tagline qui dit clairement ce que c'est */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg"
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/80 md:text-xl"
           >
-            Rendez-vous le{' '}
-            <span className="font-semibold text-white">{dayLabel}</span> à{' '}
-            <span className="font-semibold text-white">Ouagadougou</span>.<br />
-            La livraison express, au rythme du Faso.
+            L'application qui fait livrer vos colis en <span className="font-semibold text-white">moins de 30 minutes</span> à Ouagadougou.
           </motion.p>
         </div>
 
-        {/* COUNTDOWN — element central */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.35 }}
-          className="mx-auto mt-14 max-w-4xl"
-        >
-          <Countdown target={launchDate} />
-        </motion.div>
+        {/* ======= LIGNE 2 : Grid 2 colonnes — countdown à gauche, mockup à droite ======= */}
+        <div className="mt-14 grid items-center gap-10 lg:mt-20 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+          {/* COL GAUCHE : Date + Countdown + CTAs + Trust */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <div className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 lg:text-sm">
+              Rendez-vous le
+            </div>
+            <div className="mt-1.5 text-xl font-semibold text-white md:text-2xl">
+              {dayLabel}
+            </div>
 
-        {/* CTAs + QR codes */}
-        <motion.div
-          id="download"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
-          className="mt-14"
-        >
-          <div className="text-center text-xs font-bold uppercase tracking-[0.2em] text-white/40">
-            Scannez pour télécharger dès la sortie
-          </div>
-          <div className="mt-6">
-            <DownloadQR />
-          </div>
+            {/* Countdown */}
+            <div className="mt-7">
+              <Countdown target={launchDate} />
+            </div>
 
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="#notify"
-              className="group inline-flex items-center gap-2.5 rounded-full bg-white px-7 py-3.5 text-base font-bold text-ink-900 shadow-2xl transition hover:scale-[1.02] hover:shadow-kola-500/20"
-            >
-              <Bell className="h-4 w-4" />
-              Être notifié au lancement
-            </a>
-            <a
-              href="#how"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3.5 text-base font-medium text-white transition hover:bg-white/10"
-            >
-              En savoir plus
-            </a>
-          </div>
-        </motion.div>
+            {/* QR codes */}
+            <div id="download" className="mt-8">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 lg:text-xs">
+                Scannez pour télécharger dès la sortie
+              </div>
+              <div className="mt-4">
+                <div className="flex flex-wrap items-center gap-3 lg:justify-start">
+                  <DownloadQR />
+                </div>
+              </div>
+            </div>
 
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.7 }}
-          className="mt-16 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-xs uppercase tracking-widest text-white/40"
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-kola-300" />
-            <span>Sous 30 min</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-kola-300" />
-            <span>Livreurs vérifiés</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-kola-300" />
-            <span>Suivi temps réel</span>
-          </div>
-        </motion.div>
+            {/* CTAs */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href="#notify"
+                className="group inline-flex items-center gap-2.5 rounded-full bg-white px-6 py-3 text-base font-bold text-ink-900 shadow-xl transition hover:scale-[1.02]"
+              >
+                <Bell className="h-4 w-4" />
+                Être notifié
+              </a>
+              <a
+                href="#how"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-base font-medium text-white transition hover:bg-white/10"
+              >
+                En savoir plus
+              </a>
+            </div>
 
-        {/* Phone mockup en preview discret */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 30 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="relative mt-20 flex justify-center"
-        >
-          <div className="relative scale-90 origin-top md:scale-100">
-            <PhoneMockup />
-          </div>
-        </motion.div>
+            {/* Trust mini */}
+            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-xs uppercase tracking-widest text-white/40">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-kola-300" />
+                <span>Sous 30 min</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-kola-300" />
+                <span>Livreurs vérifiés</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-kola-300" />
+                <span>Suivi temps réel</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* COL DROITE : Phone Mockup */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 24 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="relative flex justify-center lg:justify-end"
+          >
+            <div className="relative scale-90 origin-top md:scale-100">
+              <PhoneMockup />
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
