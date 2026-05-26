@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const faqs = [
@@ -37,34 +37,34 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="bg-sand-50 py-24 md:py-32">
-      <div className="mx-auto max-w-3xl px-6">
-        <div className="text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-ink-900/5 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-ink-700">
-            FAQ
-          </span>
-          <h2 className="mt-5 text-4xl font-bold tracking-tight text-ink-900 md:text-5xl">
-            Questions fréquentes.
-          </h2>
-          <p className="mt-4 text-lg text-ink-700">
-            Tout ce que vous voulez savoir avant le lancement.
-          </p>
-        </div>
+    <section id="faq" className="bg-paper py-28 md:py-40">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-16 lg:grid-cols-[1fr_2fr] lg:gap-20">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-[0.25em] text-terra-700">
+              Questions fréquentes
+            </div>
+            <h2 className="mt-6 font-display text-5xl leading-[0.95] tracking-tight text-ink-900 md:text-6xl lg:text-7xl">
+              Vos réponses,
+              <br />
+              <em className="text-terra-700">sans détour.</em>
+            </h2>
+            <p className="mt-8 max-w-sm text-base leading-relaxed text-ink-700">
+              Une question qui n'est pas listée ?<br />
+              <a
+                href="mailto:contact@tolle.bf"
+                className="link-editorial font-medium text-ink-900"
+              >
+                contact@tolle.bf
+              </a>
+            </p>
+          </div>
 
-        <div className="mt-14 divide-y divide-ink-900/8 rounded-3xl border border-ink-900/8 bg-white">
-          {faqs.map((f, i) => (
-            <FAQItem key={f.q} q={f.q} a={f.a} initiallyOpen={i === 0} />
-          ))}
-        </div>
-
-        <div className="mt-12 text-center text-sm text-ink-700">
-          Une question ?{' '}
-          <a
-            href="mailto:contact@tolle.bf"
-            className="font-semibold text-terra-700 underline-offset-4 hover:underline"
-          >
-            contact@tolle.bf
-          </a>
+          <div className="border-t border-ink-900/15">
+            {faqs.map((f, i) => (
+              <FAQItem key={f.q} q={f.q} a={f.a} initiallyOpen={i === 0} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -82,15 +82,17 @@ function FAQItem({
 }) {
   const [open, setOpen] = useState(!!initiallyOpen);
   return (
-    <div className="px-6 md:px-8">
+    <div className="border-b border-ink-900/15">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-4 py-6 text-left"
+        className="flex w-full items-start justify-between gap-6 py-7 text-left"
       >
-        <span className="text-base font-semibold text-ink-900 md:text-lg">{q}</span>
-        <ChevronDown
-          className={`h-5 w-5 flex-shrink-0 text-ink-500 transition-transform ${open ? 'rotate-180' : ''}`}
+        <span className="font-display text-2xl leading-tight tracking-tight text-ink-900 md:text-3xl">
+          {q}
+        </span>
+        <Plus
+          className={`mt-2 h-6 w-6 flex-shrink-0 text-ink-700 transition-transform duration-300 ${open ? 'rotate-45' : ''}`}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -99,10 +101,10 @@ function FAQItem({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <p className="pb-6 pr-10 text-base leading-relaxed text-ink-700">
+            <p className="max-w-2xl pb-7 pr-12 text-base leading-[1.7] text-ink-700 md:text-lg">
               {a}
             </p>
           </motion.div>

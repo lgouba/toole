@@ -14,39 +14,38 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         scrolled
-          ? 'bg-ink-900/90 backdrop-blur-xl border-b border-white/10'
-          : 'bg-ink-900'
+          ? 'bg-paper/85 backdrop-blur-xl border-b border-ink-900/8'
+          : 'bg-transparent'
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <a href="#top" className="flex items-center gap-2.5">
-          {/* Wordmark Tôllé sur fond navy : accents en blanc */}
-          <img src="/logo-wordmark-dark.svg" alt="Tôllé" className="h-9" />
+          <img src="/logo-wordmark.svg" alt="Tôllé" className="h-8" />
         </a>
 
-        <nav className="hidden gap-7 text-sm font-medium text-white/70 lg:flex">
-          <a className="transition hover:text-white" href="#features">
-            L'app
+        <nav className="hidden gap-8 text-sm font-medium text-ink-700 lg:flex">
+          <a className="link-editorial" href="#features">
+            L'application
           </a>
-          <a className="transition hover:text-white" href="#how">
+          <a className="link-editorial" href="#how">
             Fonctionnement
           </a>
-          <a className="transition hover:text-white" href="#pricing">
+          <a className="link-editorial" href="#pricing">
             Tarifs
           </a>
-          <a className="transition hover:text-white" href="#driver">
+          <a className="link-editorial" href="#driver">
             Livreurs
           </a>
-          <a className="transition hover:text-white" href="#faq">
+          <a className="link-editorial" href="#faq">
             FAQ
           </a>
         </nav>
 
         <a
-          href="#download"
-          className="group hidden items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink-900 transition hover:scale-[1.02] md:inline-flex"
+          href="#notify"
+          className="group hidden items-center gap-2 rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-paper transition hover:scale-[1.02] md:inline-flex"
         >
           Être notifié
           <span className="transition group-hover:translate-x-0.5">→</span>

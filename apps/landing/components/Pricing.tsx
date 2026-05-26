@@ -1,173 +1,152 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Package, Box, Archive } from 'lucide-react';
 
 const tiers = [
   {
-    icon: Package,
     name: 'Enveloppe',
-    desc: 'Documents, lettres, petits objets',
+    desc: 'Documents, lettres, petits objets.',
     base: 500,
     perKm: 100,
     example: { km: 3, total: '800 FCFA' },
-    accent: 'kola',
   },
   {
-    icon: Box,
     name: 'Petit colis',
-    desc: "Jusqu'à 5 kg, taille d'un sac à main",
+    desc: "Jusqu'à 5 kg. La majorité des courses.",
     base: 700,
     perKm: 150,
     example: { km: 4, total: '1 300 FCFA' },
-    accent: 'terra',
     highlight: true,
   },
   {
-    icon: Archive,
     name: 'Gros colis',
-    desc: 'Jusqu\'à 25 kg, carton standard',
+    desc: 'Jusqu\'à 25 kg, carton standard.',
     base: 1000,
     perKm: 250,
     example: { km: 5, total: '2 250 FCFA' },
-    accent: 'kola',
   },
 ];
 
 export function Pricing() {
   return (
-    <section id="pricing" className="bg-white py-24 md:py-32">
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="pricing" className="bg-paper py-28 md:py-40">
+      <div className="mx-auto max-w-7xl px-6">
         {/* Header */}
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-terra-100 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-terra-800">
-            Tarifs
-          </span>
-          <h2 className="mt-5 text-4xl font-bold leading-[1.1] tracking-tight text-ink-900 md:text-5xl">
-            Pas de surprise.{' '}
-            <span className="bg-gradient-to-br from-kola-600 to-kola-800 bg-clip-text text-transparent">
-              Pas de cachoteries.
-            </span>
+        <div className="grid gap-8 lg:grid-cols-[1fr_2fr] lg:gap-16 lg:items-end">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-[0.25em] text-terra-700">
+              Tarifs
+            </div>
+            <p className="mt-6 max-w-sm text-base leading-relaxed text-ink-700">
+              Prix calculés sur le type de colis et la distance. Affichés avant que vous validiez. Aucune surcharge cachée.
+            </p>
+          </div>
+          <h2 className="font-display text-5xl leading-[1.0] tracking-tight text-ink-900 md:text-7xl">
+            Pas de surprise.<br />
+            <em className="text-terra-700">Pas de cachoteries.</em>
           </h2>
-          <p className="mt-5 text-lg text-ink-700">
-            Tarif calculé sur le type de colis et la distance. Affiché avant que vous validiez.
-          </p>
         </div>
 
         {/* Tiers */}
-        <div className="mt-16 grid gap-6 md:grid-cols-3 md:gap-8">
-          {tiers.map((t, i) => {
-            const Icon = t.icon;
-            const isHighlight = t.highlight;
-            return (
-              <motion.div
-                key={t.name}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                className={`relative rounded-3xl p-8 ${
-                  isHighlight
-                    ? 'bg-ink-900 text-white shadow-2xl'
-                    : 'border border-ink-900/8 bg-sand-50 text-ink-900'
+        <div className="mt-20 grid gap-px overflow-hidden rounded-3xl border border-ink-900/10 bg-ink-900/10 md:mt-28 md:grid-cols-3">
+          {tiers.map((t, i) => (
+            <motion.div
+              key={t.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.5, delay: i * 0.08 }}
+              className={`relative p-8 md:p-10 ${
+                t.highlight ? 'bg-ink-900 text-paper' : 'bg-paper text-ink-900'
+              }`}
+            >
+              {t.highlight && (
+                <div className="absolute top-6 right-6 inline-flex items-center gap-1.5 rounded-full bg-terra-600/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-terra-300 ring-1 ring-terra-500/40">
+                  <span className="h-1.5 w-1.5 rounded-full bg-terra-400" />
+                  Standard
+                </div>
+              )}
+
+              <div
+                className={`font-display text-2xl italic ${
+                  t.highlight ? 'text-paper/40' : 'text-ink-300'
                 }`}
               >
-                {isHighlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-terra-600 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
-                    Le plus utilisé
-                  </div>
-                )}
+                Tarif {String.fromCharCode(65 + i)}
+              </div>
+              <h3 className="mt-2 font-display text-4xl leading-tight tracking-tight md:text-5xl">
+                {t.name}
+              </h3>
+              <p
+                className={`mt-3 text-sm ${
+                  t.highlight ? 'text-paper/60' : 'text-ink-500'
+                }`}
+              >
+                {t.desc}
+              </p>
 
+              {/* Détail */}
+              <div
+                className={`mt-10 space-y-4 border-t pt-6 ${
+                  t.highlight ? 'border-paper/15' : 'border-ink-900/10'
+                }`}
+              >
+                <Row
+                  label="Frais de base"
+                  value={`${t.base} FCFA`}
+                  dim={t.highlight ? 'text-paper/60' : 'text-ink-500'}
+                />
+                <Row
+                  label="Par km"
+                  value={`+${t.perKm} FCFA`}
+                  dim={t.highlight ? 'text-paper/60' : 'text-ink-500'}
+                />
+              </div>
+
+              <div
+                className={`mt-8 rounded-2xl p-5 ${
+                  t.highlight ? 'bg-paper/5' : 'bg-paper-dim'
+                }`}
+              >
                 <div
-                  className={`grid h-12 w-12 place-items-center rounded-2xl ${
-                    isHighlight
-                      ? 'bg-terra-600/20 ring-1 ring-terra-500/40'
-                      : 'bg-white shadow-md'
+                  className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                    t.highlight ? 'text-paper/50' : 'text-ink-500'
                   }`}
                 >
-                  <Icon
-                    className={`h-5 w-5 ${
-                      isHighlight ? 'text-terra-300' : 'text-kola-700'
-                    }`}
-                  />
+                  Course de {t.example.km} km
                 </div>
-
-                <h3
-                  className={`mt-6 text-xl font-bold tracking-tight ${
-                    isHighlight ? 'text-white' : 'text-ink-900'
-                  }`}
-                >
-                  {t.name}
-                </h3>
-                <p
-                  className={`mt-1 text-sm ${
-                    isHighlight ? 'text-white/60' : 'text-ink-500'
-                  }`}
-                >
-                  {t.desc}
-                </p>
-
-                {/* Prix */}
-                <div className="mt-8 space-y-3 text-sm">
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      className={
-                        isHighlight ? 'text-white/60' : 'text-ink-500'
-                      }
-                    >
-                      Frais de base
-                    </span>
-                    <span className="text-lg font-bold tabular-nums">
-                      {t.base} FCFA
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      className={
-                        isHighlight ? 'text-white/60' : 'text-ink-500'
-                      }
-                    >
-                      Par km
-                    </span>
-                    <span className="text-lg font-bold tabular-nums">
-                      +{t.perKm} FCFA
-                    </span>
-                  </div>
+                <div className="mt-2 font-display text-4xl tracking-tight">
+                  {t.example.total}
                 </div>
-
-                {/* Exemple */}
-                <div
-                  className={`mt-8 rounded-2xl p-4 ${
-                    isHighlight
-                      ? 'bg-white/5 ring-1 ring-white/10'
-                      : 'bg-white ring-1 ring-ink-900/5'
-                  }`}
-                >
-                  <div
-                    className={`text-[10px] font-bold uppercase tracking-widest ${
-                      isHighlight ? 'text-white/50' : 'text-ink-500'
-                    }`}
-                  >
-                    Exemple {t.example.km} km
-                  </div>
-                  <div
-                    className={`mt-1 text-2xl font-bold tabular-nums ${
-                      isHighlight ? 'text-white' : 'text-ink-900'
-                    }`}
-                  >
-                    {t.example.total}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+              </div>
+            </motion.div>
+          ))}
         </div>
 
-        {/* Footnote */}
-        <div className="mx-auto mt-10 max-w-3xl text-center text-sm text-ink-500">
-          Tarifs indicatifs. Majoration de 20% appliquée pour les courses entre 22h et 6h. Code promo sur certaines courses.
+        <div className="mx-auto mt-12 max-w-3xl text-center text-sm leading-relaxed text-ink-500">
+          Tarifs indicatifs susceptibles d'évolution.
+          Majoration de 20% appliquée pour les courses entre 22h et 6h.
         </div>
       </div>
     </section>
+  );
+}
+
+function Row({
+  label,
+  value,
+  dim,
+}: {
+  label: string;
+  value: string;
+  dim: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className={`text-sm ${dim}`}>{label}</span>
+      <span className="font-display text-2xl tabular-nums tracking-tight">
+        {value}
+      </span>
+    </div>
   );
 }

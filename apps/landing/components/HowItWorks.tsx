@@ -1,122 +1,111 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Smartphone, MapPin, PackageCheck, Star } from 'lucide-react';
 
 const clientSteps = [
   {
-    icon: Smartphone,
+    n: '01',
     title: 'Créez votre demande',
-    text: 'Adresse de récupération, livraison, type de colis. Prix calculé instantanément.',
+    desc: 'Adresses, type de colis, prix calculé en temps réel.',
   },
   {
-    icon: MapPin,
+    n: '02',
     title: 'Suivez votre livreur',
-    text: 'Position GPS temps réel, ETA précis, contact direct par appel ou message.',
+    desc: 'Position GPS en direct, contact direct par téléphone.',
   },
   {
-    icon: PackageCheck,
-    title: 'Récupérez votre colis',
-    text: 'Confirmation par code, paiement Mobile Money, livreur noté en un tap.',
+    n: '03',
+    title: 'Récupérez le colis',
+    desc: 'Validation par code, paiement Mobile Money ou cash.',
   },
 ];
 
 const driverSteps = [
   {
-    icon: Smartphone,
+    n: '01',
     title: 'Inscrivez-vous',
-    text: 'Photos CNIB et permis. Validation sous 24h par notre équipe.',
+    desc: 'CNIB et permis. Validation sous 24h.',
   },
   {
-    icon: MapPin,
+    n: '02',
     title: 'Passez en ligne',
-    text: 'Recevez les demandes proches en temps réel. Vous choisissez ce que vous acceptez.',
+    desc: 'Recevez les courses dans votre zone.',
   },
   {
-    icon: Star,
+    n: '03',
     title: 'Gagnez et progressez',
-    text: 'Gains immédiats à chaque course. Plus votre note monte, plus vous recevez de demandes.',
+    desc: 'Paiement immédiat. La note ouvre des opportunités.',
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section id="how" className="bg-sand-50 py-24 md:py-32">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-terra-50 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-terra-700">
-            Comment ça marche
-          </span>
-          <h2 className="mt-5 text-4xl font-bold tracking-tight text-ink-900 md:text-5xl">
-            Simple pour tout le monde.
+    <section id="how" className="bg-paper-dim py-28 md:py-40">
+      <div className="mx-auto max-w-7xl px-6">
+        {/* Header */}
+        <div className="text-center">
+          <div className="text-xs font-medium uppercase tracking-[0.25em] text-terra-700">
+            Mode d'emploi
+          </div>
+          <h2 className="mt-6 font-display text-6xl leading-[0.95] tracking-tight text-ink-900 md:text-7xl lg:text-8xl">
+            Trois étapes.
+            <br />
+            <em className="text-terra-700">De chaque côté.</em>
           </h2>
-          <p className="mt-4 text-lg text-ink-700">
-            Que vous envoyiez un colis ou que vous fassiez des livraisons, l'expérience est pensée pour aller à l'essentiel.
-          </p>
         </div>
 
-        {/* Deux colonnes : client + livreur */}
-        <div className="mt-16 grid gap-10 lg:grid-cols-2 lg:gap-14">
-          <StepColumn role="Client" steps={clientSteps} accent="terra" />
-          <StepColumn role="Livreur" steps={driverSteps} accent="kola" />
+        <div className="mt-20 grid gap-12 lg:grid-cols-2 lg:gap-20">
+          <Column role="Pour les clients" steps={clientSteps} />
+          <Column role="Pour les livreurs" steps={driverSteps} accent="kola" />
         </div>
       </div>
     </section>
   );
 }
 
-function StepColumn({
+function Column({
   role,
   steps,
   accent,
 }: {
-  role: 'Client' | 'Livreur';
-  steps: { icon: typeof Smartphone; title: string; text: string }[];
-  accent: 'terra' | 'kola';
+  role: string;
+  steps: { n: string; title: string; desc: string }[];
+  accent?: 'kola' | 'terra';
 }) {
-  const bg = accent === 'terra' ? 'bg-terra-50/70' : 'bg-kola-50/70';
-  const ring = accent === 'terra' ? 'ring-terra-200' : 'ring-kola-200';
-  const dot = accent === 'terra' ? 'bg-terra-700 text-white' : 'bg-kola-700 text-white';
-  const num = accent === 'terra' ? 'text-terra-700' : 'text-kola-700';
-
+  const isKola = accent === 'kola';
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.5 }}
-      className={`relative rounded-3xl ${bg} p-8 ring-1 ${ring} md:p-10`}
     >
-      <div className="mb-8 flex items-center gap-3">
-        <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${dot} text-xs font-bold uppercase tracking-wider`}>
-          {role === 'Client' ? 'C' : 'L'}
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-bold uppercase tracking-[0.25em] text-ink-500">
+          {role}
         </span>
-        <h3 className="text-2xl font-bold tracking-tight">Côté {role.toLowerCase()}</h3>
       </div>
 
-      <ol className="space-y-7">
-        {steps.map((s, i) => {
-          const Icon = s.icon;
-          return (
-            <li key={s.title} className="flex gap-5">
-              <div className="flex flex-col items-center">
-                <div className={`grid h-12 w-12 place-items-center rounded-2xl bg-white shadow-md ring-1 ring-ink-900/5`}>
-                  <Icon className={`h-5 w-5 ${accent === 'terra' ? 'text-terra-700' : 'text-kola-700'}`} />
-                </div>
-                {i < steps.length - 1 && (
-                  <span className={`mt-2 h-12 w-px ${accent === 'terra' ? 'bg-terra-200' : 'bg-kola-200'}`} />
-                )}
-              </div>
-              <div className="flex-1 pb-2">
-                <div className={`text-xs font-bold uppercase tracking-widest ${num}`}>
-                  Étape {i + 1}
-                </div>
-                <div className="mt-1 text-lg font-semibold text-ink-900">{s.title}</div>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-700">{s.text}</p>
-              </div>
-            </li>
-          );
-        })}
+      <ol className="mt-10 space-y-12">
+        {steps.map((s) => (
+          <li key={s.n} className="grid grid-cols-[auto_1fr] gap-x-8 gap-y-2">
+            <div
+              className={`font-display text-7xl leading-none ${
+                isKola ? 'text-kola-700' : 'text-terra-700'
+              }`}
+            >
+              {s.n}
+            </div>
+            <div className="pt-2">
+              <h3 className="font-display text-3xl leading-tight tracking-tight text-ink-900">
+                {s.title}
+              </h3>
+              <p className="mt-2 max-w-sm text-base leading-relaxed text-ink-700">
+                {s.desc}
+              </p>
+            </div>
+          </li>
+        ))}
       </ol>
     </motion.div>
   );

@@ -1,29 +1,43 @@
 import type { Metadata } from 'next';
+import { Inter, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
+
+const display = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-display',
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tolle.bf'),
-  title: 'Tollé — Livraison rapide au Burkina Faso',
+  metadataBase: new URL('https://lancement-tolle.qalitylabs.fr'),
+  title: 'Tôllé — Lancement à Ouagadougou',
   description:
-    'Faites livrer vos colis en quelques minutes à Ouagadougou et Bobo-Dioulasso. Application de livraison sécurisée, livreurs vérifiés, paiement mobile money.',
+    "L'application de livraison rapide qui arrive à Ouagadougou. Vos colis livrés en moins de 30 minutes, livreurs vérifiés, paiement Mobile Money.",
   keywords: [
     'livraison',
     'Burkina Faso',
     'Ouagadougou',
-    'Bobo-Dioulasso',
     'colis',
     'mobile money',
     'livreur',
-    'coursier',
+    'Tôllé',
   ],
   openGraph: {
     type: 'website',
     locale: 'fr_BF',
-    url: 'https://tolle.bf',
-    siteName: 'Tollé',
-    title: 'Tollé — Livraison rapide au Burkina Faso',
+    url: 'https://lancement-tolle.qalitylabs.fr',
+    siteName: 'Tôllé',
+    title: 'Tôllé — Lancement à Ouagadougou',
     description:
-      'Faites livrer vos colis en quelques minutes. Livreurs vérifiés, suivi temps réel, paiement mobile money.',
+      "L'application de livraison rapide qui arrive à Ouagadougou.",
   },
   icons: {
     icon: [
@@ -40,8 +54,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className="scroll-smooth">
-      <body className="min-h-screen bg-sand-50 antialiased">{children}</body>
+    <html lang="fr" className={`scroll-smooth ${inter.variable} ${display.variable}`}>
+      <body className="min-h-screen bg-paper text-ink antialiased">{children}</body>
     </html>
   );
 }

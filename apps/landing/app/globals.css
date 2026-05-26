@@ -1,87 +1,103 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Palette Tollé — alignée sur l'app mobile (Concept C - Friendly & Local) */
-  --color-terra-50: #fff7ed;
-  --color-terra-100: #ffedd5;
-  --color-terra-200: #fed7aa;
-  --color-terra-300: #fdba74;
-  --color-terra-400: #fb923c;
-  --color-terra-500: #f97316;
-  --color-terra-600: #ea580c;
-  --color-terra-700: #c2410c;
-  --color-terra-800: #9a3412;
-  --color-terra-900: #7c2d12;
+  /* ─────────────────────────────────────────────────────────
+     PALETTE ÉDITORIALE — cream / terra / kola / ink
+     ───────────────────────────────────────────────────────── */
+  --color-paper: #F7F2E7;        /* cream papier, fond principal */
+  --color-paper-dim: #F0E8D6;    /* cream un peu plus marqué */
+  --color-paper-deep: #E8DEC6;   /* cream profond pour cards */
 
-  --color-kola-50: #f0fdf4;
-  --color-kola-100: #dcfce7;
-  --color-kola-200: #bbf7d0;
-  --color-kola-300: #86efac;
-  --color-kola-400: #4ade80;
-  --color-kola-500: #22c55e;
-  --color-kola-600: #16a34a;
-  --color-kola-700: #15803d;
+  --color-ink-50: #F5F5F4;
+  --color-ink-100: #E7E5E4;
+  --color-ink-300: #D6D3D1;
+  --color-ink-500: #78716C;
+  --color-ink-700: #44403C;
+  --color-ink-900: #1C1917;
+  --color-ink: #1C1917;
+
+  /* Terra cotta — accent principal, sahélien */
+  --color-terra-50: #FEF5EB;
+  --color-terra-100: #FDE5C8;
+  --color-terra-200: #FBC68A;
+  --color-terra-300: #F4A04E;
+  --color-terra-400: #E97F1F;
+  --color-terra-500: #D4690F;
+  --color-terra-600: #B1530A;
+  --color-terra-700: #8C3F08;
+  --color-terra-800: #663005;
+
+  /* Vert kola — CTA, success */
+  --color-kola-100: #DCFCE7;
+  --color-kola-300: #86EFAC;
+  --color-kola-500: #22C55E;
+  --color-kola-600: #16A34A;
+  --color-kola-700: #15803D;
   --color-kola-800: #166534;
-  --color-kola-900: #14532d;
+  --color-kola-900: #14532D;
 
-  --color-sand-50: #fffbeb;
-  --color-sand-100: #fef3c7;
-  --color-sand-200: #fde68a;
+  /* Or warm pour highlights subtils */
+  --color-gold: #C89B5B;
 
-  --color-ink-900: #1c1917;
-  --color-ink-700: #44403c;
-  --color-ink-500: #78716c;
-  --color-ink-300: #d6d3d1;
-
-  --font-display: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: var(--font-display), 'Times New Roman', serif;
+  --font-sans: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
 
 html,
 body {
-  background: var(--color-sand-50);
-  color: var(--color-ink-900);
+  background: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "ss03";
 }
 
-/* Subtle mesh-gradient background */
-.bg-mesh {
-  background-color: var(--color-sand-50);
-  background-image:
-    radial-gradient(at 15% 20%, color-mix(in oklab, var(--color-terra-200) 60%, transparent) 0px, transparent 50%),
-    radial-gradient(at 85% 0%, color-mix(in oklab, var(--color-kola-200) 50%, transparent) 0px, transparent 50%),
-    radial-gradient(at 80% 80%, color-mix(in oklab, var(--color-sand-200) 70%, transparent) 0px, transparent 50%);
-}
-
-/* Glow utility */
-.glow-terra {
-  box-shadow: 0 30px 60px -20px rgba(194, 65, 12, 0.45);
-}
-.glow-kola {
-  box-shadow: 0 30px 60px -20px rgba(21, 128, 61, 0.45);
-}
-
-/* Halo derrière le téléphone mockup */
-.phone-halo::before {
+/* Grain subtil sur le fond crème pour donner la texture papier */
+body::before {
   content: '';
-  position: absolute;
-  inset: -40px;
-  border-radius: 999px;
-  background: radial-gradient(circle at center, rgba(194, 65, 12, 0.18), transparent 65%);
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
   z-index: -1;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(28, 25, 23, 0.04) 1px, transparent 0);
+  background-size: 22px 22px;
 }
 
-/* Reveal animations replacement (no JS) */
+/* Selection */
+::selection {
+  background: var(--color-terra-300);
+  color: var(--color-ink-900);
+}
+
+/* Float animation pour décor */
 @keyframes float-slow {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-12px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
 }
 .animate-float-slow {
-  animation: float-slow 6s ease-in-out infinite;
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+/* Underline animation (lien éditorial) */
+.link-editorial {
+  position: relative;
+  display: inline-block;
+}
+.link-editorial::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1.5px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-editorial:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }

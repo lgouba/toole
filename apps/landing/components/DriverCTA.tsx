@@ -1,149 +1,95 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Wallet, Calendar, TrendingUp, Smartphone, FileText, CheckCircle } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+
+const promises = [
+  { value: '80%', label: 'de la course revient au livreur' },
+  { value: '7j/7', label: 'vous gérez vos horaires librement' },
+  { value: '24h', label: 'validation du dossier livreur' },
+];
 
 export function DriverCTA() {
   return (
-    <section id="driver" className="relative overflow-hidden bg-ink-900 py-24 text-white md:py-32">
-      {/* Glow background */}
-      <div className="pointer-events-none absolute -left-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-kola-700 opacity-30 blur-3xl" />
-      <div className="pointer-events-none absolute -right-40 -bottom-40 h-[600px] w-[600px] rounded-full bg-terra-700 opacity-25 blur-3xl" />
+    <section id="driver" className="relative overflow-hidden bg-ink-900 py-28 text-paper md:py-40">
+      {/* Halos chauds */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 top-1/4 h-[600px] w-[600px] rounded-full bg-terra-700 opacity-30 blur-[140px]" />
+        <div className="absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-gold opacity-20 blur-[120px]" />
+      </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 md:grid-cols-2">
+      <div className="relative mx-auto max-w-7xl px-6">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6 }}
+          className="max-w-4xl"
         >
-          <span className="inline-flex items-center gap-2 rounded-full bg-kola-700/20 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-kola-200 ring-1 ring-kola-700/40">
-            Devenir livreur Tollé
-          </span>
-          <h2 className="mt-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl">
-            Gagnez votre vie,{' '}
-            <span className="bg-gradient-to-r from-terra-300 to-sand-200 bg-clip-text text-transparent">
-              à votre rythme.
+          <div className="flex items-center gap-3">
+            <span className="h-px w-10 bg-paper/40" />
+            <span className="text-xs font-medium uppercase tracking-[0.25em] text-paper/60">
+              Devenir livreur Tôllé
             </span>
+          </div>
+
+          <h2 className="mt-8 font-display text-6xl leading-[0.95] tracking-tight md:text-7xl lg:text-8xl">
+            Roulez,<br />
+            <em className="bg-gradient-to-br from-terra-200 via-terra-300 to-gold bg-clip-text text-transparent">
+              gagnez votre vie.
+            </em>
           </h2>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/75">
-            Rejoignez les livreurs Tollé à Ouagadougou. Inscription gratuite,
-            paiements rapides, soutien 7/7. Vous gérez vos horaires.
+
+          <p className="mt-10 max-w-xl text-lg leading-[1.7] text-paper/70 md:text-xl">
+            Rejoignez les livreurs Tôllé à Ouagadougou.
+            Inscription gratuite, paiements rapides Mobile Money,
+            soutien 7j/7, horaires libres. Vous gérez.
           </p>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <Stat icon={Wallet} value="80%" label="de la course pour vous" />
-            <Stat icon={Calendar} value="7j/7" label="horaires libres" />
-            <Stat icon={TrendingUp} value="24h" label="validation du dossier" />
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            <a
-              href="#download"
-              className="group inline-flex items-center gap-2 rounded-full bg-terra-600 px-6 py-3.5 text-base font-semibold text-white shadow-xl shadow-terra-700/40 transition hover:bg-terra-500"
-            >
-              Je m'inscris
-              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </a>
-            <a
-              href="mailto:contact@tolle.bf"
-              className="inline-flex items-center gap-2 rounded-full bg-white/5 px-6 py-3.5 text-base font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/10"
-            >
-              Une question ?
-            </a>
-          </div>
         </motion.div>
 
-        {/* Carte "3 étapes" pour devenir livreur (factuel) */}
+        {/* 3 promesses concrètes */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative"
+          className="mt-20 grid gap-px overflow-hidden rounded-3xl bg-paper/10 md:grid-cols-3"
         >
-          <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-terra-600/40 via-kola-600/30 to-transparent blur-2xl" />
-
-          <div className="relative rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl md:p-10">
-            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Comment ça marche
+          {promises.map((p) => (
+            <div key={p.label} className="bg-ink-900 p-8 md:p-10">
+              <div className="font-display text-7xl leading-none tracking-tight text-terra-300 md:text-8xl">
+                {p.value}
+              </div>
+              <p className="mt-6 max-w-xs text-sm leading-relaxed text-paper/60 md:text-base">
+                {p.label}
+              </p>
             </div>
-            <h3 className="mt-2 text-2xl font-bold tracking-tight md:text-3xl">
-              3 étapes pour démarrer
-            </h3>
+          ))}
+        </motion.div>
 
-            <ol className="mt-8 space-y-6">
-              <Step
-                num={1}
-                icon={Smartphone}
-                title="Téléchargez l'application"
-                desc="Disponible bientôt sur App Store et Google Play. Créez votre compte en quelques minutes."
-              />
-              <Step
-                num={2}
-                icon={FileText}
-                title="Envoyez vos documents"
-                desc="CNIB, permis de conduire, photo du véhicule. Tout se fait depuis l'app."
-              />
-              <Step
-                num={3}
-                icon={CheckCircle}
-                title="Validation en 24h"
-                desc="Notre équipe vérifie votre dossier. Une fois validé, vous pouvez commencer à recevoir des courses."
-              />
-            </ol>
-          </div>
+        {/* CTA */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mt-16 flex flex-wrap items-center gap-5"
+        >
+          <a
+            href="#notify"
+            className="group inline-flex items-center gap-3 rounded-full bg-paper px-7 py-4 text-base font-semibold text-ink-900 transition hover:scale-[1.02]"
+          >
+            Je veux m'inscrire
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </a>
+          <a
+            href="mailto:contact@tolle.bf"
+            className="link-editorial text-base font-medium text-paper"
+          >
+            Une question ? contact@tolle.bf
+          </a>
         </motion.div>
       </div>
     </section>
-  );
-}
-
-function Stat({
-  icon: Icon,
-  value,
-  label,
-}: {
-  icon: typeof Wallet;
-  value: string;
-  label: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
-      <Icon className="h-5 w-5 text-kola-300" />
-      <div className="mt-2 text-2xl font-bold tracking-tight">{value}</div>
-      <div className="text-xs text-white/70">{label}</div>
-    </div>
-  );
-}
-
-function Step({
-  num,
-  icon: Icon,
-  title,
-  desc,
-}: {
-  num: number;
-  icon: typeof Wallet;
-  title: string;
-  desc: string;
-}) {
-  return (
-    <li className="flex gap-4">
-      <div className="flex flex-col items-center">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-terra-700/20 ring-1 ring-terra-600/40">
-          <Icon className="h-4 w-4 text-terra-300" />
-        </div>
-      </div>
-      <div className="flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-terra-300">
-            Étape {num}
-          </span>
-        </div>
-        <div className="mt-1 text-base font-semibold">{title}</div>
-        <p className="mt-1 text-sm leading-relaxed text-white/65">{desc}</p>
-      </div>
-    </li>
   );
 }

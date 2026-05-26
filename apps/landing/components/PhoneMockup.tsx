@@ -57,7 +57,7 @@ export function PhoneMockup() {
           </div>
 
           {/* Trajet */}
-          <div className="mt-3 rounded-2xl bg-sand-50 p-3.5">
+          <div className="mt-3 rounded-2xl bg-paper p-3.5">
             <div className="flex gap-3">
               <div className="flex flex-col items-center pt-1">
                 <span className="h-2.5 w-2.5 rounded-full bg-terra-700" />
