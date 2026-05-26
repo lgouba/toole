@@ -69,13 +69,13 @@ export function PhoneMockup() {
                   Récupération
                 </div>
                 <div className="truncate text-xs font-semibold">
-                  91 Avenue de Fabron
+                  Av. Kwame Nkrumah, Ouaga 2000
                 </div>
                 <div className="mt-3 text-[9px] font-bold uppercase tracking-widest text-ink-500">
                   Livraison
                 </div>
                 <div className="truncate text-xs font-semibold">
-                  833 Av. Général de Gaulle
+                  Av. de la Nation, Koulouba
                 </div>
               </div>
             </div>
