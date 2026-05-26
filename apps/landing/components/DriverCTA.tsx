@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Wallet, Calendar, TrendingUp } from 'lucide-react';
+import { ArrowRight, Wallet, Calendar, TrendingUp, Smartphone, FileText, CheckCircle } from 'lucide-react';
 
 export function DriverCTA() {
   return (
@@ -54,7 +54,7 @@ export function DriverCTA() {
           </div>
         </motion.div>
 
-        {/* Carte témoignage / visuel */}
+        {/* Carte "3 étapes" pour devenir livreur (factuel) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -65,36 +65,33 @@ export function DriverCTA() {
           <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-terra-600/40 via-kola-600/30 to-transparent blur-2xl" />
 
           <div className="relative rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl md:p-10">
-            <div className="flex items-center gap-4">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-terra-500 to-terra-700 text-xl font-bold">
-                OG
-              </div>
-              <div>
-                <div className="text-lg font-semibold">Oswald G.</div>
-                <div className="text-sm text-white/60">Livreur Tollé · Ouagadougou</div>
-              </div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">
+              Comment ça marche
             </div>
+            <h3 className="mt-2 text-2xl font-bold tracking-tight md:text-3xl">
+              3 étapes pour démarrer
+            </h3>
 
-            <p className="mt-6 text-lg leading-relaxed text-white/90">
-              « Je travaille quand je veux, je sais combien je vais gagner avant
-              d'accepter, et les paiements arrivent tout de suite sur mon Orange
-              Money. C'est carré. »
-            </p>
-
-            <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5 text-sm">
-              <div>
-                <div className="text-white/60">Courses ce mois</div>
-                <div className="text-2xl font-bold tabular-nums">142</div>
-              </div>
-              <div>
-                <div className="text-white/60">Note moyenne</div>
-                <div className="text-2xl font-bold tabular-nums">4,9 ★</div>
-              </div>
-              <div>
-                <div className="text-white/60">Gains</div>
-                <div className="text-2xl font-bold tabular-nums">214k</div>
-              </div>
-            </div>
+            <ol className="mt-8 space-y-6">
+              <Step
+                num={1}
+                icon={Smartphone}
+                title="Téléchargez l'application"
+                desc="Disponible bientôt sur App Store et Google Play. Créez votre compte en quelques minutes."
+              />
+              <Step
+                num={2}
+                icon={FileText}
+                title="Envoyez vos documents"
+                desc="CNIB, permis de conduire, photo du véhicule. Tout se fait depuis l'app."
+              />
+              <Step
+                num={3}
+                icon={CheckCircle}
+                title="Validation en 24h"
+                desc="Notre équipe vérifie votre dossier. Une fois validé, vous pouvez commencer à recevoir des courses."
+              />
+            </ol>
           </div>
         </motion.div>
       </div>
@@ -117,5 +114,36 @@ function Stat({
       <div className="mt-2 text-2xl font-bold tracking-tight">{value}</div>
       <div className="text-xs text-white/70">{label}</div>
     </div>
+  );
+}
+
+function Step({
+  num,
+  icon: Icon,
+  title,
+  desc,
+}: {
+  num: number;
+  icon: typeof Wallet;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <li className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-terra-700/20 ring-1 ring-terra-600/40">
+          <Icon className="h-4 w-4 text-terra-300" />
+        </div>
+      </div>
+      <div className="flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-terra-300">
+            Étape {num}
+          </span>
+        </div>
+        <div className="mt-1 text-base font-semibold">{title}</div>
+        <p className="mt-1 text-sm leading-relaxed text-white/65">{desc}</p>
+      </div>
+    </li>
   );
 }
