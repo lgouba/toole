@@ -12,6 +12,7 @@ import { getDriverStats } from '../services/driver-stats.service.js';
 import { emitToUser } from '../services/notification.service.js';
 import { success } from '../utils/response.js';
 import { HttpError } from '../utils/response.js';
+import { logger } from '../lib/logger.js';
 
 const statusSchema = z.object({ isOnline: z.boolean() });
 
@@ -62,7 +63,7 @@ export async function updateDriverLocation(
           in: ['accepted', 'picking_up', 'picked_up', 'delivering'],
         },
       },
-      select: { id: true, senderId: true },
+      select: { id: true, senderId: true, status: true },
     });
 
     if (activeDelivery) {
@@ -70,6 +71,24 @@ export async function updateDriverLocation(
         ...payload,
         deliveryId: activeDelivery.id,
       });
+      // Tag de debug pour pouvoir grep facilement dans les logs prod
+      logger.info(
+        {
+          tag: 'FORWARD_DRIVER_LOC',
+          driverId,
+          deliveryId: activeDelivery.id,
+          senderId: activeDelivery.senderId,
+          status: activeDelivery.status,
+          lat: latitude,
+          lng: longitude,
+        },
+        'driver location forwarded to sender',
+      );
+    } else {
+      logger.info(
+        { tag: 'NO_ACTIVE_DELIVERY', driverId, lat: latitude, lng: longitude },
+        'driver location update but no active delivery to forward',
+      );
     }
 
     return success(res, profile);
