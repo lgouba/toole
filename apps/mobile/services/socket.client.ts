@@ -30,7 +30,15 @@ export async function connectSocket(): Promise<Socket> {
       // Callback appele a chaque (re)connexion : on relit le token depuis le storage
       tokenStorage.getAccessToken().then((t) => cb({ token: t || '' }));
     },
-    transports: ['websocket'],
+    // ⚠️ websocket EN PREMIER mais polling en fallback. En websocket-only,
+    // certains reseaux Android (proxies operateurs BF, wifi captifs) bloquent
+    // l'upgrade websocket → le socket reste mort silencieusement → le livreur
+    // ne reçoit jamais delivery:new_request via socket (juste la push). Avec
+    // polling en fallback, Socket.IO se rabat sur du HTTP long-polling et la
+    // connexion temps reel fonctionne quand meme.
+    transports: ['websocket', 'polling'],
+    // Autorise l'upgrade websocket apres connexion polling (best of both)
+    upgrade: true,
     reconnection: true,
     // Reconnect agressif : 500ms initial, +500ms par tentative, cap a 3s.
     // Reseau BF tres flaky → on veut etre back online le plus vite possible
