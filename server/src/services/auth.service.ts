@@ -10,7 +10,7 @@ import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
 import { sendOtpMessage, type MessageChannel } from '../lib/sms.js';
 import { env } from '../config/env.js';
-import { emitToAdmins } from './notification.service.js';
+import { emitToAdmins, disconnectUser } from './notification.service.js';
 import { sendAdminAlert, sendEmail } from '../lib/mailer.js';
 import { getAppSettings } from './settings.service.js';
 
@@ -153,7 +153,37 @@ export async function verifyOtpCode(identifier: string, code: string): Promise<v
   }
 }
 
-export async function issueTokens(userId: string, userType: string) {
+export async function issueTokens(
+  userId: string,
+  userType: string,
+  options: { singleSession?: boolean } = {},
+) {
+  // SESSION UNIQUE (livreurs) : avant d'emettre les nouveaux tokens, on
+  // revoque TOUTES les sessions existantes du compte et on ejecte les
+  // appareils deja connectes. Garantit qu'un livreur n'est actif que sur
+  // un seul telephone a la fois (evite double acceptation de course, GPS
+  // contradictoire, etc.).
+  if (options.singleSession) {
+    const revoked = await prisma.refreshToken.deleteMany({ where: { userId } });
+    if (revoked.count > 0) {
+      logger.info(
+        { userId, revokedSessions: revoked.count },
+        'Single-session: revoked existing refresh tokens on new login',
+      );
+      // Ejecte immediatement les sockets du/des ancien(s) appareil(s).
+      try {
+        disconnectUser(userId, 'logged_in_elsewhere');
+      } catch (err) {
+        logger.warn({ err, userId }, 'Failed to disconnect previous device sockets');
+      }
+      // Passe le profil livreur hors ligne (l'ancien tel ne doit plus
+      // apparaitre en ligne ni recevoir de courses).
+      await prisma.driverProfile
+        .updateMany({ where: { userId }, data: { isOnline: false } })
+        .catch(() => {});
+    }
+  }
+
   const accessToken = signAccessToken({ userId, userType });
   const refreshToken = signRefreshToken({ userId, userType });
   await prisma.refreshToken.create({
@@ -214,7 +244,10 @@ export async function verifyOtpFlow(identifier: string, code: string) {
     );
   }
 
-  const tokens = await issueTokens(user.id, user.userType);
+  // Session unique pour les livreurs : un seul appareil actif a la fois.
+  const tokens = await issueTokens(user.id, user.userType, {
+    singleSession: user.userType === 'driver',
+  });
   return { user, tokens, isNewUser: false as const };
 }
 
@@ -370,7 +403,9 @@ Ouvrir: https://admin-tolle.qalitylabs.fr/users/${user.id}`;
     })();
   }
 
-  const tokens = await issueTokens(user.id, user.userType);
+  const tokens = await issueTokens(user.id, user.userType, {
+    singleSession: user.userType === 'driver',
+  });
   return { user, tokens };
 }
 

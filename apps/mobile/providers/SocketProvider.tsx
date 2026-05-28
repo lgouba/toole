@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuthStore } from '@/stores/auth.store';
@@ -253,6 +253,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.off('delivery:new_request');
         socket.off('delivery:invalidated');
         socket.off('delivery:expired');
+        socket.off('auth:session_revoked');
+
+        // ------ Session unique : ce compte vient de se connecter ailleurs ------
+        socket.on('auth:session_revoked', (payload: any) => {
+          if (payload?.reason !== 'logged_in_elsewhere') return;
+          console.log('[Socket] session revoked: logged in elsewhere');
+          // Logout propre + message clair.
+          useAuthStore.getState().logout();
+          Alert.alert(
+            'Connexion sur un autre appareil',
+            'Votre compte vient d\'être connecté sur un autre téléphone. Vous avez été déconnecté de cet appareil.',
+          );
+          routerRef.current.replace('/(auth)/login');
+        });
 
         // ------ Events for Client (sender) ------
         socket.on('delivery:accepted', (payload: any) => {
