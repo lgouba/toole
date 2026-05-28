@@ -584,7 +584,11 @@ async function computeDeliveryEta(
   return computeRouteEta(driverLat, driverLng, destLat, destLng);
 }
 
-export async function getDeliveryForUser(deliveryId: string, userId: string) {
+export async function getDeliveryForUser(
+  deliveryId: string,
+  userId: string,
+  userType?: string,
+) {
   const delivery = await prisma.delivery.findUnique({
     where: { id: deliveryId },
     include: {
@@ -610,7 +614,17 @@ export async function getDeliveryForUser(deliveryId: string, userId: string) {
   if (!delivery) {
     throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
   }
-  if (delivery.senderId !== userId && delivery.driverId !== userId) {
+  const isParty =
+    delivery.senderId === userId || delivery.driverId === userId;
+  // Un livreur peut consulter une course PENDING non encore assignee : c'est
+  // une "offre ouverte" qui lui a ete diffusee (socket/push). Sans ca, quand
+  // un 2e livreur passe en ligne et tape la push d'une course pending, le
+  // getDeliveryById renvoie 403 -> la modal ne s'affiche jamais.
+  const isOpenOffer =
+    userType === 'driver' &&
+    delivery.status === 'pending' &&
+    delivery.driverId === null;
+  if (!isParty && !isOpenOffer) {
     throw new HttpError(403, 'FORBIDDEN', 'Access denied');
   }
 

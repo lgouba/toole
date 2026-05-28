@@ -122,7 +122,11 @@ export async function getDeliveryCtrl(
   next: NextFunction,
 ) {
   try {
-    const delivery = await getDeliveryForUser(req.params.id, req.user!.id);
+    const delivery = await getDeliveryForUser(
+      req.params.id,
+      req.user!.id,
+      req.user!.userType,
+    );
     return success(res, delivery);
   } catch (err) {
     next(err);
