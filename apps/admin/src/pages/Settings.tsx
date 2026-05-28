@@ -301,15 +301,15 @@ function BrandTab({
                 value={settings.currencyLocale}
                 onChange={(e) => update('currencyLocale', e.target.value)}
               >
-                <option value="fr-BF">Burkina Faso (fr-BF)</option>
-                <option value="fr-CI">Côte d'Ivoire (fr-CI)</option>
-                <option value="fr-SN">Sénégal (fr-SN)</option>
-                <option value="fr-ML">Mali (fr-ML)</option>
-                <option value="fr-NE">Niger (fr-NE)</option>
-                <option value="fr-TG">Togo (fr-TG)</option>
-                <option value="fr-BJ">Bénin (fr-BJ)</option>
-                <option value="fr-FR">France (fr-FR)</option>
-                <option value="en-US">US (en-US)</option>
+                <option value="fr-BJ">Bénin</option>
+                <option value="fr-BF">Burkina Faso</option>
+                <option value="fr-CI">Côte d'Ivoire</option>
+                <option value="en-US">États-Unis</option>
+                <option value="fr-FR">France</option>
+                <option value="fr-ML">Mali</option>
+                <option value="fr-NE">Niger</option>
+                <option value="fr-SN">Sénégal</option>
+                <option value="fr-TG">Togo</option>
               </select>
             </label>
             <p
