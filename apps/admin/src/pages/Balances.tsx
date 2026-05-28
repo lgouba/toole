@@ -132,13 +132,38 @@ export default function Balances() {
             </button>
           ))}
         </div>
-        <input
-          className="input"
-          placeholder="Recherche par nom ou téléphone…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 240 }}
-        />
+        <div className="search-field">
+          <svg
+            className="search-field-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            className="search-field-input"
+            placeholder="Rechercher un livreur par nom ou téléphone…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              type="button"
+              className="search-field-clear"
+              onClick={() => setSearch('')}
+              aria-label="Effacer la recherche"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tableau */}
