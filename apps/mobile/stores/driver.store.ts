@@ -43,22 +43,52 @@ interface DriverState {
 }
 
 async function pushLocation(): Promise<LatLng | null> {
+  // ⚠️ Acquisition GPS robuste. AVANT : getCurrentPositionAsync(BestForNavigation)
+  // sans timeout → sur device reel ca peut HANG ou rejeter en attendant une
+  // precision parfaite → le catch avalait l'erreur → AUCUN push → le marker
+  // se figeait. Maintenant :
+  //   1) getCurrentPositionAsync(Balanced) : fix rapide ~50m, large suffisant
+  //      pour afficher un marker qui bouge sur une carte de ville.
+  //   2) fallback getLastKnownPositionAsync si le fix echoue/tarde.
+  let loc: LatLng | null = null;
   try {
     const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.BestForNavigation,
+      accuracy: Location.Accuracy.Balanced,
     });
-    const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-    await driverService.updateLocation(loc);
-
-    // Emit via socket si on a une course active (pour que le client voit le livreur bouger)
-    const socket = getSocket();
-    if (socket?.connected) {
-      socket.emit('driver:update_location', loc);
+    loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+  } catch (err) {
+    console.warn('[driver] getCurrentPosition(Balanced) failed, fallback', err);
+    try {
+      const last = await Location.getLastKnownPositionAsync();
+      if (last) {
+        loc = { latitude: last.coords.latitude, longitude: last.coords.longitude };
+      }
+    } catch (err2) {
+      console.warn('[driver] getLastKnownPosition failed too', err2);
     }
-    return loc;
-  } catch {
+  }
+
+  if (!loc) {
+    console.warn('[driver] pushLocation: no position available, skip');
     return null;
   }
+
+  // Envoi HTTP (met a jour currentLat/currentLng + forward au client par le
+  // serveur). On NE catch PAS le throw silencieusement sans log.
+  try {
+    await driverService.updateLocation(loc);
+  } catch (err) {
+    console.warn('[driver] updateLocation HTTP failed', err);
+    // On retourne quand meme loc pour mettre a jour la carte locale du livreur.
+    return loc;
+  }
+
+  // Emit via socket (redondant avec HTTP, mais double canal pour fiabilite)
+  const socket = getSocket();
+  if (socket?.connected) {
+    socket.emit('driver:update_location', loc);
+  }
+  return loc;
 }
 
 function startLocationTracking(setLoc: (loc: LatLng) => void) {
