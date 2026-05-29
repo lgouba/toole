@@ -142,16 +142,28 @@ export default function ActiveDeliveryScreen() {
       id: string;
       coordinate: LatLng;
       icon: 'pickup' | 'delivery' | 'driver';
+      label?: string;
     }> = [
-      { id: 'pickup', coordinate: delivery.pickupLocation, icon: 'pickup' },
+      {
+        id: 'pickup',
+        coordinate: delivery.pickupLocation,
+        icon: 'pickup',
+        label: `📦 Récupération — ${delivery.pickupAddress}`,
+      },
       {
         id: 'delivery',
         coordinate: delivery.deliveryLocation,
         icon: 'delivery',
+        label: `🏁 Livraison — ${delivery.deliveryAddress}`,
       },
     ];
     if (driverPos) {
-      list.push({ id: 'driver', coordinate: driverPos, icon: 'driver' });
+      list.push({
+        id: 'driver',
+        coordinate: driverPos,
+        icon: 'driver',
+        label: '🛵 Votre livreur',
+      });
     }
     return list;
   }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation]);

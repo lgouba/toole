@@ -154,21 +154,22 @@ function buildHtml(
           }
         `;
       }
-      const col = m.color || colors.primary;
-      const emoji =
-        m.icon === 'pickup'
-          ? '🟢'
-          : m.icon === 'delivery'
-            ? '🔴'
-            : '📍';
+      // Icones distinctes (plus d'ambiguite couleur) :
+      //   pickup (recuperation) = colis a aller chercher 📦, fond terra
+      //   delivery (livraison)  = destination finale 🏁, fond vert kola
+      const isPickup = m.icon === 'pickup';
+      const isDelivery = m.icon === 'delivery';
+      const col =
+        m.color || (isPickup ? '#C2410C' : isDelivery ? '#15803D' : colors.primary);
+      const emoji = isPickup ? '📦' : isDelivery ? '🏁' : '📍';
       return `
         {
           const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
             icon: L.divIcon({
               className: 'custom-marker',
-              html: '<div style="background:${col};width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:16px;">${emoji}</div>',
-              iconSize: [36, 36],
-              iconAnchor: [18, 18],
+              html: '<div style="background:${col};width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:17px;">${emoji}</div>',
+              iconSize: [38, 38],
+              iconAnchor: [19, 19],
             }),
           }).addTo(map);
           ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
