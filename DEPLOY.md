@@ -1,4 +1,4 @@
-# Tôllé — Guide de déploiement
+# Toolé — Guide de déploiement
 
 > **À lire avant toute commande de déploiement.**
 > Ce fichier fixe le workflow réel pour éviter de casser ce qui marche.

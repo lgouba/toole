@@ -13,7 +13,7 @@ export function Footer() {
               au rythme du Faso.
             </h3>
             <p className="mt-6 max-w-md text-base leading-relaxed text-paper/60">
-              Tôllé est une application développée à Ouagadougou pour les habitants de Ouagadougou.
+              Toolé est une application développée à Ouagadougou pour les habitants de Ouagadougou.
               Inscription gratuite. Lancement juin 2026.
             </p>
           </div>
@@ -61,7 +61,7 @@ export function Footer() {
         </div>
 
         <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-paper/10 pt-8 text-xs text-paper/40 md:flex-row md:items-center">
-          <div>© {new Date().getFullYear()} Tôllé — Édité par QALITYLABS · Ouagadougou, Burkina Faso</div>
+          <div>© {new Date().getFullYear()} Toolé — Édité par QALITYLABS · Ouagadougou, Burkina Faso</div>
           <div className="uppercase tracking-[0.2em]">Made in Ouagadougou</div>
         </div>
       </div>

@@ -32,7 +32,7 @@ export function BenefitsStrip() {
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr] lg:items-end lg:gap-16">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.25em] text-terra-700">
-              Pourquoi Tôllé
+              Pourquoi Toolé
             </div>
           </div>
           <h2 className="font-display text-5xl leading-[1.05] tracking-tight text-ink-900 md:text-6xl lg:text-7xl">

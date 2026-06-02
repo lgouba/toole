@@ -182,7 +182,7 @@ export default function Notifications() {
             <div style={s.previewNotif}>
               <div style={s.previewAppRow}>
                 <div style={s.previewIcon}>T</div>
-                <div style={s.previewApp}>TÔLLÉ</div>
+                <div style={s.previewApp}>TOOLÉ</div>
                 <div style={s.previewTime}>maintenant</div>
               </div>
               <div style={s.previewTitle}>

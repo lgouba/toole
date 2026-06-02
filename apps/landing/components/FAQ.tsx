@@ -18,7 +18,7 @@ const faqs = [
     a: 'Au lancement : Ouagadougou intra-muros (Ouaga 2000, Cissin, Patte d\'Oie, Tampouy, Dapoya, Pissy, Zone du Bois...). Extension prévue à Bobo-Dioulasso et autres villes par la suite.',
   },
   {
-    q: 'Comment devenir livreur Tôllé ?',
+    q: 'Comment devenir livreur Toolé ?',
     a: 'Téléchargez l\'app dès la sortie, créez votre compte livreur, soumettez vos documents (CNIB, permis, photo véhicule). Validation par notre équipe sous 24h. Vous gérez vos horaires librement.',
   },
   {
@@ -31,7 +31,7 @@ const faqs = [
   },
   {
     q: 'Mes données personnelles sont-elles protégées ?',
-    a: 'Tôllé ne partage jamais vos informations à des tiers. Les numéros de téléphone entre client et livreur sont masqués pendant la course. Nous respectons la réglementation sur la protection des données.',
+    a: 'Toolé ne partage jamais vos informations à des tiers. Les numéros de téléphone entre client et livreur sont masqués pendant la course. Nous respectons la réglementation sur la protection des données.',
   },
 ];
 

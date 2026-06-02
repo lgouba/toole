@@ -71,7 +71,7 @@ export function Hero() {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="mt-10 max-w-xl text-lg leading-relaxed text-ink-700 md:text-xl md:leading-[1.6]"
             >
-              <span className="font-display italic text-ink-900">Tôllé</span>{' '}
+              <span className="font-display italic text-ink-900">Toolé</span>{' '}
               connecte particuliers et livreurs vérifiés en moins de 30 minutes.
               Suivi temps réel, paiement Mobile Money, prix transparent.
             </motion.p>

@@ -74,7 +74,7 @@ export function ForceUpdateGate({ children }: { children: React.ReactNode }) {
         <Text style={styles.title}>Mise à jour requise</Text>
         <Text style={styles.subtitle}>
           {forceUpdateMessage ??
-            'Une nouvelle version de Tôllé est disponible. Pour continuer à utiliser l\'application, veuillez la mettre à jour.'}
+            'Une nouvelle version de Toolé est disponible. Pour continuer à utiliser l\'application, veuillez la mettre à jour.'}
         </Text>
 
         <View style={styles.versionInfo}>

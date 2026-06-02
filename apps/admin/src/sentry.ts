@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
 
 /**
- * Initialisation Sentry pour l'admin web Tôllé.
+ * Initialisation Sentry pour l'admin web Toolé.
  *
  * - DSN public : peut etre dans le code (juste l'URL d'envoi des erreurs).
  * - Skip en dev (Vite dev server) : on ne veut pas spam Sentry avec les

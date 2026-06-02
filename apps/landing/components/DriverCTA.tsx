@@ -29,7 +29,7 @@ export function DriverCTA() {
           <div className="flex items-center gap-3">
             <span className="h-px w-10 bg-paper/40" />
             <span className="text-xs font-medium uppercase tracking-[0.25em] text-paper/60">
-              Devenir livreur Tôllé
+              Devenir livreur Toolé
             </span>
           </div>
 
@@ -41,7 +41,7 @@ export function DriverCTA() {
           </h2>
 
           <p className="mt-10 max-w-xl text-lg leading-[1.7] text-paper/70 md:text-xl">
-            Rejoignez les livreurs Tôllé à Ouagadougou.
+            Rejoignez les livreurs Toolé à Ouagadougou.
             Inscription gratuite, paiements rapides Mobile Money,
             soutien 7j/7, horaires libres. Vous gérez.
           </p>

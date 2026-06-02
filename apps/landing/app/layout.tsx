@@ -18,7 +18,7 @@ const display = Instrument_Serif({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://lancement-tolle.qalitylabs.fr'),
-  title: 'Tôllé — Lancement à Ouagadougou',
+  title: 'Toolé — Lancement à Ouagadougou',
   description:
     "L'application de livraison rapide qui arrive à Ouagadougou. Vos colis livrés en moins de 30 minutes, livreurs vérifiés, paiement Mobile Money.",
   keywords: [
@@ -28,14 +28,14 @@ export const metadata: Metadata = {
     'colis',
     'mobile money',
     'livreur',
-    'Tôllé',
+    'Toolé',
   ],
   openGraph: {
     type: 'website',
     locale: 'fr_BF',
     url: 'https://lancement-tolle.qalitylabs.fr',
-    siteName: 'Tôllé',
-    title: 'Tôllé — Lancement à Ouagadougou',
+    siteName: 'Toolé',
+    title: 'Toolé — Lancement à Ouagadougou',
     description:
       "L'application de livraison rapide qui arrive à Ouagadougou.",
   },

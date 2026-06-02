@@ -21,7 +21,7 @@ export default async function BientotDisponiblePage({ searchParams }: PageProps)
 
       <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-16 text-center">
         {/* Logo */}
-        <img src="/logo-wordmark.svg" alt="Tôllé" className="h-12 mb-12 opacity-90 invert brightness-200" />
+        <img src="/logo-wordmark.svg" alt="Toolé" className="h-12 mb-12 opacity-90 invert brightness-200" />
 
         {/* Pill platform */}
         {platform && (
@@ -39,7 +39,7 @@ export default async function BientotDisponiblePage({ searchParams }: PageProps)
         </h1>
 
         <p className="mx-auto mt-8 max-w-md text-base leading-relaxed text-white/70 md:text-lg">
-          Tôllé arrive très prochainement sur <span className="font-semibold text-white">{platformLabel}</span>.
+          Toolé arrive très prochainement sur <span className="font-semibold text-white">{platformLabel}</span>.
           Inscrivez-vous pour être prévenu dès la sortie de l'application.
         </p>
 
@@ -63,7 +63,7 @@ export default async function BientotDisponiblePage({ searchParams }: PageProps)
 
         {/* Petit hint */}
         <div className="mt-16 text-[11px] uppercase tracking-[0.2em] text-white/30">
-          Tôllé · Livraison rapide · Burkina Faso
+          Toolé · Livraison rapide · Burkina Faso
         </div>
       </div>
     </main>
@@ -71,6 +71,6 @@ export default async function BientotDisponiblePage({ searchParams }: PageProps)
 }
 
 export const metadata = {
-  title: 'Bientôt disponible — Tôllé',
-  description: 'L\'application Tôllé arrive bientôt sur App Store et Google Play.',
+  title: 'Bientôt disponible — Toolé',
+  description: 'L\'application Toolé arrive bientôt sur App Store et Google Play.',
 };
