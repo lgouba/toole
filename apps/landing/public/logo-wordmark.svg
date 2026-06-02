@@ -13,9 +13,8 @@
     <path d="M470 512V0H249V512H23V688H695V512Z" transform="translate(0,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
     <path d="M788 344Q788 170 691 79Q594 -12 416 -12Q238 -12 141.5 78.5Q45 169 45 344Q45 519 141.5 609.5Q238 700 416 700Q594 700 691 609Q788 518 788 344ZM271 376V312Q271 239 308 196Q345 153 416 153Q487 153 524.5 196Q562 239 562 312V376Q562 449 524.5 492Q487 535 416 535Q345 535 308 492Q271 449 271 376Z" transform="translate(131.96,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
     <path d="M788 344Q788 170 691 79Q594 -12 416 -12Q238 -12 141.5 78.5Q45 169 45 344Q45 519 141.5 609.5Q238 700 416 700Q594 700 691 609Q788 518 788 344ZM271 376V312Q271 239 308 196Q345 153 416 153Q487 153 524.5 196Q562 239 562 312V376Q562 449 524.5 492Q487 535 416 535Q345 535 308 492Q271 449 271 376Z" transform="translate(283.9,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
-    <path d="M74 688H295V176H648V0H74Z" transform="translate(405.96,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
-    <path d="M74 688H669V523H295V428H615V270H295V165H676V0H74Z" transform="translate(528.02,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
-    <!-- Accent aigu sur É en NAVY pour fond clair -->
-    <line x1="582.0" y1="-136.4" x2="609.0" y2="-165.2" stroke="#16132E" stroke-width="15.3" stroke-linecap="round"/>
+    <path d="M74 688H295V176H648V0H74Z" transform="translate(436.96,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
+    <path d="M74 688H669V523H295V428H615V270H295V165H676V0H74Z" transform="translate(559.02,0) scale(0.18,-0.18)" fill="url(#glogo)"/>
+    <line x1="613.0" y1="-136.4" x2="640.0" y2="-165.2" stroke="#16132E" stroke-width="15.3" stroke-linecap="round"/>
   </g>
 </svg>
