@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 280">
+  <defs>
+    <linearGradient id="gT" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#86EFAC"/>
+      <stop offset="1" stop-color="#15803D"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Speed-T mark : 3 speed bars stacked at top + short italic stem -->
+  <g transform="translate(40,70) skewX(-14)">
+    <rect x="60"  y="0"   width="100" height="22" rx="11" fill="url(#gT)" opacity="0.55"/>
+    <rect x="30"  y="34"  width="140" height="22" rx="11" fill="url(#gT)" opacity="0.80"/>
+    <rect x="0"   y="68"  width="200" height="26" rx="13" fill="url(#gT)"/>
+    <rect x="80"  y="94"  width="42"  height="110" rx="14" fill="url(#gT)"/>
+  </g>
+
+  <!-- Wordmark "Toolé" -->
+  <text x="260" y="200"
+        font-family="Avenir Next, Helvetica Neue, sans-serif"
+        font-weight="800" font-style="italic"
+        font-size="170" fill="#0F172A"
+        letter-spacing="-4">Toolé</text>
+
+  <!-- Tagline -->
+  <text x="265" y="248"
+        font-family="Avenir Next, Helvetica Neue, sans-serif"
+        font-weight="600"
+        font-size="24" fill="#15803D"
+        letter-spacing="1.5">Livraison rapide, partout.</text>
+</svg>
