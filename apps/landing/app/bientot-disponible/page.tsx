@@ -21,7 +21,7 @@ export default async function BientotDisponiblePage({ searchParams }: PageProps)
 
       <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 py-16 text-center">
         {/* Logo */}
-        <img src="/logo-wordmark.svg" alt="Toolé" className="h-12 mb-12 opacity-90 invert brightness-200" />
+        <img src="/logo-wordmark-dark.png" alt="Toolé" className="h-16 mb-12" />
 
         {/* Pill platform */}
         {platform && (
