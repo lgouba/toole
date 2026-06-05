@@ -44,7 +44,7 @@ export interface PublicSettings {
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
-  appName: 'Tolle',
+  appName: 'Toolé',
   primaryColor: '#1d9e75',
   secondaryColor: '#d85a30',
   currency: 'FCFA',

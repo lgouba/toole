@@ -37,25 +37,25 @@ enum PackageType {
 /// Categorie du colis : info contextuelle pour le livreur (gestion specifique
 /// selon le type de contenu). N'impacte PAS le prix (le prix depend de la taille).
 enum PackageCategory {
-  meal          // Repas & Nourriture
-  cake          // Gateaux & Patisseries
-  fresh         // Produits frais & surgeles (necessite froid)
-  grocery       // Epicerie & Autres courses
-  pharmacy      // Pharmacie & produits sensibles
-  cosmetics     // Cosmetiques & Beaute
-  gift          // Cadeaux & objets fragiles
-  other         // Colis & Divers (defaut)
+  meal // Repas & Nourriture
+  cake // Gateaux & Patisseries
+  fresh // Produits frais & surgeles (necessite froid)
+  grocery // Epicerie & Autres courses
+  pharmacy // Pharmacie & produits sensibles
+  cosmetics // Cosmetiques & Beaute
+  gift // Cadeaux & objets fragiles
+  other // Colis & Divers (defaut)
 }
 
 /// Taille du colis. C'est ce qui determine le prix de base (via AppSettings).
 enum PackageSize {
-  small   // < 5 kg
-  medium  // 5-20 kg
-  large   // > 20 kg
+  small // < 5 kg
+  medium // 5-20 kg
+  large // > 20 kg
 }
 
 enum DeliveryStatus {
-  scheduled  // programmee pour plus tard, pas encore diffusee aux livreurs
+  scheduled // programmee pour plus tard, pas encore diffusee aux livreurs
   pending
   accepted
   picking_up
@@ -68,13 +68,13 @@ enum DeliveryStatus {
 
 enum TransactionType {
   payment
-  commission      // gain du livreur sur une livraison (credit)
+  commission // gain du livreur sur une livraison (credit)
   commission_debt // dette plateforme sur un paiement cash (debit)
   tip
   topup
   withdrawal
-  withdrawal_fee  // reserve pour frais de retrait eventuels
-  adjustment      // correction manuelle admin
+  withdrawal_fee // reserve pour frais de retrait eventuels
+  adjustment // correction manuelle admin
 }
 
 enum PaymentMethod {
@@ -101,46 +101,46 @@ enum CancelReason {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  phone        String   @unique
-  firstName    String?
-  lastName     String?
-  fullName     String
-  dateOfBirth  DateTime?
-  email        String?
-  passwordHash String?  // utilise uniquement pour les admins
-  userType     UserRole
-  avatarUrl    String?
-  isVerified   Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  suspendedAt  DateTime?
+  id            String    @id @default(uuid()) @db.Uuid
+  phone         String    @unique
+  firstName     String?
+  lastName      String?
+  fullName      String
+  dateOfBirth   DateTime?
+  email         String?
+  passwordHash  String? // utilise uniquement pour les admins
+  userType      UserRole
+  avatarUrl     String?
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  suspendedAt   DateTime?
   suspendReason String?
-  ratingAvg    Decimal  @default(5.0) @db.Decimal(2, 1)
-  ratingCount  Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ratingAvg     Decimal   @default(5.0) @db.Decimal(2, 1)
+  ratingCount   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  driverProfile     DriverProfile?
-  sentDeliveries    Delivery[]      @relation("Sender")
-  drivenDeliveries  Delivery[]      @relation("Driver")
-  givenRatings      Rating[]        @relation("Rater")
-  receivedRatings   Rating[]        @relation("Rated")
-  refreshTokens     RefreshToken[]
-  transactions      Transaction[]
-  pushTokens        PushToken[]
-  locationLogs      DriverLocationLog[]
+  driverProfile    DriverProfile?
+  sentDeliveries   Delivery[]          @relation("Sender")
+  drivenDeliveries Delivery[]          @relation("Driver")
+  givenRatings     Rating[]            @relation("Rater")
+  receivedRatings  Rating[]            @relation("Rated")
+  refreshTokens    RefreshToken[]
+  transactions     Transaction[]
+  pushTokens       PushToken[]
+  locationLogs     DriverLocationLog[]
 
   @@index([phone])
   @@index([userType])
 }
 
 model PushToken {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
-  token      String   @unique
-  platform   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -179,80 +179,80 @@ model DriverProfile {
 }
 
 model Delivery {
-  id                       String         @id @default(uuid()) @db.Uuid
-  reference                String         @unique
+  id                      String           @id @default(uuid()) @db.Uuid
+  reference               String           @unique
   /// Token court pour partager le suivi public (page web sans auth).
   /// Le destinataire ouvre /track/<token> et voit l'avancement en temps reel
   /// sans installer l'app. 12 caracteres hex = ~10^14 combinaisons (non
   /// devinable brute-force).
-  trackingToken            String?        @unique
-  senderId                 String         @db.Uuid
-  driverId                 String?        @db.Uuid
-  packageType              PackageType
+  trackingToken           String?          @unique
+  senderId                String           @db.Uuid
+  driverId                String?          @db.Uuid
+  packageType             PackageType
   /// Categorie selectionnee par le client (info pour le livreur). Optionnel
   /// pour les anciennes courses creees avant l'ajout de cette colonne.
-  packageCategory          PackageCategory?
+  packageCategory         PackageCategory?
   /// Taille du colis : drive le prix de base via AppSettings. Optionnel pour
   /// les courses pre-migration ; le serveur fallback sur packageType si null.
-  packageSize              PackageSize?
-  packageDescription       String?
-  packagePhotoPickupUrl    String?
-  packagePhotoDeliveryUrl  String?
+  packageSize             PackageSize?
+  packageDescription      String?
+  packagePhotoPickupUrl   String?
+  packagePhotoDeliveryUrl String?
   /// Valeur declaree par le client (FCFA). Sert d'indication pour le livreur
   /// (responsabilite / niveau de soin) et base future pour l'assurance.
-  declaredValue            Int?
+  declaredValue           Int?
   /// Le client a indique que le colis est fragile : le livreur doit etre averti.
-  isFragile                Boolean        @default(false)
+  isFragile               Boolean          @default(false)
   /// Montant additionnel applique pour le tarif de nuit (snapshot du surcharge
   /// applique au moment de la creation, pour audit). 0 ou null si pas de nuit.
-  nightSurchargeApplied    Int?
+  nightSurchargeApplied   Int?
   /// Code promo utilise (snapshot du code en majuscules) pour audit.
-  promoCode                String?
+  promoCode               String?
   /// Montant de la remise appliquee (FCFA, valeur positive). Null si pas de promo.
-  promoDiscount            Int?
-  recipientName            String
-  recipientPhone           String
+  promoDiscount           Int?
+  recipientName           String
+  recipientPhone          String
   /// Contact de la personne qui detient physiquement le colis au point de
   /// recuperation. Si null, l'expediteur = le client qui a passe la commande.
-  senderContactName        String?
-  senderContactPhone       String?
-  pickupAddress            String
-  pickupDetails            String?
-  pickupLat                Float
-  pickupLng                Float
-  deliveryAddress          String
-  deliveryDetails          String?
-  deliveryLat              Float
-  deliveryLng              Float
-  estimatedDistanceKm      Decimal?       @db.Decimal(5, 1)
-  price                    Int
-  driverCommission         Int?
-  platformFee              Int?
-  tip                      Int            @default(0)
+  senderContactName       String?
+  senderContactPhone      String?
+  pickupAddress           String
+  pickupDetails           String?
+  pickupLat               Float
+  pickupLng               Float
+  deliveryAddress         String
+  deliveryDetails         String?
+  deliveryLat             Float
+  deliveryLng             Float
+  estimatedDistanceKm     Decimal?         @db.Decimal(5, 1)
+  price                   Int
+  driverCommission        Int?
+  platformFee             Int?
+  tip                     Int              @default(0)
   /// Code a 4 chiffres donne par l'expediteur au livreur pour valider la recuperation
-  pickupValidationCode     String         @default("0000") @db.VarChar(4)
+  pickupValidationCode    String           @default("0000") @db.VarChar(4)
   /// Code a 4 chiffres donne par le destinataire au livreur pour valider la livraison
-  validationCode           String         @db.VarChar(4)
-  status                   DeliveryStatus @default(pending)
+  validationCode          String           @db.VarChar(4)
+  status                  DeliveryStatus   @default(pending)
   /// Mode de paiement choisi par le client a la commande. Cash par defaut.
   /// Pour OM/Moov, le client paie d'avance via USSD ; en cash, le livreur encaisse.
-  paymentMethod            PaymentMethod  @default(cash)
-  acceptedAt               DateTime?
-  pickedUpAt               DateTime?
-  deliveredAt              DateTime?
-  cancelledAt              DateTime?
-  cancelReason             CancelReason?
-  cancelComment            String?
-  cancelledBy              String?        @db.Uuid
-  expiresAt                DateTime?
+  paymentMethod           PaymentMethod    @default(cash)
+  acceptedAt              DateTime?
+  pickedUpAt              DateTime?
+  deliveredAt             DateTime?
+  cancelledAt             DateTime?
+  cancelReason            CancelReason?
+  cancelComment           String?
+  cancelledBy             String?          @db.Uuid
+  expiresAt               DateTime?
   /// Date/heure a laquelle la livraison doit etre diffusee aux livreurs.
   /// Si null, diffusion immediate (flow classique).
-  scheduledFor             DateTime?
-  createdAt                DateTime       @default(now())
-  updatedAt                DateTime       @updatedAt
+  scheduledFor            DateTime?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
-  sender       User          @relation("Sender", fields: [senderId], references: [id])
-  driver       User?         @relation("Driver", fields: [driverId], references: [id])
+  sender       User                @relation("Sender", fields: [senderId], references: [id])
+  driver       User?               @relation("Driver", fields: [driverId], references: [id])
   ratings      Rating[]
   transactions Transaction[]
   locationLogs DriverLocationLog[]
@@ -319,12 +319,12 @@ model DriverLocationLog {
   driverId   String   @db.Uuid
   latitude   Float
   longitude  Float
-  event      String   // 'online' | 'offline' | 'heartbeat' | 'accept' | 'pickup' | 'delivered' | 'cancel'
+  event      String // 'online' | 'offline' | 'heartbeat' | 'accept' | 'pickup' | 'delivered' | 'cancel'
   deliveryId String?  @db.Uuid
   createdAt  DateTime @default(now())
 
-  driver     User      @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  delivery   Delivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  driver   User      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  delivery Delivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
 
   @@index([driverId, createdAt])
   @@index([event])
@@ -339,63 +339,63 @@ model AppSettings {
   id String @id @default("default")
 
   // Branding
-  appName              String @default("Tolle")
-  primaryColor         String @default("#1d9e75")
-  secondaryColor       String @default("#d85a30")
+  appName        String @default("Toolé")
+  primaryColor   String @default("#1d9e75")
+  secondaryColor String @default("#d85a30")
 
   // Monnaie / localisation
-  currency             String @default("FCFA")
-  currencyLocale       String @default("fr-BF")
+  currency       String @default("FCFA")
+  currencyLocale String @default("fr-BF")
 
   // Pricing (FCFA par defaut). basePriceEnvelope est conserve pour
   // compatibilite avec les anciennes courses (PackageType.envelope) mais
   // n'est plus expose dans le form client. Les nouveaux prix sont bases
   // sur PackageSize (small/medium/large).
-  basePriceEnvelope    Int    @default(500)
-  basePriceSmall       Int    @default(800)  // < 5 kg
-  basePriceMedium      Int    @default(1500) // 5-20 kg
-  basePriceLarge       Int    @default(2500) // > 20 kg
-  pricePerKm           Int    @default(100)
-  platformCommissionPct Int   @default(15)
+  basePriceEnvelope     Int @default(500)
+  basePriceSmall        Int @default(800) // < 5 kg
+  basePriceMedium       Int @default(1500) // 5-20 kg
+  basePriceLarge        Int @default(2500) // > 20 kg
+  pricePerKm            Int @default(100)
+  platformCommissionPct Int @default(15)
 
   // Toggles UX
-  confettiEnabled      Boolean @default(true)
-  driverSoundEnabled   Boolean @default(true)
+  confettiEnabled        Boolean @default(true)
+  driverSoundEnabled     Boolean @default(true)
   driverVibrationEnabled Boolean @default(true)
 
   // Tarif de nuit : majoration appliquee si la course est cree pendant
   // la plage horaire definie (heure locale de l'app). Le montant est
   // additionne au prix total (et integralement reverse au livreur, hors
   // commission plateforme).
-  nightSurchargeEnabled    Boolean @default(false)
+  nightSurchargeEnabled   Boolean @default(false)
   /// Heure de debut de la plage de nuit (0-23). Par defaut 22h.
-  nightSurchargeStartHour  Int     @default(22)
+  nightSurchargeStartHour Int     @default(22)
   /// Heure de fin de la plage de nuit (0-23). Si < startHour, on traverse
   /// minuit (ex: start=22, end=6 -> applique entre 22h et 6h du matin).
-  nightSurchargeEndHour    Int     @default(6)
+  nightSurchargeEndHour   Int     @default(6)
   /// Montant additionnel en unite de devise (FCFA) ajoute au prix.
-  nightSurchargeAmount     Int     @default(0)
+  nightSurchargeAmount    Int     @default(0)
 
   // Reserve pour la tarification meteo future (non encore applique)
-  rainSurchargePct         Int    @default(0)
+  rainSurchargePct Int @default(0)
 
   // Reglages wallet / paiement
   /// Montant minimum pour un retrait livreur (en unite de devise)
-  minWithdrawAmount         Int @default(1000)
+  minWithdrawAmount    Int           @default(1000)
   /// Plafond de dette commission qu'un livreur peut avoir avant d'etre
   /// bloque (il doit alors regler sa dette avant d'accepter de nouvelles courses).
-  commissionDebtLimit       Int @default(10000)
+  commissionDebtLimit  Int           @default(10000)
   /// Mode de paiement par defaut propose au client lors d'une commande
-  defaultPaymentMethod      PaymentMethod @default(cash)
+  defaultPaymentMethod PaymentMethod @default(cash)
 
   // Reglages operationnels
   /// Duree de recherche d'un livreur (avant expiration de la demande cote client)
-  deliveryExpiryMinutes     Int @default(5)
+  deliveryExpiryMinutes        Int @default(5)
   /// Delai minimum avant que le livreur puisse annuler apres avoir accepte
   /// (eviter les abus : accepter pour bloquer les autres puis annuler)
-  driverCancelCooldownSeconds Int @default(120)
+  driverCancelCooldownSeconds  Int @default(120)
   /// Rayon en km autour du pickup pour diffuser une demande aux livreurs
-  nearbyRadiusKm            Int @default(5)
+  nearbyRadiusKm               Int @default(5)
   /// Fraicheur GPS requise pour considerer un livreur comme disponible
   /// (si le dernier heartbeat date de plus, on le passe offline auto)
   driverHeartbeatMaxAgeSeconds Int @default(120)
@@ -403,7 +403,7 @@ model AppSettings {
   /// soit consideree comme "programmee" (en minutes). Sous ce seuil, la
   /// livraison est diffusee immediatement aux livreurs. Permet aux admins de
   /// l'abaisser pendant les tests (ex: 2 min) ou le remonter en prod.
-  scheduledMinDelayMinutes  Int @default(10)
+  scheduledMinDelayMinutes     Int @default(10)
 
   /// Chainage de courses : si un livreur a une course en cours mais que son
   /// ETA jusqu'a la livraison est inferieur a cette valeur (en minutes), on
@@ -416,9 +416,9 @@ model AppSettings {
   /// INFERIEURE a celle-ci (comparaison semver), l'app affiche un ecran
   /// bloquant "Mettre a jour". Permet de killer rapidement une version
   /// mobile bugguee en production. Format : "1.0.0", "1.2.3", etc.
-  minSupportedAppVersion    String  @default("1.0.0")
+  minSupportedAppVersion String  @default("1.0.0")
   /// Message custom affiche sur l'ecran "Mise a jour requise" (optionnel).
-  forceUpdateMessage        String?
+  forceUpdateMessage     String?
 
   updatedAt DateTime @updatedAt
   updatedBy String?  @db.Uuid
@@ -429,8 +429,8 @@ model AppSettings {
 // ============================================================
 
 enum PromoDiscountType {
-  percentage  // ex: 10% de reduction
-  fixed       // ex: -500 FCFA
+  percentage // ex: 10% de reduction
+  fixed // ex: -500 FCFA
 }
 
 /// Code promo cree par l'admin et utilisable par les clients lors de la
@@ -438,34 +438,34 @@ enum PromoDiscountType {
 /// (apres tarif de nuit). La commission plateforme est calculee sur le prix
 /// effectivement encaisse (le livreur ne perd pas de commission).
 model PromoCode {
-  id               String            @id @default(uuid()) @db.Uuid
+  id             String            @id @default(uuid()) @db.Uuid
   /// Code saisi par l'utilisateur (case-insensitive cote API, stocke en majuscules).
-  code             String            @unique
+  code           String            @unique
   /// Type de remise : pourcentage ou montant fixe.
-  discountType     PromoDiscountType
+  discountType   PromoDiscountType
   /// Si discountType=percentage : entier 1-100. Si fixed : montant en FCFA.
-  discountValue    Int
+  discountValue  Int
   /// Montant minimum de commande pour appliquer ce code (FCFA). Null = pas de min.
-  minOrderAmount   Int?
+  minOrderAmount Int?
   /// Nombre total d'utilisations autorisees. Null = illimite.
-  maxUses          Int?
+  maxUses        Int?
   /// Nombre d'utilisations deja consommees (incremente atomiquement).
-  currentUses      Int               @default(0)
+  currentUses    Int               @default(0)
   /// Nombre max d'utilisations par utilisateur unique. Null = illimite.
-  maxUsesPerUser   Int?
+  maxUsesPerUser Int?
   /// Date de debut de validite (peut etre dans le futur pour un code planifie).
-  validFrom        DateTime          @default(now())
+  validFrom      DateTime          @default(now())
   /// Date d'expiration. Null = pas de date limite.
-  validTo          DateTime?
+  validTo        DateTime?
   /// Toggle on/off : si false, le code est refuse meme s'il est dans sa periode.
-  isActive         Boolean           @default(true)
+  isActive       Boolean           @default(true)
   /// Description interne (pour l'admin, non affichee au client).
-  description      String?
-  createdBy        String?           @db.Uuid
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  description    String?
+  createdBy      String?           @db.Uuid
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
-  usages           PromoCodeUsage[]
+  usages PromoCodeUsage[]
 
   @@index([code])
   @@index([isActive])
@@ -474,14 +474,14 @@ model PromoCode {
 /// Une utilisation d'un code promo par un user sur une livraison donnee.
 /// Permet d'auditer + de comptabiliser per-user.
 model PromoCodeUsage {
-  id           String   @id @default(uuid()) @db.Uuid
-  promoCodeId  String   @db.Uuid
-  promoCode    PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
-  userId       String   @db.Uuid
-  deliveryId   String   @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  promoCodeId    String    @db.Uuid
+  promoCode      PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  userId         String    @db.Uuid
+  deliveryId     String    @db.Uuid
   /// Montant de la remise effectivement appliquee (FCFA).
   discountAmount Int
-  createdAt    DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([userId])
   @@index([promoCodeId])

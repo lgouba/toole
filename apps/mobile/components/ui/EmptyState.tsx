@@ -18,7 +18,7 @@ interface EmptyStateProps {
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
-  /** Tonalite de l'illustration. Defaut: primary (vert Tolle). */
+  /** Tonalite de l'illustration. Defaut: primary (vert Toolé). */
   tone?: 'primary' | 'secondary' | 'neutral' | 'warning';
   /** Active la mini-animation flottement de l'icone. Defaut: true. */
   animated?: boolean;

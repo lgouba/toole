@@ -91,7 +91,7 @@ function buildHtml(
                         <line x1="68" y1="64" x2="88" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
                         <line x1="88" y1="64" x2="68" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
 
-                        <!-- Cadre velo en V (orange Tolle) -->
+                        <!-- Cadre velo en V (orange Toolé) -->
                         <path d="M 22 74 L 50 52 L 78 74 M 50 52 L 50 66 L 22 74" stroke="${colors.secondary}" stroke-width="4" fill="none" stroke-linecap="round"/>
 
                         <!-- Tige de selle + selle -->
