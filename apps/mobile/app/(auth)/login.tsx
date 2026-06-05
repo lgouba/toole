@@ -219,7 +219,6 @@ export default function LoginScreen() {
                       value={formatLocal(phone)}
                       onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 8))}
                       maxLength={11} // 8 chiffres + 3 espaces
-                      autoFocus
                     />
                   </View>
                   {error ? <Text style={styles.error}>{error}</Text> : null}
