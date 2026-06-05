@@ -84,41 +84,6 @@ type Step = 'role' | 'identity' | 'vehicle' | 'kyc';
 
 import { Image } from 'react-native';
 
-function ChannelOption({
-  active,
-  onPress,
-  icon,
-  color,
-  label,
-}: {
-  active: boolean;
-  onPress: () => void;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  label: string;
-}) {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.channelOption,
-        active && { borderColor: color, backgroundColor: color + '14' },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
-      <Ionicons name={icon} size={16} color={active ? color : colors.textSecondary} />
-      <Text
-        style={[
-          styles.channelOptionLabel,
-          active && { color, fontWeight: '800' },
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 function KycPhotoButton({
   label,
   uri,
@@ -193,10 +158,10 @@ export default function RegisterScreen() {
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
   // Telephone (obligatoire pour TOUS) : c'est le seul contact requis. La
-  // communication (OTP, notifications) se fait par SMS / WhatsApp. Pas d'email.
+  // communication (OTP, notifications) se fait par SMS. Pas d'email.
   const [phone, setPhone] = useState('');
-  // Canal d'envoi de l'OTP de confirmation au moment de l'inscription.
-  const [otpChannel, setOtpChannel] = useState<'sms' | 'whatsapp'>('sms');
+  // Canal d'envoi de l'OTP : toujours SMS (WhatsApp retire — non fiable).
+  const otpChannel = 'sms' as const;
 
   // Driver only
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
@@ -573,27 +538,6 @@ export default function RegisterScreen() {
                   maxLength={12}
                 />
 
-                {/* Choix du canal pour recevoir le code de verification */}
-                <Text style={styles.dobLabel}>
-                  Recevoir le code de vérification par *
-                </Text>
-                <View style={styles.channelRow}>
-                  <ChannelOption
-                    active={otpChannel === 'sms'}
-                    onPress={() => setOtpChannel('sms')}
-                    icon="chatbubble-outline"
-                    color={colors.primary}
-                    label="SMS"
-                  />
-                  <ChannelOption
-                    active={otpChannel === 'whatsapp'}
-                    onPress={() => setOtpChannel('whatsapp')}
-                    icon="logo-whatsapp"
-                    color="#25D366"
-                    label="WhatsApp"
-                  />
-                </View>
-
                 <Input
                   label="Code de parrainage (optionnel)"
                   placeholder="Ex : AMINA22"
@@ -889,28 +833,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-  },
-  channelRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  channelOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  channelOptionLabel: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    fontWeight: '700',
   },
   dobInput: {
     flex: 1,

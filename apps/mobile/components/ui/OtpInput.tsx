@@ -42,6 +42,13 @@ export function OtpInput({ length = 6, value, onChange, onComplete }: OtpInputPr
         maxLength={length}
         style={styles.hiddenInput}
         autoFocus
+        // Auto-remplissage du code OTP reçu par SMS :
+        //  - iOS lit le code dans le SMS et le propose au-dessus du clavier
+        //    (textContentType="oneTimeCode").
+        //  - Android le propose via le framework d'autofill (autoComplete="sms-otp").
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+        importantForAutofill="yes"
       />
     </Pressable>
   );
