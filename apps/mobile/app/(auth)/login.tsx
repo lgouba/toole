@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textDecorationLine: 'underline',
   },
-  footer: { marginTop: 'auto', gap: spacing.sm },
+  footer: { marginTop: spacing.lg, gap: spacing.xs },
   registerLink: {
     paddingVertical: spacing.sm,
     alignItems: 'center',

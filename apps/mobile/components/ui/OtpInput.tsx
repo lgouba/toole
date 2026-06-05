@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { View, TextInput, Text, StyleSheet, Pressable } from 'react-native';
 import { colors, typography, borderRadius, spacing } from '@/theme';
 
@@ -22,30 +22,39 @@ export function OtpInput({ length = 6, value, onChange, onComplete }: OtpInputPr
 
   return (
     <Pressable onPress={() => inputRef.current?.focus()} style={styles.container}>
-      {Array.from({ length }).map((_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.cell,
-            i < value.length && styles.cellFilled,
-            i === value.length && styles.cellActive,
-          ]}
-        >
-          <Text style={styles.cellText}>{value[i] || ''}</Text>
-        </View>
-      ))}
+      {/* Cases visuelles (affichage seul) */}
+      <View style={styles.cells} pointerEvents="none">
+        {Array.from({ length }).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.cell,
+              i < value.length && styles.cellFilled,
+              i === value.length && styles.cellActive,
+            ]}
+          >
+            <Text style={styles.cellText}>{value[i] || ''}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/*
+        Champ réel superposé EN PLEIN FORMAT (texte transparent, curseur masqué).
+        Crucial pour l'auto-remplissage : iOS/Android n'attachent la suggestion
+        du code OTP qu'à un champ visible et de taille non nulle. Un input 0×0
+        empêche l'apparition de la suggestion au-dessus du clavier.
+      */}
       <TextInput
         ref={inputRef}
         value={value}
         onChangeText={handleChange}
         keyboardType="number-pad"
         maxLength={length}
-        style={styles.hiddenInput}
+        style={styles.overlayInput}
         autoFocus
-        // Auto-remplissage du code OTP reçu par SMS :
-        //  - iOS lit le code dans le SMS et le propose au-dessus du clavier
-        //    (textContentType="oneTimeCode").
-        //  - Android le propose via le framework d'autofill (autoComplete="sms-otp").
+        caretHidden
+        // iOS : lit le code dans le SMS reçu (textContentType="oneTimeCode").
+        // Android : propose le code via l'autofill (autoComplete="sms-otp").
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
         importantForAutofill="yes"
@@ -54,15 +63,22 @@ export function OtpInput({ length = 6, value, onChange, onComplete }: OtpInputPr
   );
 }
 
+const CELL_W = 48;
+const CELL_H = 56;
+
 const styles = StyleSheet.create({
   container: {
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  cells: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.sm,
   },
   cell: {
-    width: 48,
-    height: 56,
+    width: CELL_W,
+    height: CELL_H,
     borderRadius: borderRadius.md,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -81,10 +97,11 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.textPrimary,
   },
-  hiddenInput: {
-    position: 'absolute',
-    opacity: 0,
-    height: 0,
-    width: 0,
+  // Recouvre exactement la rangée de cases : focusable, mais invisible.
+  overlayInput: {
+    ...StyleSheet.absoluteFillObject,
+    color: 'transparent',
+    fontSize: 1,
+    textAlign: 'center',
   },
 });
