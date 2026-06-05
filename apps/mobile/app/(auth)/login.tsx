@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   Platform,
   TouchableOpacity,
   TextInput,
-  Animated,
-  Easing,
   Keyboard,
   TouchableWithoutFeedback,
   ScrollView,
@@ -18,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, OtpInput } from '@/components/ui';
+import { LoginMotoAnimation } from '@/components/LoginMotoAnimation';
 import { colors, typography, spacing, borderRadius, shadow } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
@@ -49,27 +48,6 @@ export default function LoginScreen() {
   // Identifier complet envoye au backend (226 + 8 chiffres).
   const fullIdentifier = `${COUNTRY_CODE}${phone}`;
   const phoneValid = phone.length === 8;
-
-  // Animation flottante de la moto dans le hero
-  const floatY = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatY, {
-          toValue: -8,
-          duration: 1500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatY, {
-          toValue: 0,
-          duration: 1500,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [floatY]);
 
   // ----- Etape 1 : envoi de l'OTP par SMS -----
   const handleSendOtp = async () => {
@@ -182,15 +160,11 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* HERO : illustration moto */}
+            {/* HERO : scène animée (moto qui roule vers sa destination) */}
             <View style={styles.hero}>
               <Text style={styles.heroAccentBox}>📦</Text>
               <Text style={styles.heroAccentStar}>⭐</Text>
-              <Animated.Text
-                style={[styles.heroEmoji, { transform: [{ translateY: floatY }] }]}
-              >
-                🛵
-              </Animated.Text>
+              <LoginMotoAnimation />
             </View>
 
             {/* FORM bas */}
@@ -296,12 +270,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  heroEmoji: {
-    fontSize: 130,
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 8 },
-    textShadowRadius: 16,
   },
   heroAccentBox: {
     position: 'absolute',
