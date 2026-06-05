@@ -31,6 +31,13 @@ initSentry();
 
 SplashScreen.preventAutoHideAsync();
 
+// Durée minimale d'affichage du splash (ms). Sans ça, le splash disparaît
+// dès que les polices sont prêtes (souvent <300ms) et le logo "flashe".
+// On garde l'écran de lancement visible au moins ce délai pour une entrée
+// plus posée dans l'app.
+const SPLASH_MIN_DURATION_MS = 2200;
+const appStartedAt = Date.now();
+
 function RootLayout() {
   // Verifie automatiquement les OTA Expo au demarrage + au retour en foreground.
   // Sans ce hook, l'utilisateur doit force-close l'app 2 fois pour qu'un nouvel
@@ -94,7 +101,12 @@ function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      const elapsed = Date.now() - appStartedAt;
+      const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - elapsed);
+      const timer = setTimeout(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      }, remaining);
+      return () => clearTimeout(timer);
     }
   }, [fontsLoaded]);
 

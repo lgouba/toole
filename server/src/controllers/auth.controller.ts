@@ -102,8 +102,9 @@ const registerSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   userType: z.enum(['client', 'driver', 'merchant']),
   otpCode: z.string().length(4),
-  // Email obligatoire pour pouvoir recevoir l'OTP par email + recuperation de compte.
-  email: z.string().trim().email('Email invalide'),
+  // Email optionnel : la communication se fait par SMS. On accepte une chaine
+  // vide ou l'absence du champ (les anciens clients peuvent encore l'envoyer).
+  email: z.string().trim().email('Email invalide').optional().or(z.literal('')),
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
   vehiclePlate: z.string().trim().max(20).optional().or(z.literal('')),
   /** URLs des photos d'identite KYC uploadees prealablement (/uploads/kyc/*).
@@ -126,7 +127,7 @@ export async function registerCtrl(req: Request, res: Response, next: NextFuncti
       dateOfBirth: body.dateOfBirth,
       userType: body.userType,
       otpCode: body.otpCode,
-      email: body.email,
+      email: body.email || undefined,
       vehicleType: body.vehicleType,
       vehiclePlate: body.vehiclePlate || undefined,
       cnibPhotoUrl: body.cnibPhotoUrl || undefined,

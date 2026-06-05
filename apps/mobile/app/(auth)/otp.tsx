@@ -124,7 +124,7 @@ export default function OtpScreen() {
         dateOfBirth: pending.dateOfBirth,
         userType: pending.userType,
         otpCode,
-        email: pending.email,
+        email: pending.email || undefined,
         vehicleType: pending.vehicleType,
         vehiclePlate: pending.vehiclePlate,
         // Photos KYC envoyees au register : impossible de faire un PUT

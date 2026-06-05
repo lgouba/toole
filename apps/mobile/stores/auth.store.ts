@@ -17,7 +17,7 @@ export interface PendingRegistration {
   dateOfBirth: string;
   userType: UserRole;
   phone: string; // format 226XXXXXXXX
-  email: string;
+  email?: string;
   vehicleType?: string;
   vehiclePlate?: string;
   referralCode?: string;

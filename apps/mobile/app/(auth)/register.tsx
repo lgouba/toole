@@ -179,7 +179,7 @@ function validateDate(d: string, m: string, y: string): string | null {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register, isLoading, logout } = useAuthStore();
+  const { isLoading, logout } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
   const [step, setStep] = useState<Step>('role');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -192,15 +192,11 @@ export default function RegisterScreen() {
   const [year, setYear] = useState('');
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
-  // Telephone (obligatoire pour TOUS) et email (obligatoire pour TOUS) :
-  // ces deux contacts permettent de recevoir l'OTP de confirmation et
-  // d'utiliser l'un OU l'autre pour les connexions futures.
+  // Telephone (obligatoire pour TOUS) : c'est le seul contact requis. La
+  // communication (OTP, notifications) se fait par SMS / WhatsApp. Pas d'email.
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   // Canal d'envoi de l'OTP de confirmation au moment de l'inscription.
-  const [otpChannel, setOtpChannel] = useState<'sms' | 'whatsapp' | 'email'>(
-    'whatsapp',
-  );
+  const [otpChannel, setOtpChannel] = useState<'sms' | 'whatsapp'>('sms');
 
   // Driver only
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
@@ -250,9 +246,6 @@ export default function RegisterScreen() {
     if (cleanedPhone.length !== 8 && !(cleanedPhone.length === 11 && cleanedPhone.startsWith('226'))) {
       return 'Entrez un numéro de téléphone à 8 chiffres';
     }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      return 'Entrez une adresse email valide';
-    }
     return null;
   };
 
@@ -275,7 +268,7 @@ export default function RegisterScreen() {
 
   const handleVehicleConfirm = () => {
     if (!vehicleType) return;
-    // Pour les drivers, on enchaine sur le step KYC (email + 2 photos d'identite).
+    // Pour les drivers, on enchaine sur le step KYC (2 photos d'identite).
     // Le register lui-meme se fait apres soumission du KYC, pour que le compte
     // soit cree avec les justificatifs deja attaches (etat 'pending').
     setStep('kyc');
@@ -355,11 +348,9 @@ export default function RegisterScreen() {
     const cleanedPhone = phone.replace(/\D/g, '');
     const fullPhone =
       cleanedPhone.length === 8 ? `226${cleanedPhone}` : cleanedPhone;
-    const cleanEmail = email.trim().toLowerCase();
 
-    // Identifier vers lequel l'OTP est envoye (selon canal choisi).
-    const otpIdentifier =
-      otpChannel === 'email' ? cleanEmail : fullPhone;
+    // L'OTP part toujours sur le numero de telephone (SMS ou WhatsApp).
+    const otpIdentifier = fullPhone;
 
     // Stocke d'abord dans le store pour que OTP screen puisse finaliser.
     useAuthStore.getState().setPendingRegistration({
@@ -368,7 +359,6 @@ export default function RegisterScreen() {
       dateOfBirth: dob,
       userType: selectedRole,
       phone: fullPhone,
-      email: cleanEmail,
       vehicleType: vehicleType ?? undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
       referralCode: referralCode.trim() || undefined,
@@ -395,69 +385,6 @@ export default function RegisterScreen() {
     }
 
     router.push('/(auth)/otp');
-  };
-
-  // (deprecated) Conservé temporairement pour reference. Le flow utilise
-  // sendOtpAndProceed ci-dessus + finalisation dans l'ecran OTP.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const doRegister = async (): Promise<boolean> => {
-    if (!selectedRole) return false;
-    setError('');
-    const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    const result = await register({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      dateOfBirth: dob,
-      userType: selectedRole,
-      vehicleType: vehicleType ?? undefined,
-      vehiclePlate: vehiclePlate.trim() || undefined,
-      email: email.trim() || undefined,
-      referralCode: referralCode.trim() || undefined,
-      // Pour le driver, on differe l'authentification : sinon l'auth guard
-      // redirige immediatement vers /(driver) et empeche l'upload KYC qui suit.
-      deferAuth: selectedRole === 'driver',
-    });
-    if (!result.success) {
-      // Message contextuel selon le code d'erreur serveur.
-      let msg = result.errorMessage ?? 'Impossible de créer le compte.';
-      if (result.errorCode === 'EXPIRED_OTP' || result.errorCode === 'INVALID_OTP') {
-        msg =
-          'Le code de vérification a expiré ou est invalide. Revenez en arrière et redemandez un code.';
-      } else if (result.errorCode === 'USER_EXISTS') {
-        msg =
-          'Ce numéro est déjà associé à un compte. Connectez-vous au lieu de vous inscrire.';
-      } else if (result.errorCode === 'VALIDATION_ERROR' && result.fieldErrors) {
-        // On extrait le premier champ qui pose probleme et on l'explique
-        // dans la langue de l'utilisateur. Permet de pointer precisement
-        // ce qui bloque (date mal formee, prenom trop court, etc).
-        const fields = result.fieldErrors;
-        const FIELD_LABELS: Record<string, string> = {
-          firstName: 'Prénom',
-          lastName: 'Nom',
-          dateOfBirth: 'Date de naissance',
-          phone: 'Numéro de téléphone',
-          otpCode: 'Code de vérification',
-          email: 'Email',
-          vehicleType: 'Type de véhicule',
-          userType: 'Type de compte',
-        };
-        const firstBadField = Object.keys(fields).find(
-          (k) => (fields[k]?.length ?? 0) > 0,
-        );
-        if (firstBadField) {
-          const label = FIELD_LABELS[firstBadField] ?? firstBadField;
-          msg = `Champ invalide : ${label}. ${fields[firstBadField][0]}`;
-        }
-      }
-      setError(msg);
-      return false;
-    }
-    // Pour client : redirection direct sur la home.
-    // Pour driver : on continue le flow KYC (pas de redirection ici).
-    if (selectedRole === 'client') {
-      router.replace('/(client)');
-    }
-    return true;
   };
 
   return (
@@ -646,27 +573,11 @@ export default function RegisterScreen() {
                   maxLength={12}
                 />
 
-                <Input
-                  label="Email *"
-                  placeholder="vous@exemple.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-
                 {/* Choix du canal pour recevoir le code de verification */}
                 <Text style={styles.dobLabel}>
                   Recevoir le code de vérification par *
                 </Text>
                 <View style={styles.channelRow}>
-                  <ChannelOption
-                    active={otpChannel === 'whatsapp'}
-                    onPress={() => setOtpChannel('whatsapp')}
-                    icon="logo-whatsapp"
-                    color="#25D366"
-                    label="WhatsApp"
-                  />
                   <ChannelOption
                     active={otpChannel === 'sms'}
                     onPress={() => setOtpChannel('sms')}
@@ -675,11 +586,11 @@ export default function RegisterScreen() {
                     label="SMS"
                   />
                   <ChannelOption
-                    active={otpChannel === 'email'}
-                    onPress={() => setOtpChannel('email')}
-                    icon="mail-outline"
-                    color={colors.secondary}
-                    label="Email"
+                    active={otpChannel === 'whatsapp'}
+                    onPress={() => setOtpChannel('whatsapp')}
+                    icon="logo-whatsapp"
+                    color="#25D366"
+                    label="WhatsApp"
                   />
                 </View>
 
@@ -848,7 +759,7 @@ export default function RegisterScreen() {
               title="Soumettre mes documents"
               onPress={handleKycSubmit}
               loading={submittingKyc || isLoading}
-              disabled={!email.trim() || !cnibFrontUri || !cnibBackUri}
+              disabled={!cnibFrontUri || !cnibBackUri}
             />
           )}
         </View>
