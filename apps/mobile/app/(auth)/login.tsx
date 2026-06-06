@@ -331,12 +331,15 @@ function PressableCTA({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  // Fond blanc = pas de "2e bloc" gris sous la carte ; la carte remplit le bas.
+  container: { flex: 1, backgroundColor: '#fff' },
   scroll: { flexGrow: 1 },
   cardWrap: {
     marginTop: -32, // chevauche légèrement le héros
+    flex: 1,
   },
   card: {
+    flex: 1,
     backgroundColor: '#fff',
     borderTopLeftRadius: R.card,
     borderTopRightRadius: R.card,
@@ -344,7 +347,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 16,
     gap: 14,
-    minHeight: 360,
     maxWidth: 440,
     width: '100%',
     alignSelf: 'center',
