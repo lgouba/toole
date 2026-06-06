@@ -11,7 +11,7 @@ import {
   Alert,
   AccessibilityInfo,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,7 @@ export default function AuthScreen() {
   const router = useRouter();
   const { sendOtp, verifyOtp, isLoading } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [country, setCountry] = useState<Country>(COUNTRIES[0]); // BF +226
@@ -190,8 +191,10 @@ export default function AuthScreen() {
 
         {/* ===== CARTE FORMULAIRE (remplit tout le bas) ===== */}
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <SafeAreaView edges={['bottom']} style={styles.cardWrap}>
-            <View style={styles.card}>
+          <View style={styles.cardWrap}>
+            {/* Inset bas géré DANS la carte blanche (pas via un SafeAreaView qui
+                réserverait une bande remplie par le fond → liseré visible). */}
+            <View style={[styles.card, { paddingBottom: insets.bottom + 16 }]}>
                 {/* Pill "Livraison en direct" */}
                 <View style={styles.pill}>
                   <View style={styles.pingWrap}>
@@ -271,7 +274,7 @@ export default function AuthScreen() {
                   </>
                 )}
               </View>
-            </SafeAreaView>
+          </View>
           </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </View>
@@ -339,7 +342,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: R.card,
     paddingHorizontal: 24,
     paddingTop: 28,
-    paddingBottom: 24,
+    // paddingBottom appliqué dynamiquement (insets.bottom + 16) en inline
     gap: 14,
     maxWidth: 440,
     width: '100%',
