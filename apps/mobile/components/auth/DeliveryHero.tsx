@@ -50,9 +50,11 @@ const CITY_BLOCKS: [number, number, number, number][] = [
 // droite et l'ARRIVÉE à gauche, pour qu'il roule bien dans le sens où il
 // regarde, vers l'anneau de destination. (Retourner l'asset inverserait le
 // logo "Toolé" du sac → exclu.)
-const START = { x: 410, y: 300 }; // point de départ (pulse)
-const DEST = { x: 108, y: 130 }; // anneau d'arrivée (pin)
-const ROUTE = `M${START.x} ${START.y} C 330 256, 330 184, 244 172 C 168 162, 158 134, ${DEST.x} ${DEST.y}`;
+// Le point bas de la route passe SOUS les roues du livreur (~x185, y262) pour
+// qu'il paraisse posé sur la route, puis remonte vers l'arrivée en haut-gauche.
+const START = { x: 432, y: 296 }; // point de départ (pulse), bas-droite
+const DEST = { x: 70, y: 156 }; // anneau d'arrivée (pin), haut-gauche
+const ROUTE = `M${START.x} ${START.y} C 360 288, 250 268, 185 262 C 128 256, 96 206, ${DEST.x} ${DEST.y}`;
 
 export function DeliveryHero() {
   const [width, setWidth] = useState(0);

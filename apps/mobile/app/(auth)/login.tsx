@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Keyboard,
   TouchableWithoutFeedback,
-  ScrollView,
   Alert,
   AccessibilityInfo,
 } from 'react-native';
@@ -186,18 +185,13 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ===== HÉROS ANIMÉ ===== */}
-          <DeliveryHero />
+        {/* ===== HÉROS ANIMÉ ===== */}
+        <DeliveryHero />
 
-          {/* ===== CARTE FORMULAIRE ===== */}
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <SafeAreaView edges={['bottom']} style={styles.cardWrap}>
-              <View style={styles.card}>
+        {/* ===== CARTE FORMULAIRE (remplit tout le bas) ===== */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <SafeAreaView edges={['bottom']} style={styles.cardWrap}>
+            <View style={styles.card}>
                 {/* Pill "Livraison en direct" */}
                 <View style={styles.pill}>
                   <View style={styles.pingWrap}>
@@ -279,7 +273,6 @@ export default function AuthScreen() {
               </View>
             </SafeAreaView>
           </TouchableWithoutFeedback>
-        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -333,7 +326,6 @@ function PressableCTA({
 const styles = StyleSheet.create({
   // Fond blanc = pas de "2e bloc" gris sous la carte ; la carte remplit le bas.
   container: { flex: 1, backgroundColor: '#fff' },
-  scroll: { flexGrow: 1 },
   cardWrap: {
     marginTop: -32, // chevauche légèrement le héros
     flex: 1,
