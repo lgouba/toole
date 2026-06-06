@@ -198,7 +198,7 @@ export default function AuthScreen() {
                     <Animated.View style={[styles.pingRing, pingStyle]} />
                     <View style={styles.pingDot} />
                   </View>
-                  <Text style={styles.pillText}>LIVRAISON EN DIRECT</Text>
+                  <Text style={styles.pillText}>LIVRAISON PARTOUT</Text>
                 </View>
 
                 <Text style={styles.title}>Bienvenue chez {appName} !</Text>
@@ -336,8 +336,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: R.card,
     borderTopRightRadius: R.card,
     paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
+    paddingTop: 28,
+    paddingBottom: 24,
     gap: 14,
     maxWidth: 440,
     width: '100%',
@@ -429,7 +429,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#fff',
   },
-  altLink: { alignItems: 'center', paddingVertical: 6 },
+  // marginTop:auto → pousse le lien en bas de la carte ; le formulaire reste
+  // collé sous le héros et l'espace blanc se place entre le CTA et le lien.
+  altLink: { alignItems: 'center', paddingVertical: 6, marginTop: 'auto' },
   altText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
   altBold: { fontFamily: F.bodyBold, color: C.primary },
   // OTP
@@ -441,7 +443,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  otpActions: { alignItems: 'center', gap: 12, marginTop: 16 },
+  otpActions: { alignItems: 'center', gap: 12, marginTop: 'auto' },
   resendText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
   resendLink: { fontFamily: F.bodyBold, fontSize: 14, color: C.primary },
   editLink: {
