@@ -209,7 +209,7 @@ function RootLayout() {
       <SocketProvider>
         <ActiveDeliveryGuard />
         <ConnectionBanner />
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(driver)" />

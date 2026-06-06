@@ -329,6 +329,7 @@ const styles = StyleSheet.create({
   cardWrap: {
     marginTop: -32, // chevauche légèrement le héros
     flex: 1,
+    backgroundColor: '#fff', // garantit le blanc jusqu'au bas (zone safe-area incluse)
   },
   card: {
     flex: 1,
