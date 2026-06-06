@@ -324,12 +324,13 @@ function PressableCTA({
 }
 
 const styles = StyleSheet.create({
-  // Fond blanc = pas de "2e bloc" gris sous la carte ; la carte remplit le bas.
+  // L'écran entier est blanc (renforcé par contentStyle blanc du navigateur).
+  // La carte se dimensionne à son contenu ; sous elle, c'est le même blanc →
+  // transition invisible, blanc continu jusqu'en bas. Pas de "bloc" séparé.
   container: { flex: 1, backgroundColor: '#fff' },
   cardWrap: {
     marginTop: -32, // chevauche légèrement le héros
     flex: 1,
-    backgroundColor: '#fff', // garantit le blanc jusqu'au bas (zone safe-area incluse)
   },
   card: {
     flex: 1,
