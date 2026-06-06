@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,82 +6,120 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  TextInput,
   Keyboard,
   TouchableWithoutFeedback,
   ScrollView,
   Alert,
+  AccessibilityInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, OtpInput } from '@/components/ui';
-import { LoginMotoAnimation } from '@/components/LoginMotoAnimation';
-import { colors, typography, spacing, borderRadius, shadow } from '@/theme';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
+import { OtpInput } from '@/components/ui';
+import { DeliveryHero } from '@/components/auth/DeliveryHero';
+import { PhoneField } from '@/components/auth/PhoneField';
+import { COUNTRIES, Country } from '@/components/auth/CountryPicker';
+import { authColors as C, authFonts as F, authRadius as R } from '@/theme/auth';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useCountdown } from '@/hooks/useCountdown';
 
-// Indicatif Burkina Faso, prefixe automatiquement : l'utilisateur saisit
-// uniquement ses 8 chiffres locaux, sans se demander s'il faut ajouter +226.
-const COUNTRY_CODE = '226';
-
-/** Formate 8 chiffres "70123456" en "70 12 34 56" pour la lisibilite. */
-function formatLocal(digits: string): string {
-  return digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
-}
-
-export default function LoginScreen() {
+export default function AuthScreen() {
   const router = useRouter();
   const { sendOtp, verifyOtp, isLoading } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
 
-  // Etape : 'phone' = saisie du numero, 'otp' = saisie du code (meme page).
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState(''); // 8 chiffres locaux
+  const [country, setCountry] = useState<Country>(COUNTRIES[0]); // BF +226
+  const [digits, setDigits] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   const { remaining, start, isActive } = useCountdown(60);
 
-  // Identifier complet envoye au backend (226 + 8 chiffres).
-  const fullIdentifier = `${COUNTRY_CODE}${phone}`;
-  const phoneValid = phone.length === 8;
+  const isValid = digits.length >= 8;
+  const phoneE164 = `${country.dial}${digits}`; // ex "22670123456" (backend normalise)
 
-  // ----- Etape 1 : envoi de l'OTP par SMS -----
+  // ---- animations légères (pill + shine CTA) ----
+  const ping = useSharedValue(0);
+  const shine = useSharedValue(0);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((rm) => {
+      setReduceMotion(rm);
+      if (rm) return;
+      ping.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }), -1, false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    if (isValid && step === 'phone') {
+      shine.value = withRepeat(
+        withDelay(1200, withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) })),
+        -1,
+        false,
+      );
+    } else {
+      shine.value = 0;
+    }
+  }, [isValid, step, reduceMotion]);
+
+  const pingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(ping.value, [0, 1], [0.9, 0]),
+    transform: [{ scale: interpolate(ping.value, [0, 1], [1, 2.6]) }],
+  }));
+
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.value, [0, 0.5, 1], [0, 0.35, 0]),
+    transform: [
+      { translateX: interpolate(shine.value, [0, 1], [-160, 220]) },
+      { skewX: '-18deg' },
+    ],
+  }));
+
+  // ---- étape 1 : envoi OTP par SMS ----
   const handleSendOtp = async () => {
     setError('');
-    if (!phoneValid) {
-      setError('Entrez votre numéro à 8 chiffres');
+    if (!isValid) {
+      setError('Entrez un numéro valide (8 chiffres).');
       return;
     }
     Keyboard.dismiss();
-    const result = await sendOtp(fullIdentifier, 'sms', 'login');
+    const result = await sendOtp(phoneE164, 'sms', 'login');
     if (result.success) {
       setStep('otp');
       setCode('');
-      start(); // demarre le compte a rebours "Renvoyer dans Xs"
+      start();
     } else {
-      // Message generique : ne pas reveler si le numero existe ou non
-      // (protection contre l'enumeration de comptes).
       setError(result.error || "Impossible d'envoyer le code. Vérifiez votre numéro.");
     }
   };
 
-  // ----- Etape 2 : verification du code + connexion auto -----
+  // ---- étape 2 : vérification + connexion auto ----
   const handleVerify = async (otpCode: string) => {
     setError('');
     setVerifying(true);
     try {
       const result = await verifyOtp(otpCode);
-
       if (!result.success) {
         if (result.errorCode === 'DRIVER_KYC_PENDING') {
           Alert.alert(
             'Compte en cours de validation',
             result.errorMessage ??
-              "Vos justificatifs sont en cours de validation par notre équipe. Vous recevrez une notification dès l'activation de votre compte (24-48h).",
+              "Vos justificatifs sont en cours de validation par notre équipe (24-48h).",
           );
           setCode('');
           return;
@@ -90,7 +128,7 @@ export default function LoginScreen() {
           Alert.alert(
             'Compte refusé',
             result.errorMessage ??
-              'Vos justificatifs ont été refusés. Contactez le support pour relancer votre inscription.',
+              'Vos justificatifs ont été refusés. Contactez le support.',
           );
           setCode('');
           return;
@@ -99,33 +137,26 @@ export default function LoginScreen() {
           Alert.alert(
             'Compte indisponible',
             result.errorMessage ??
-              "Votre compte n'est pas accessible pour le moment. Veuillez contacter le support.",
+              "Votre compte n'est pas accessible pour le moment. Contactez le support.",
           );
           setCode('');
           return;
         }
-        if (result.errorCode === 'EXPIRED_OTP') {
-          setError('Code expiré. Demandez un nouveau code.');
-        } else {
-          setError(result.errorMessage ?? 'Code incorrect.');
-        }
+        setError(
+          result.errorCode === 'EXPIRED_OTP'
+            ? 'Code expiré. Demandez un nouveau code.'
+            : result.errorMessage ?? 'Code incorrect.',
+        );
         setCode('');
         return;
       }
 
-      // Nouveau numero (pas encore de compte) : on bascule sur l'inscription.
       if (result.isNewUser) {
         router.replace('/(auth)/register');
         return;
       }
-
-      // Connexion reussie : redirection selon le role.
       const userType = useAuthStore.getState().user?.userType;
-      if (userType === 'driver') {
-        router.replace('/(driver)');
-      } else {
-        router.replace('/(client)');
-      }
+      router.replace(userType === 'driver' ? '/(driver)' : '/(client)');
     } finally {
       setVerifying(false);
     }
@@ -133,260 +164,296 @@ export default function LoginScreen() {
 
   const handleResend = async () => {
     setError('');
-    const result = await sendOtp(fullIdentifier, 'sms', 'login');
+    const result = await sendOtp(phoneE164, 'sms', 'login');
     if (result.success) {
       setCode('');
       start();
     } else {
-      setError(result.error || "Impossible de renvoyer le code. Réessayez.");
+      setError(result.error || 'Impossible de renvoyer le code. Réessayez.');
     }
   };
 
-  const handleEditPhone = () => {
+  const editPhone = () => {
     setStep('phone');
     setCode('');
     setError('');
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* HERO : scène animée (moto qui roule vers sa destination) */}
-            <View style={styles.hero}>
-              <Text style={styles.heroAccentBox}>📦</Text>
-              <Text style={styles.heroAccentStar}>⭐</Text>
-              <LoginMotoAnimation />
-            </View>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ===== HÉROS ANIMÉ ===== */}
+          <DeliveryHero />
 
-            {/* FORM bas */}
-            <View style={styles.form}>
-              <Text style={styles.title}>Bienvenue chez {appName} !</Text>
-              <Text style={styles.subtitle}>
-                {step === 'phone'
-                  ? 'Entrez votre numéro pour recevoir un code de connexion par SMS.'
-                  : `Code envoyé par SMS au +${COUNTRY_CODE} ${formatLocal(phone)}.`}
-              </Text>
-
-              {step === 'phone' ? (
-                <>
-                  {/* Champ telephone avec indicatif +226 fixe */}
-                  <View style={styles.inputCard}>
-                    <Text style={styles.flag}>🇧🇫</Text>
-                    <Text style={styles.dialCode}>+{COUNTRY_CODE}</Text>
-                    <View style={styles.divider} />
-                    <TextInput
-                      style={styles.phoneInput}
-                      placeholder="70 12 34 56"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="number-pad"
-                      autoComplete="tel"
-                      textContentType="telephoneNumber"
-                      value={formatLocal(phone)}
-                      onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 8))}
-                      maxLength={11} // 8 chiffres + 3 espaces
-                    />
+          {/* ===== CARTE FORMULAIRE ===== */}
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <SafeAreaView edges={['bottom']} style={styles.cardWrap}>
+              <View style={styles.card}>
+                {/* Pill "Livraison en direct" */}
+                <View style={styles.pill}>
+                  <View style={styles.pingWrap}>
+                    <Animated.View style={[styles.pingRing, pingStyle]} />
+                    <View style={styles.pingDot} />
                   </View>
-                  {error ? <Text style={styles.error}>{error}</Text> : null}
+                  <Text style={styles.pillText}>LIVRAISON EN DIRECT</Text>
+                </View>
 
-                  <View style={styles.footer}>
-                    <Button
-                      title="Continuer ✨"
-                      onPress={handleSendOtp}
-                      loading={isLoading}
-                      disabled={!phoneValid}
+                <Text style={styles.title}>Bienvenue chez {appName} !</Text>
+
+                {step === 'phone' ? (
+                  <>
+                    <Text style={styles.subtitle}>
+                      Entrez votre numéro pour recevoir un code de connexion par SMS.
+                    </Text>
+
+                    <Text style={styles.label}>Numéro de téléphone</Text>
+                    <PhoneField
+                      country={country}
+                      onCountryChange={setCountry}
+                      digits={digits}
+                      onDigitsChange={setDigits}
+                      maxDigits={country.code === 'FR' ? 9 : 8}
                     />
+
+                    {error ? <Text style={styles.error}>{error}</Text> : null}
+
+                    {/* CTA Continuer */}
+                    <PressableCTA
+                      label="Continuer"
+                      onPress={handleSendOtp}
+                      disabled={!isValid || isLoading}
+                      loading={isLoading}
+                      shineStyle={!reduceMotion && isValid ? shineStyle : undefined}
+                    />
+
                     <TouchableOpacity
                       onPress={() => router.push('/(auth)/register')}
-                      style={styles.registerLink}
+                      style={styles.altLink}
                       activeOpacity={0.7}
+                      accessibilityRole="link"
                     >
-                      <Text style={styles.registerLinkText}>
+                      <Text style={styles.altText}>
                         Première fois ici ?{' '}
-                        <Text style={styles.registerLinkBold}>S'inscrire</Text>
+                        <Text style={styles.altBold}>S'inscrire</Text>
                       </Text>
                     </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <>
-                  {/* Saisie du code OTP, sur la meme page */}
-                  <View style={styles.otpWrap}>
-                    <OtpInput
-                      length={4}
-                      value={code}
-                      onChange={setCode}
-                      onComplete={handleVerify}
-                    />
-                  </View>
-                  {error ? (
-                    <Text style={[styles.error, styles.errorCentered]}>{error}</Text>
-                  ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.subtitle}>
+                      Code envoyé par SMS au +{country.dial} {formatLocal(digits)}.
+                    </Text>
 
-                  {verifying ? (
-                    <Text style={styles.verifying}>Vérification…</Text>
-                  ) : null}
+                    <View style={styles.otpWrap}>
+                      <OtpInput length={4} value={code} onChange={setCode} onComplete={handleVerify} />
+                    </View>
 
-                  <View style={styles.otpActions}>
-                    {isActive ? (
-                      <Text style={styles.resendText}>Renvoyer dans {remaining}s</Text>
-                    ) : (
-                      <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
-                        <Text style={styles.resendLink}>Renvoyer le code</Text>
+                    {error ? (
+                      <Text style={[styles.error, { textAlign: 'center' }]}>{error}</Text>
+                    ) : null}
+                    {verifying ? <Text style={styles.verifying}>Vérification…</Text> : null}
+
+                    <View style={styles.otpActions}>
+                      {isActive ? (
+                        <Text style={styles.resendText}>Renvoyer dans {remaining}s</Text>
+                      ) : (
+                        <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
+                          <Text style={styles.resendLink}>Renvoyer le code</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity onPress={editPhone} activeOpacity={0.7}>
+                        <Text style={styles.editLink}>Modifier le numéro</Text>
                       </TouchableOpacity>
-                    )}
-                    <TouchableOpacity onPress={handleEditPhone} activeOpacity={0.7}>
-                      <Text style={styles.editPhoneLink}>Modifier le numéro</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+                    </View>
+                  </>
+                )}
+              </View>
+            </SafeAreaView>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const HERO_HEIGHT = 300;
+function formatLocal(digits: string): string {
+  return digits.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+}
+
+/** CTA plein largeur avec shine sweep + press-scale. */
+function PressableCTA({
+  label,
+  onPress,
+  disabled,
+  loading,
+  shineStyle,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  shineStyle?: any;
+}) {
+  const scale = useSharedValue(1);
+  const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <Animated.View style={aStyle}>
+      <TouchableOpacity
+        activeOpacity={1}
+        disabled={disabled}
+        onPressIn={() => {
+          scale.value = withTiming(0.97, { duration: 90 });
+        }}
+        onPressOut={() => {
+          scale.value = withTiming(1, { duration: 120 });
+        }}
+        onPress={onPress}
+        style={[styles.cta, disabled && styles.ctaDisabled]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {shineStyle ? <Animated.View style={[styles.ctaShine, shineStyle]} /> : null}
+        <Text style={styles.ctaText}>{loading ? 'Envoi…' : label}</Text>
+        {!loading && <Ionicons name="arrow-forward" size={20} color="#fff" />}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  hero: {
-    height: HERO_HEIGHT,
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: 48,
-    borderBottomRightRadius: 48,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+  container: { flex: 1, backgroundColor: C.bg },
+  scroll: { flexGrow: 1 },
+  cardWrap: {
+    marginTop: -32, // chevauche légèrement le héros
   },
-  heroAccentBox: {
-    position: 'absolute',
-    top: 40,
-    left: 30,
-    fontSize: 36,
-    opacity: 0.85,
+  card: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: R.card,
+    borderTopRightRadius: R.card,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 16,
+    gap: 14,
+    minHeight: 360,
+    maxWidth: 440,
+    width: '100%',
+    alignSelf: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 12,
   },
-  heroAccentStar: {
-    position: 'absolute',
-    bottom: 40,
-    right: 30,
-    fontSize: 30,
-    opacity: 0.9,
-  },
-  form: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.md,
-  },
-  title: {
-    ...typography.h1,
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-    marginTop: spacing.xs,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  inputCard: {
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    alignSelf: 'flex-start',
     gap: 8,
-    marginTop: spacing.sm,
-    ...shadow.sm,
+    backgroundColor: C.pillBg,
+    borderRadius: R.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
-  flag: { fontSize: 24 },
-  dialCode: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    fontFamily: typography.bodyMedium.fontFamily,
+  pingWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
+  pingRing: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.primary,
   },
-  divider: {
-    width: 1.5,
-    height: 24,
-    backgroundColor: colors.border,
+  pingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.primary },
+  pillText: {
+    fontFamily: F.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    color: C.primary,
   },
-  phoneInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textPrimary,
-    fontFamily: typography.bodyMedium.fontFamily,
+  title: {
+    fontFamily: F.displayExtra,
+    fontSize: 27,
+    color: C.text,
+    lineHeight: 32,
+  },
+  subtitle: {
+    fontFamily: F.bodyRegular,
+    fontSize: 15,
+    color: C.muted,
+    lineHeight: 22,
+  },
+  label: {
+    fontFamily: F.bodyBold,
+    fontSize: 14,
+    color: C.text,
+    marginTop: 2,
   },
   error: {
-    ...typography.bodySmall,
-    color: colors.error,
-    marginTop: -spacing.xs,
+    fontFamily: F.bodyMedium,
+    fontSize: 13,
+    color: '#DC2626',
   },
-  errorCentered: {
-    textAlign: 'center',
-    marginTop: spacing.sm,
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: C.primary,
+    borderRadius: R.pill,
+    paddingVertical: 18,
+    marginTop: 4,
+    overflow: 'hidden',
+    shadowColor: C.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
-  otpWrap: {
-    marginTop: spacing.lg,
+  ctaDisabled: {
+    backgroundColor: C.primary + '66',
+    shadowOpacity: 0,
+    elevation: 0,
   },
+  ctaShine: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 80,
+    backgroundColor: '#fff',
+  },
+  ctaText: {
+    fontFamily: F.displayBold,
+    fontSize: 17,
+    color: '#fff',
+  },
+  altLink: { alignItems: 'center', paddingVertical: 6 },
+  altText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
+  altBold: { fontFamily: F.bodyBold, color: C.primary },
+  // OTP
+  otpWrap: { marginTop: 8, alignItems: 'center' },
   verifying: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    fontFamily: F.bodyMedium,
+    fontSize: 13,
+    color: C.muted,
     textAlign: 'center',
-    marginTop: spacing.sm,
+    marginTop: 8,
   },
-  otpActions: {
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.xl,
-  },
-  resendText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  resendLink: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '800',
-  },
-  editPhoneLink: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  otpActions: { alignItems: 'center', gap: 12, marginTop: 16 },
+  resendText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
+  resendLink: { fontFamily: F.bodyBold, fontSize: 14, color: C.primary },
+  editLink: {
+    fontFamily: F.bodyMedium,
+    fontSize: 14,
+    color: C.muted,
     textDecorationLine: 'underline',
-  },
-  footer: { marginTop: spacing.lg, gap: spacing.xs },
-  registerLink: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  registerLinkText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  registerLinkBold: {
-    color: colors.primary,
-    fontWeight: '800',
   },
 });
