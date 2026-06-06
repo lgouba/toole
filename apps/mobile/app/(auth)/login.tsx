@@ -429,9 +429,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#fff',
   },
-  // marginTop:auto → pousse le lien en bas de la carte ; le formulaire reste
-  // collé sous le héros et l'espace blanc se place entre le CTA et le lien.
-  altLink: { alignItems: 'center', paddingVertical: 6, marginTop: 'auto' },
+  altLink: { alignItems: 'center', paddingVertical: 6, marginTop: 4 },
   altText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
   altBold: { fontFamily: F.bodyBold, color: C.primary },
   // OTP
@@ -443,7 +441,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  otpActions: { alignItems: 'center', gap: 12, marginTop: 'auto' },
+  otpActions: { alignItems: 'center', gap: 12, marginTop: 16 },
   resendText: { fontFamily: F.bodyMedium, fontSize: 14, color: C.muted },
   resendLink: { fontFamily: F.bodyBold, fontSize: 14, color: C.primary },
   editLink: {
