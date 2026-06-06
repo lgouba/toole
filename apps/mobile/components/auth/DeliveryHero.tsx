@@ -53,8 +53,11 @@ const CITY_BLOCKS: [number, number, number, number][] = [
 // Le point bas de la route passe SOUS les roues du livreur (~x185, y262) pour
 // qu'il paraisse posé sur la route, puis remonte vers l'arrivée en haut-gauche.
 const START = { x: 432, y: 296 }; // point de départ (pulse), bas-droite
-const DEST = { x: 70, y: 156 }; // anneau d'arrivée (pin), haut-gauche
-const ROUTE = `M${START.x} ${START.y} C 360 288, 250 268, 185 262 C 128 256, 96 206, ${DEST.x} ${DEST.y}`;
+const DEST = { x: 66, y: 208 }; // anneau d'arrivée (pin), gauche
+// La route reste à hauteur des roues (~y260) sur TOUTE la largeur du livreur
+// (x ~250 → ~125), puis remonte vers le pin. Ainsi les 2 roues touchent la
+// ligne au lieu que la roue avant flotte au-dessus.
+const ROUTE = `M${START.x} ${START.y} C 360 290, 285 263, 250 261 C 200 258, 160 261, 125 259 C 100 257, 80 234, ${DEST.x} ${DEST.y}`;
 
 export function DeliveryHero() {
   const [width, setWidth] = useState(0);
