@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Share, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Share,
+  Alert,
+  Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Avatar, Button } from '@/components/ui';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Map } from '@/components/map/Map';
-import { DeliveryStatusStepper } from '@/components/delivery';
-import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
@@ -16,6 +23,30 @@ import { getDeliveryById } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
+
+// Palette sombre premium (maquette suivi)
+const D = {
+  bg: '#0E1326',
+  sheet: '#171E38',
+  surface: 'rgba(255,255,255,0.05)',
+  surfaceStrong: 'rgba(255,255,255,0.08)',
+  border: 'rgba(255,255,255,0.09)',
+  text: '#F1F4FF',
+  textMuted: '#9AA3C4',
+  green: '#00E676',
+  greenDeep: '#16A34A',
+  greenGlow: 'rgba(0,230,118,0.18)',
+  star: '#FFC53D',
+};
+
+const RIDER_AVATAR = require('@/assets/images/rider/rider-avatar.png');
+
+const VEHICLE_LABEL: Record<string, string> = {
+  moto: 'Moto',
+  velo: 'Vélo',
+  voiture: 'Voiture',
+  tricycle: 'Tricycle',
+};
 
 export default function ActiveDeliveryScreen() {
   const router = useRouter();
@@ -176,159 +207,229 @@ export default function ActiveDeliveryScreen() {
 
   if (!delivery) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.emptyContainer}>
         <Text style={styles.noDelivery}>Aucune livraison active</Text>
       </SafeAreaView>
     );
   }
 
+  // ----- valeurs dérivées du statut -----
+  const status = delivery.status;
+  const pillLabel =
+    status === 'accepted' || status === 'picking_up'
+      ? 'Livreur en route'
+      : status === 'picked_up' || status === 'delivering'
+        ? 'En livraison'
+        : status === 'delivered'
+          ? 'Livré'
+          : 'En cours';
+
+  const activeStep =
+    status === 'accepted' || status === 'picking_up'
+      ? 0
+      : status === 'picked_up' || status === 'delivering'
+        ? 1
+        : status === 'delivered'
+          ? 2
+          : 0;
+
+  const steps = [
+    { icon: 'bike-fast', label: 'Livreur en route vers vous' },
+    { icon: 'package-variant-closed', label: 'Colis récupéré, en livraison' },
+    { icon: 'check-all', label: 'Livré' },
+  ] as const;
+
+  const showPickupCode =
+    (status === 'accepted' || status === 'picking_up') &&
+    !!delivery.pickupValidationCode;
+  const showDeliveryCode = status === 'picked_up' || status === 'delivering';
+  const codeValue = showPickupCode
+    ? delivery.pickupValidationCode
+    : delivery.validationCode;
+  const codeTitle = showPickupCode ? 'CODE DE RÉCUPÉRATION' : 'CODE DE LIVRAISON';
+  const codeHint = showPickupCode
+    ? delivery.senderContactName
+      ? `À communiquer à ${delivery.senderContactName} pour la récupération.`
+      : 'À donner au livreur lors de la récupération'
+    : 'À communiquer au destinataire pour la livraison';
+
+  const canShare =
+    !!delivery.trackingToken &&
+    ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(status);
+
   return (
     <View style={styles.container}>
+      <StatusBar style="light" />
       <Map
         center={mapCenter}
         zoom={14}
         markers={mapMarkers}
         routeCoordinates={routeCoords}
         fitToContent
+        theme="dark"
       />
 
-      {/* Back button */}
-      <SafeAreaView edges={['top']} style={styles.backButton}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backCircle}
-        >
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+      {/* Back + pill statut */}
+      <SafeAreaView edges={['top']} style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
+          <Ionicons name="arrow-back" size={20} color={D.text} />
         </TouchableOpacity>
+        <View style={styles.statusPill}>
+          <View style={styles.pillDot} />
+          <Text style={styles.pillText}>{pillLabel}</Text>
+        </View>
+        <View style={{ width: 40 }} />
       </SafeAreaView>
 
-      {/* Bottom sheet */}
-      <View style={styles.bottomSheet}>
+      {/* Bottom sheet sombre */}
+      <View style={styles.sheet}>
         <View style={styles.handle} />
-
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.sheetContent}
         >
-
-        {/* Driver info */}
-        {driver && (
-          <View style={styles.driverRow}>
-            <Avatar name={driver.fullName} size="md" />
-            <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{driver.fullName}</Text>
-              <Text style={styles.driverMeta}>
-                {(() => {
-                  const r = formatRating(driver.ratingAvg, driver.ratingCount);
-                  return r.hasRatings
-                    ? `${r.value} ★ · ${r.label}`
-                    : `${r.label}`;
-                })()}{' '}
-                · {driver.driverProfile.totalDeliveries} courses
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => openPhone(driver.phone)}
-            >
-              <Ionicons name="call" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => {
-                const loc = driverPos ?? delivery.deliveryLocation;
-                shareLocationWhatsApp(
-                  delivery.recipientPhone,
-                  delivery.reference,
-                  loc.latitude,
-                  loc.longitude,
-                );
-              }}
-            >
-              <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ETA temps reel (OSRM) - visible uniquement quand le livreur est en route */}
-        {delivery.eta &&
-          ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(
-            delivery.status,
-          ) && (
-            <View style={styles.etaCard}>
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.etaLabel}>
-                  {delivery.status === 'accepted' ||
-                  delivery.status === 'picking_up'
-                    ? 'Arrivée au point de récupération'
-                    : 'Arrivée au point de livraison'}
-                </Text>
-                <Text style={styles.etaValue}>
-                  Dans {formatEta(delivery.eta.durationSeconds)}
-                  {'  ·  '}
-                  {formatDistance(delivery.eta.distanceMeters / 1000)}
-                </Text>
+          {/* Header livreur */}
+          {driver && (
+            <View style={styles.driverRow}>
+              <View style={styles.avatarRing}>
+                <Image source={RIDER_AVATAR} style={styles.avatarImg} />
               </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.driverName} numberOfLines={1}>
+                  {driver.fullName}
+                </Text>
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={13} color={D.star} />
+                  <Text style={styles.driverMeta}>
+                    {(() => {
+                      const r = formatRating(driver.ratingAvg, driver.ratingCount);
+                      return r.hasRatings ? r.value : 'Nouveau';
+                    })()}{' '}
+                    · {VEHICLE_LABEL[driver.driverProfile.vehicleType] ?? 'Scooter'}
+                  </Text>
+                </View>
+              </View>
+              {delivery.eta &&
+              ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(
+                status,
+              ) ? (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.etaBig}>
+                    {formatEta(delivery.eta.durationSeconds)}
+                  </Text>
+                  <Text style={styles.etaDist}>
+                    {formatDistance(delivery.eta.distanceMeters / 1000)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           )}
 
-        {/* Status stepper */}
-        <DeliveryStatusStepper
-          status={delivery.status}
-          thirdPartySenderName={delivery.senderContactName}
-        />
+          {/* Actions appel / whatsapp */}
+          {driver && (
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => openPhone(driver.phone)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="call" size={17} color={D.green} />
+                <Text style={styles.actionText}>Appeler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => {
+                  const loc = driverPos ?? delivery.deliveryLocation;
+                  shareLocationWhatsApp(
+                    delivery.recipientPhone,
+                    delivery.reference,
+                    loc.latitude,
+                    loc.longitude,
+                  );
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="logo-whatsapp" size={17} color="#25D366" />
+                <Text style={styles.actionText}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {/* Carte d'info contextuelle selon le statut */}
-        {(delivery.status === 'accepted' || delivery.status === 'picking_up') &&
-        delivery.pickupValidationCode ? (
-          <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>Code de récupération</Text>
-            <Text style={styles.codeValue}>{delivery.pickupValidationCode}</Text>
-            <Text style={styles.codeHint}>
-              {delivery.senderContactName
-                ? `Communiquez ce code a ${delivery.senderContactName} pour qu'il le donne au livreur au moment de la récupération.`
-                : "A donner au livreur au moment de la récupération du colis."}
-            </Text>
+          {/* Timeline */}
+          <View style={styles.timeline}>
+            {steps.map((s, i) => {
+              const done = i < activeStep;
+              const active = i === activeStep;
+              const reached = done || active;
+              return (
+                <View key={s.icon} style={styles.tlRow}>
+                  <View style={styles.tlIconCol}>
+                    <View
+                      style={[
+                        styles.tlCircle,
+                        active && styles.tlCircleActive,
+                        done && styles.tlCircleDone,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={s.icon as any}
+                        size={18}
+                        color={reached ? '#fff' : D.textMuted}
+                      />
+                    </View>
+                    {i < steps.length - 1 && (
+                      <View
+                        style={[styles.tlLine, done && styles.tlLineDone]}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.tlLabel,
+                      reached && styles.tlLabelActive,
+                    ]}
+                  >
+                    {s.label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
-        ) : delivery.status === 'picked_up' ||
-          delivery.status === 'delivering' ? (
-          <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>Code de livraison</Text>
-            <Text style={styles.codeValue}>{delivery.validationCode}</Text>
-            <Text style={styles.codeHint}>
-              Communiquez ce code au destinataire pour qu'il le remette au livreur
-            </Text>
-          </View>
-        ) : null}
 
-        {/* Bouton "Partager le suivi" : le client envoie a son destinataire un
-            lien web qui montre la progression en temps reel sans installer l'app. */}
-        {delivery.trackingToken &&
-        ['accepted', 'picking_up', 'picked_up', 'delivering'].includes(
-          delivery.status,
-        ) ? (
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={async () => {
-              const url = `${TRACKING_BASE_URL}/track/${delivery.trackingToken}`;
-              const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Toolé (réf. ${delivery.reference}) : ${url}`;
-              try {
-                await Share.share({ message, url });
-              } catch (err) {
-                console.warn('[active-delivery] share failed', err);
-                Alert.alert(
-                  'Partage impossible',
-                  'Le partage du suivi a échoué. Réessayez ou copiez le lien manuellement.',
-                );
-              }
-            }}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="share-social-outline" size={20} color={colors.white} />
-            <Text style={styles.shareBtnText}>Partager le suivi au destinataire</Text>
-          </TouchableOpacity>
-        ) : null}
+          {/* Code */}
+          {showPickupCode || showDeliveryCode ? (
+            <View style={styles.codeCard}>
+              <Text style={styles.codeTitle}>{codeTitle}</Text>
+              <Text style={styles.codeValue}>{codeValue}</Text>
+              <Text style={styles.codeHint}>{codeHint}</Text>
+            </View>
+          ) : null}
+
+          {/* Partager le suivi */}
+          {canShare ? (
+            <TouchableOpacity
+              style={styles.shareBtn}
+              activeOpacity={0.88}
+              onPress={async () => {
+                const url = `${TRACKING_BASE_URL}/track/${delivery.trackingToken}`;
+                const message = `Bonjour ${delivery.recipientName}, voici le suivi en direct de votre livraison Toolé (réf. ${delivery.reference}) : ${url}`;
+                try {
+                  await Share.share({ message, url });
+                } catch (err) {
+                  console.warn('[active-delivery] share failed', err);
+                  Alert.alert(
+                    'Partage impossible',
+                    'Le partage du suivi a échoué. Réessayez ou copiez le lien manuellement.',
+                  );
+                }
+              }}
+            >
+              <Ionicons name="share-social" size={19} color="#fff" />
+              <Text style={styles.shareBtnText}>
+                Partager le suivi au destinataire
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </View>
     </View>
@@ -336,174 +437,194 @@ export default function ActiveDeliveryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
+  container: { flex: 1, backgroundColor: D.bg },
+  emptyContainer: { flex: 1, backgroundColor: D.bg, justifyContent: 'center' },
   noDelivery: {
-    ...typography.body,
-    color: colors.textSecondary,
+    color: D.textMuted,
     textAlign: 'center',
-    marginTop: spacing.xxl,
+    fontSize: 15,
   },
-  marker: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  driverMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.white,
-  },
-  backButton: {
+
+  // ---- top bar ----
+  topBar: {
     position: 'absolute',
     top: 0,
-    left: spacing.md,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   backCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(14,19,38,0.72)',
+    borderWidth: 1,
+    borderColor: D.border,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
-  bottomSheet: {
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(14,19,38,0.82)',
+    borderWidth: 1,
+    borderColor: D.border,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  pillDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: D.green,
+  },
+  pillText: { color: D.text, fontWeight: '700', fontSize: 14 },
+
+  // ---- bottom sheet ----
+  sheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    paddingTop: spacing.sm,
-    maxHeight: '60%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: D.sheet,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: D.border,
+    paddingTop: 10,
+    maxHeight: '64%',
   },
-  sheetContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 28 },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: D.surfaceStrong,
     alignSelf: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 18,
   },
-  driverRow: {
+
+  // ---- driver header ----
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: D.green,
+    backgroundColor: D.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: { width: 56, height: 56 },
+  driverName: { color: D.text, fontSize: 19, fontWeight: '800' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  driverMeta: { color: D.textMuted, fontSize: 14, fontWeight: '600' },
+  etaBig: { color: D.green, fontSize: 24, fontWeight: '800' },
+  etaDist: { color: D.textMuted, fontSize: 13, marginTop: 1 },
+
+  // ---- actions ----
+  actionsRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  actionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: D.surface,
+    borderWidth: 1,
+    borderColor: D.border,
   },
-  driverInfo: { flex: 1 },
-  driverName: { ...typography.bodyMedium, color: colors.textPrimary },
-  driverMeta: { ...typography.caption, color: colors.textSecondary },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+  actionText: { color: D.text, fontWeight: '700', fontSize: 14 },
+
+  // ---- timeline ----
+  timeline: { marginTop: 22 },
+  tlRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  tlIconCol: { alignItems: 'center', width: 44 },
+  tlCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: D.surface,
+    borderWidth: 1,
+    borderColor: D.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  codeCard: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
+  tlCircleActive: {
+    backgroundColor: D.green,
+    borderColor: D.green,
+    shadowColor: D.green,
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
   },
-  etaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primaryLight,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  etaLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  etaValue: {
-    ...typography.bodyMedium,
-    color: colors.primaryDark,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: spacing.sm,
-  },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  tlCircleDone: { backgroundColor: D.greenDeep, borderColor: D.greenDeep },
+  tlLine: { width: 2, height: 26, backgroundColor: D.border, marginVertical: 2 },
+  tlLineDone: { backgroundColor: D.greenDeep },
+  tlLabel: {
     flex: 1,
-    lineHeight: 19,
+    color: D.textMuted,
+    fontSize: 16,
+    fontWeight: '700',
+    paddingTop: 11,
+    marginLeft: 14,
   },
-  codeLabel: {
-    ...typography.captionMedium,
-    color: colors.primaryDark,
+  tlLabelActive: { color: D.text },
+
+  // ---- code ----
+  codeCard: {
+    marginTop: 22,
+    borderRadius: 20,
+    paddingVertical: 22,
+    alignItems: 'center',
+    backgroundColor: D.greenGlow,
+    borderWidth: 1,
+    borderColor: 'rgba(0,230,118,0.35)',
+  },
+  codeTitle: {
+    color: D.green,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   codeValue: {
-    ...typography.h1,
-    color: colors.primaryDark,
-    letterSpacing: 8,
-    marginVertical: spacing.xs,
+    color: '#fff',
+    fontSize: 46,
+    fontWeight: '900',
+    letterSpacing: 12,
+    marginVertical: 8,
+    textShadowColor: 'rgba(0,230,118,0.7)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
   },
-  codeHint: {
-    ...typography.caption,
-    color: colors.primaryDark,
-  },
+  codeHint: { color: D.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
+
+  // ---- share ----
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.md,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    gap: 10,
+    backgroundColor: D.greenDeep,
+    paddingVertical: 17,
+    borderRadius: 16,
+    marginTop: 20,
+    shadowColor: D.green,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  shareBtnText: {
-    ...typography.bodyMedium,
-    color: colors.white,
-    fontWeight: '700',
-  },
+  shareBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

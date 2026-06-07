@@ -27,6 +27,11 @@ interface MapProps {
    * Utilise quand on veut montrer tout le parcours du client.
    */
   fitToContent?: boolean;
+  /**
+   * Thème de la carte. 'dark' utilise les tuiles CartoDB dark_matter (vraies
+   * rues, rendu sombre premium). 'light' = OSM standard. Défaut 'light'.
+   */
+  theme?: 'light' | 'dark';
 }
 
 /** Serialise uniquement la structure d'un marker (pas sa position precise). */
@@ -48,7 +53,14 @@ function buildHtml(
   route: [LatLng, LatLng] | null,
   interactive: boolean,
   fitToContent: boolean,
+  theme: 'light' | 'dark',
 ): string {
+  const isDark = theme === 'dark';
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const bodyBg = isDark ? '#0E1326' : '#F5F5F0';
+  const routeColor = isDark ? '#00E676' : colors.primary;
   const markersJs = markers
     .map((m) => {
       if (m.icon === 'driver') {
@@ -184,7 +196,7 @@ function buildHtml(
       window._route = L.polyline([
         [${route[0].latitude}, ${route[0].longitude}],
         [${route[1].latitude}, ${route[1].longitude}]
-      ], { color: '${colors.primary}', weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(map);
+      ], { color: '${routeColor}', weight: 4, opacity: 0.85, dashArray: '10, 10' }).addTo(map);
     `
     : `window._route = null;`;
 
@@ -207,7 +219,7 @@ function buildHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
-    body { background: #F5F5F0; }
+    body { background: ${bodyBg}; }
     .custom-marker { transition: transform 0.4s linear; }
 
     /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
@@ -261,8 +273,9 @@ function buildHtml(
       attributionControl: false
     }).setView([${center.latitude}, ${center.longitude}], ${zoom});
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19
+    L.tileLayer('${tileUrl}', {
+      maxZoom: 20,
+      subdomains: 'abcd'
     }).addTo(map);
 
     // Calcule le bearing (angle en degres) entre deux points GPS.
@@ -352,6 +365,7 @@ export function Map({
   style,
   interactive = true,
   fitToContent = false,
+  theme = 'light',
 }: MapProps) {
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
@@ -380,12 +394,13 @@ export function Map({
         routeCoordinates || null,
         interactive,
         fitToContent,
+        theme,
       ),
     // NOTE: on ne met PAS center.latitude/longitude dans les deps pour éviter
     // les rebuilds intempestifs (tremblement). Le recentrage se fait via JS
     // injection dans l'useEffect ci-dessous.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [zoom, structureKey, interactive, fitToContent],
+    [zoom, structureKey, interactive, fitToContent, theme],
   );
 
   // Detecte un changement significatif du center (ex: GPS qui arrive après
