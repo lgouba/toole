@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,13 +9,18 @@ import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useSettingsStore } from '@/stores/settings.store';
+import { useLocationStore } from '@/stores/location.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 import { getDeliveryById } from '@/services/delivery.service';
 import { formatEta, formatDistance } from '@/utils/format';
+import { LatLng } from '@/types';
+
+const SHEET_INSET = Dimensions.get('window').height * 0.5;
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
+  const driverPos = useLocationStore((s) => s.current);
   const cooldownSec = useSettingsStore(
     (s) => s.settings.operations.driverCancelCooldownSeconds,
   );
@@ -71,26 +76,55 @@ export default function PickupNavigationScreen() {
     return () => clearInterval(id);
   }, [activeDelivery?.acceptedAt, cooldownSec]);
 
-  if (!activeDelivery) return null;
-
   const handleCancelConfirm = async (reason: string, comment: string) => {
     const ok = await cancelActiveDelivery(reason, comment || undefined);
     setShowCancel(false);
     if (ok) router.replace('/(driver)');
   };
 
+  // Marqueurs : point de récup (cible) + position du livreur (avatar) si connue.
+  const markers = useMemo(() => {
+    if (!activeDelivery) return [];
+    const list: any[] = [
+      { id: 'pickup', coordinate: activeDelivery.pickupLocation, icon: 'pickup' },
+    ];
+    if (driverPos) {
+      list.push({ id: 'driver', coordinate: driverPos, icon: 'driver' });
+    }
+    return list;
+  }, [activeDelivery?.pickupLocation, driverPos]);
+
+  const route = useMemo<[LatLng, LatLng] | undefined>(
+    () =>
+      activeDelivery && driverPos
+        ? [driverPos, activeDelivery.pickupLocation]
+        : undefined,
+    [driverPos, activeDelivery?.pickupLocation],
+  );
+
+  if (!activeDelivery) return null;
+
   return (
     <View style={styles.container}>
       <Map
-        center={activeDelivery.pickupLocation}
+        center={driverPos ?? activeDelivery.pickupLocation}
         zoom={14}
-        markers={[{ id: 'pickup', coordinate: activeDelivery.pickupLocation, icon: 'pickup' }]}
+        markers={markers}
+        routeCoordinates={route}
+        fitToContent
+        contentInsetTop={120}
+        contentInsetBottom={SHEET_INSET}
       />
 
-      <SafeAreaView edges={['top']} style={styles.backButton}>
+      <SafeAreaView edges={['top']} style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
+        <View style={styles.statusPill}>
+          <View style={styles.pillDot} />
+          <Text style={styles.pillText}>Vers la récupération</Text>
+        </View>
+        <View style={{ width: 40 }} />
       </SafeAreaView>
 
       <View style={styles.bottomSheet}>
@@ -207,7 +241,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
-  backButton: { position: 'absolute', top: 0, left: spacing.md },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
   backCircle: {
     width: 40,
     height: 40,
@@ -216,11 +260,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
     elevation: 4,
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  pillText: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
