@@ -164,7 +164,7 @@ export function ActiveDeliveryGuard() {
   return null;
 }
 
-function computeTargetPath(
+export function computeTargetPath(
   role: 'client' | 'driver',
   status: string,
 ): string | null {

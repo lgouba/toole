@@ -26,6 +26,7 @@ import { useSettingsStore } from '@/stores/settings.store';
 import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
+import { ActiveDeliveryBanner } from '@/components/ActiveDeliveryBanner';
 import { ForceUpdateGate } from '@/components/ForceUpdateGate';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
@@ -224,6 +225,7 @@ function RootLayout() {
         <Stack.Screen name="wallet-flow" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <ActiveDeliveryBanner />
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
