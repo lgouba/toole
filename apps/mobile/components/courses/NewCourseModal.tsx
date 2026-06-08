@@ -160,6 +160,28 @@ export function NewCourseModal({
             </View>
           </View>
 
+          {/* Zone PRIX (valeur déclarée) + FRAGILE — remontée AU-DESSUS de la
+              carte pour ne pas polluer l'encart des adresses. Affichée si l'un
+              des deux est renseigné. */}
+          {(course.isFragile || (course.declaredValue && course.declaredValue > 0)) && (
+            <Animated.View entering={FadeIn.duration(350).delay(80)} style={styles.flags}>
+              {course.isFragile && (
+                <View style={[styles.flag, styles.flagFragile]}>
+                  <Ionicons name="warning" size={15} color="#3A1A00" />
+                  <Text style={styles.flagFragileText}>FRAGILE</Text>
+                </View>
+              )}
+              {course.declaredValue && course.declaredValue > 0 ? (
+                <View style={[styles.flag, styles.flagValue]}>
+                  <Ionicons name="pricetag" size={14} color={T.mint} />
+                  <Text style={styles.flagValueText}>
+                    Valeur ~{fmtCFA(course.declaredValue)} FCFA
+                  </Text>
+                </View>
+              ) : null}
+            </Animated.View>
+          )}
+
           {/* Carte verre */}
           <Animated.View entering={FadeIn.duration(400).delay(120)} style={styles.card}>
             {/* Chips distance / colis */}
@@ -167,26 +189,6 @@ export function NewCourseModal({
               <Chip icon="navigate-outline" value={fmtKm(course.distanceKm)} label="DISTANCE" />
               <Chip icon="cube-outline" value={course.colisLabel} label="COLIS" />
             </View>
-
-            {/* Zone PRIX (valeur déclarée) + FRAGILE — affichée si l'un est défini */}
-            {(course.isFragile || (course.declaredValue && course.declaredValue > 0)) && (
-              <View style={styles.flags}>
-                {course.isFragile && (
-                  <View style={[styles.flag, styles.flagFragile]}>
-                    <Ionicons name="warning" size={15} color="#3A1A00" />
-                    <Text style={styles.flagFragileText}>FRAGILE</Text>
-                  </View>
-                )}
-                {course.declaredValue && course.declaredValue > 0 ? (
-                  <View style={[styles.flag, styles.flagValue]}>
-                    <Ionicons name="pricetag" size={14} color={T.mint} />
-                    <Text style={styles.flagValueText}>
-                      Valeur ~{fmtCFA(course.declaredValue)} FCFA
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            )}
 
             {/* Colis chez un tiers */}
             {course.thirdPartyName ? (
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  flags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  flags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   flag: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -20,8 +20,10 @@ const AnimatedRect = Animated.createAnimatedComponent(Rect);
  */
 export function PerimeterCountdown({ progress }: { progress: SharedValue<number> }) {
   const { width: W, height: H } = useWindowDimensions();
-  const inset = 5;
-  const r = 33;
+  // Inset généreux : à 5px le trait passait sous les coins arrondis / la
+  // courbure du bord de l'écran et devenait invisible. ~16px le rend net.
+  const inset = 16;
+  const r = 34;
   const w = W - inset * 2;
   const h = H - inset * 2;
 
@@ -50,7 +52,7 @@ export function PerimeterCountdown({ progress }: { progress: SharedValue<number>
         rx={r}
         ry={r}
         fill="none"
-        strokeWidth={5}
+        strokeWidth={6}
         strokeLinecap="round"
         strokeDasharray={perimeter}
         animatedProps={animatedProps}
