@@ -11,6 +11,13 @@ export interface MapMarker {
   color?: string;
   label?: string;
   icon?: 'pickup' | 'delivery' | 'driver' | 'default';
+  /**
+   * Point vers lequel le marqueur (livreur) doit "regarder" : son sprite est
+   * orienté (miroir horizontal) vers cette cible. Utilisé pour que le livreur
+   * regarde la destination de la phase courante (récup puis livraison),
+   * indépendamment de son micro-déplacement.
+   */
+  target?: LatLng;
 }
 
 interface MapProps {
@@ -102,6 +109,14 @@ function buildHtml(
             // Memorise la position précédente pour calculer le bearing au prochain update
             window._prevPositions = window._prevPositions || {};
             window._prevPositions[${JSON.stringify(m.id)}] = { lat: ${m.coordinate.latitude}, lng: ${m.coordinate.longitude} };
+            window._targets = window._targets || {};
+            ${
+              m.target
+                ? `window._targets[${JSON.stringify(m.id)}] = { lat: ${m.target.latitude}, lng: ${m.target.longitude} };
+            // Oriente le livreur vers sa cible dès la création.
+            setTimeout(function(){ orientDriver(marker, computeBearing(${m.coordinate.latitude}, ${m.coordinate.longitude}, ${m.target.latitude}, ${m.target.longitude})); }, 0);`
+                : `delete window._targets[${JSON.stringify(m.id)}];`
+            }
           }
         `;
       }
@@ -271,15 +286,33 @@ function buildHtml(
         var m = window._markers[id];
         if (!m) return;
 
-        var prev = window._prevPositions && window._prevPositions[id];
-        if (prev && (Math.abs(prev.lat - lat) > 1e-6 || Math.abs(prev.lng - lng) > 1e-6)) {
-          // Oriente le livreur dans le sens de marche reel.
-          var brng = computeBearing(prev.lat, prev.lng, lat, lng);
-          orientDriver(m, brng);
-          window._prevPositions[id] = { lat: lat, lng: lng };
+        // Orientation : en priorité vers la CIBLE de la phase (récup/livraison)
+        // si elle est connue ; sinon, à défaut, selon le sens de déplacement.
+        var tgt = window._targets && window._targets[id];
+        if (tgt) {
+          orientDriver(m, computeBearing(lat, lng, tgt.lat, tgt.lng));
+        } else {
+          var prev = window._prevPositions && window._prevPositions[id];
+          if (prev && (Math.abs(prev.lat - lat) > 1e-6 || Math.abs(prev.lng - lng) > 1e-6)) {
+            orientDriver(m, computeBearing(prev.lat, prev.lng, lat, lng));
+          }
         }
+        window._prevPositions[id] = { lat: lat, lng: lng };
 
         m.setLatLng([lat, lng]);
+      } catch (e) {}
+    };
+    // Met à jour la cible d'orientation d'un marqueur (changement de phase).
+    window.updateTarget = function(id, lat, lng) {
+      try {
+        window._targets = window._targets || {};
+        var m = window._markers[id];
+        if (lat == null || lng == null) { delete window._targets[id]; return; }
+        window._targets[id] = { lat: lat, lng: lng };
+        if (m) {
+          var p = window._prevPositions[id] || { lat: lat, lng: lng };
+          orientDriver(m, computeBearing(p.lat, p.lng, lat, lng));
+        }
       } catch (e) {}
     };
     window.updateRoute = function(aLat, aLng, bLat, bLng) {
@@ -421,6 +454,20 @@ export function Map({
       ) {
         snippets.push(
           `window.updateMarker && window.updateMarker(${JSON.stringify(m.id)}, ${m.coordinate.latitude}, ${m.coordinate.longitude});`,
+        );
+      }
+      // Changement de cible d'orientation (ex: phase récup -> livraison)
+      const prevT = pm?.target;
+      const curT = m.target;
+      const targetChanged =
+        (!!prevT !== !!curT) ||
+        (prevT && curT &&
+          (prevT.latitude !== curT.latitude || prevT.longitude !== curT.longitude));
+      if (pm && targetChanged) {
+        snippets.push(
+          curT
+            ? `window.updateTarget && window.updateTarget(${JSON.stringify(m.id)}, ${curT.latitude}, ${curT.longitude});`
+            : `window.updateTarget && window.updateTarget(${JSON.stringify(m.id)}, null, null);`,
         );
       }
     }

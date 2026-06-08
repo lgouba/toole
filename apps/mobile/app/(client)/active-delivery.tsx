@@ -181,6 +181,7 @@ export default function ActiveDeliveryScreen() {
       coordinate: LatLng;
       icon: 'pickup' | 'delivery' | 'driver';
       label?: string;
+      target?: LatLng;
     }> = [
       {
         id: 'pickup',
@@ -196,15 +197,22 @@ export default function ActiveDeliveryScreen() {
       },
     ];
     if (driverPos) {
+      // Le livreur regarde la cible de la phase courante : récup tant que le
+      // colis n'est pas pris, puis livraison.
+      const target =
+        delivery.status === 'picked_up' || delivery.status === 'delivering'
+          ? delivery.deliveryLocation
+          : delivery.pickupLocation;
       list.push({
         id: 'driver',
         coordinate: driverPos,
         icon: 'driver',
         label: '🛵 Votre livreur',
+        target,
       });
     }
     return list;
-  }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation]);
+  }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation, delivery?.status]);
 
   // Centre la carte sur le livreur tant qu'il bouge, sinon sur pickup
   const mapCenter = driverPos ?? delivery?.pickupLocation ?? {

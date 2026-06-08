@@ -36,15 +36,26 @@ export default function DriverHomeScreen() {
   // pour un livreur situe ailleurs des qu'on a une position GPS.
   const myPosition: LatLng = currentLocation ?? userLocation ?? getCenter();
 
+  // Cible de la phase courante : tant que le colis n'est pas récupéré, le
+  // livreur va vers la RÉCUP ; une fois récupéré, vers la LIVRAISON.
+  const currentTarget: LatLng | null = activeDelivery
+    ? activeDelivery.status === 'picked_up' || activeDelivery.status === 'delivering'
+      ? activeDelivery.deliveryLocation
+      : activeDelivery.pickupLocation
+    : null;
+
   // Markers a afficher :
-  //  - toujours : position du livreur (avatar moto)
+  //  - toujours : position du livreur (avatar moto), orienté vers sa cible
   //  - si course active : pickup + delivery
   const mapMarkers = useMemo(() => {
     const list: Array<{
       id: string;
       coordinate: LatLng;
       icon: 'driver' | 'pickup' | 'delivery';
-    }> = [{ id: 'me', coordinate: myPosition, icon: 'driver' }];
+      target?: LatLng;
+    }> = [
+      { id: 'me', coordinate: myPosition, icon: 'driver', target: currentTarget ?? undefined },
+    ];
     if (activeDelivery) {
       list.push({
         id: 'pickup',
@@ -64,14 +75,12 @@ export default function DriverHomeScreen() {
       });
     }
     return list;
-  }, [myPosition, activeDelivery]);
+  }, [myPosition, activeDelivery, currentTarget?.latitude, currentTarget?.longitude]);
 
-  // Trajet : si course active, tracer pickup -> delivery
-  const routeCoords: [LatLng, LatLng] | undefined = activeDelivery
-    ? [
-        activeDelivery.pickupLocation,
-        activeDelivery.deliveryLocation,
-      ]
+  // Trajet : la ligne va du livreur vers la cible de la phase courante
+  // (récup tant que pas récupéré, puis livraison) — pas un trajet figé.
+  const routeCoords: [LatLng, LatLng] | undefined = currentTarget
+    ? [myPosition, currentTarget]
     : undefined;
 
   return (

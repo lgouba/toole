@@ -89,7 +89,13 @@ export default function PickupNavigationScreen() {
       { id: 'pickup', coordinate: activeDelivery.pickupLocation, icon: 'pickup' },
     ];
     if (driverPos) {
-      list.push({ id: 'driver', coordinate: driverPos, icon: 'driver' });
+      // Le livreur regarde/va vers le point de RÉCUPÉRATION.
+      list.push({
+        id: 'driver',
+        coordinate: driverPos,
+        icon: 'driver',
+        target: activeDelivery.pickupLocation,
+      });
     }
     return list;
   }, [activeDelivery?.pickupLocation, driverPos]);

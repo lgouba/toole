@@ -61,7 +61,15 @@ export default function DeliveryNavigationScreen() {
     const list: any[] = [
       { id: 'delivery', coordinate: activeDelivery.deliveryLocation, icon: 'delivery' },
     ];
-    if (driverPos) list.push({ id: 'driver', coordinate: driverPos, icon: 'driver' });
+    if (driverPos) {
+      // Le livreur regarde/va vers le point de LIVRAISON.
+      list.push({
+        id: 'driver',
+        coordinate: driverPos,
+        icon: 'driver',
+        target: activeDelivery.deliveryLocation,
+      });
+    }
     return list;
   }, [activeDelivery?.deliveryLocation, driverPos]);
 
