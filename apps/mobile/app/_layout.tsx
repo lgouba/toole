@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -27,6 +27,7 @@ import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { ActiveDeliveryBanner } from '@/components/ActiveDeliveryBanner';
+import { AppSplash } from '@/components/AppSplash';
 import { ForceUpdateGate } from '@/components/ForceUpdateGate';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
@@ -41,14 +42,9 @@ export { ErrorBoundary } from 'expo-router';
 // Comme ca, meme un crash dans le tout premier rendu est capture.
 initSentry();
 
+// Empêche le splash natif de se cacher tout seul : <AppSplash /> le cachera
+// (sur son 1er onLayout) une fois le hero JS peint, pour une bascule sans flash.
 SplashScreen.preventAutoHideAsync();
-
-// Durée minimale d'affichage du splash (ms). Sans ça, le splash disparaît
-// dès que les polices sont prêtes (souvent <300ms) et le logo "flashe".
-// On garde l'écran de lancement visible au moins ce délai pour une entrée
-// plus posée dans l'app.
-const SPLASH_MIN_DURATION_MS = 2200;
-const appStartedAt = Date.now();
 
 function RootLayout() {
   // Verifie automatiquement les OTA Expo au demarrage + au retour en foreground.
@@ -73,6 +69,10 @@ function RootLayout() {
   const segments = useSegments();
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
+
+  // Splash hero plein écran (JS) — identique iOS/Android. <AppSplash /> gère
+  // lui-même le hideAsync natif (onLayout) + le hold + le fondu.
+  const [splashGone, setSplashGone] = useState(false);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -117,15 +117,6 @@ function RootLayout() {
     return () => setAuthExpiredHandler(null);
   }, [logout]);
 
-  // Splash natif (logo Toolé sur vert) gardé visible la durée minimale puis
-  // caché. Un SEUL écran de lancement, identique iOS/Android (pas de splash JS).
-  useEffect(() => {
-    if (!fontsLoaded) return;
-    const elapsed = Date.now() - appStartedAt;
-    const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - elapsed);
-    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), remaining);
-    return () => clearTimeout(t);
-  }, [fontsLoaded]);
 
   // Au démarrage et à chaque transition auth->logged, rafraîchir le user depuis le backend
   // pour éviter d'utiliser un userType obsolète du cache AsyncStorage.
@@ -227,6 +218,7 @@ function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <ActiveDeliveryBanner />
+      {!splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
