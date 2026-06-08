@@ -159,6 +159,18 @@ function buildHtml(
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body { background: ${bodyBg}; }
+    /* Descend le contrôle zoom sous la barre de statut, à droite. */
+    .leaflet-top { top: ${Math.max(40, contentInsetTop)}px; }
+    .leaflet-right { right: 10px; }
+    ${isDark ? `
+    /* Boutons zoom adaptés au thème sombre */
+    .leaflet-bar a {
+      background: rgba(20,26,44,0.9);
+      color: #E8EBF5;
+      border-bottom-color: rgba(255,255,255,0.12);
+    }
+    .leaflet-bar a:hover { background: rgba(32,40,64,0.95); }
+    ` : ''}
     .custom-marker { transition: transform 0.4s linear; }
 
     /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
@@ -218,6 +230,10 @@ function buildHtml(
       maxZoom: 20,
       subdomains: 'abcd'
     }).addTo(map);
+
+    // Déplace le contrôle zoom (+/-) en HAUT-DROITE pour ne plus chevaucher la
+    // barre de statut (heure/batterie) ni le bouton retour en haut-gauche.
+    if (map.zoomControl) { try { map.zoomControl.setPosition('topright'); } catch (e) {} }
 
     // Calcule le bearing (angle en degres) entre deux points GPS.
     // 0 = Nord, 90 = Est, 180 = Sud, 270 = Ouest.
