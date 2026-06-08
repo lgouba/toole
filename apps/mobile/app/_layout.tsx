@@ -32,6 +32,7 @@ import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
 import { setAuthExpiredHandler } from '@/services/api.client';
 import { useAutoUpdate } from '@/hooks/useAutoUpdate';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/theme';
 
 export { ErrorBoundary } from 'expo-router';
@@ -204,6 +205,7 @@ function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeGate>
       <ForceUpdateGate>
       <SocketProvider>
@@ -228,6 +230,7 @@ function RootLayout() {
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
+    </GestureHandlerRootView>
   );
 }
 
