@@ -9,9 +9,9 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#15803D"
+      "image": "./assets/images/toole-splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0E3B26"
     },
     "ios": {
       "supportsTablet": false,
