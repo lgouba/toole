@@ -37,7 +37,7 @@ export function RouteTimeline({
         <Text style={styles.addr} numberOfLines={2}>
           {pickup}
         </Text>
-        <View style={{ height: 14 }} />
+        <View style={{ height: 18 }} />
         <Text style={styles.label}>LIVRAISON</Text>
         <Text style={styles.addr} numberOfLines={2}>
           {dropoff}
@@ -84,10 +84,10 @@ const styles = StyleSheet.create({
   texts: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   label: {
     fontFamily: FONT.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontSize: 11,
+    letterSpacing: 1.2,
     color: T.routeMut,
-    marginBottom: 3,
+    marginBottom: 4,
   },
-  addr: { fontFamily: FONT.body, fontSize: 15, color: T.white, lineHeight: 19 },
+  addr: { fontFamily: FONT.bodyBold, fontSize: 18, color: T.white, lineHeight: 24 },
 });

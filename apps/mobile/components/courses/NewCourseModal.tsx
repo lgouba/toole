@@ -132,8 +132,29 @@ export function NewCourseModal({
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* FRAGILE + Valeur déclarée — tout en haut, centrés. Affichés si
+              l'un des deux est renseigné. */}
+          {(course.isFragile || (course.declaredValue && course.declaredValue > 0)) && (
+            <Animated.View entering={FadeIn.duration(350)} style={styles.flags}>
+              {course.isFragile && (
+                <View style={[styles.flag, styles.flagFragile]}>
+                  <Ionicons name="warning" size={15} color="#3A1A00" />
+                  <Text style={styles.flagFragileText}>FRAGILE</Text>
+                </View>
+              )}
+              {course.declaredValue && course.declaredValue > 0 ? (
+                <View style={[styles.flag, styles.flagValue]}>
+                  <Ionicons name="pricetag" size={14} color={T.mint} />
+                  <Text style={styles.flagValueText}>
+                    Valeur ~{fmtCFA(course.declaredValue)} FCFA
+                  </Text>
+                </View>
+              ) : null}
+            </Animated.View>
+          )}
+
           {/* En-tête */}
-          <Animated.View entering={FadeIn.duration(350)} style={styles.header}>
+          <Animated.View entering={FadeIn.duration(350).delay(60)} style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.dotWrap}>
                 {!reduceMotion && <Animated.View style={[styles.pulseRing, pulseRing]} />}
@@ -160,28 +181,6 @@ export function NewCourseModal({
             </View>
           </View>
 
-          {/* Zone PRIX (valeur déclarée) + FRAGILE — remontée AU-DESSUS de la
-              carte pour ne pas polluer l'encart des adresses. Affichée si l'un
-              des deux est renseigné. */}
-          {(course.isFragile || (course.declaredValue && course.declaredValue > 0)) && (
-            <Animated.View entering={FadeIn.duration(350).delay(80)} style={styles.flags}>
-              {course.isFragile && (
-                <View style={[styles.flag, styles.flagFragile]}>
-                  <Ionicons name="warning" size={15} color="#3A1A00" />
-                  <Text style={styles.flagFragileText}>FRAGILE</Text>
-                </View>
-              )}
-              {course.declaredValue && course.declaredValue > 0 ? (
-                <View style={[styles.flag, styles.flagValue]}>
-                  <Ionicons name="pricetag" size={14} color={T.mint} />
-                  <Text style={styles.flagValueText}>
-                    Valeur ~{fmtCFA(course.declaredValue)} FCFA
-                  </Text>
-                </View>
-              ) : null}
-            </Animated.View>
-          )}
-
           {/* Carte verre */}
           <Animated.View entering={FadeIn.duration(400).delay(120)} style={styles.card}>
             {/* Chips distance / colis */}
@@ -203,6 +202,9 @@ export function NewCourseModal({
             {/* Trajet */}
             <RouteTimeline pickup={course.pickup} dropoff={course.dropoff} />
           </Animated.View>
+
+          {/* Espace flexible : pousse le slider + refus vers le bas. */}
+          <View style={{ flex: 1, minHeight: 24 }} />
 
           {/* Glisser pour accepter */}
           <View style={styles.slideWrap}>
@@ -245,7 +247,9 @@ function Chip({ icon, value, label }: { icon: any; value: string; label: string 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bgEnd },
-  content: { paddingHorizontal: 24, minHeight: '100%', justifyContent: 'center' },
+  // flexGrow:1 + spacer interne → le contenu remplit l'écran (fragile/valeur
+  // en haut, slider + refus poussés en bas) au lieu d'être centré.
+  content: { paddingHorizontal: 24, flexGrow: 1 },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -328,7 +332,13 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  flags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  flags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
   flag: {
     flexDirection: 'row',
     alignItems: 'center',
