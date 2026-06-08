@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -70,9 +70,19 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
-  // Splash hero plein écran (JS) — identique iOS/Android. <AppSplash /> gère
-  // lui-même le hideAsync natif (onLayout) + le hold + le fondu.
+  // Splash hero JS : UNIQUEMENT sur Android (le natif Android ne peut pas faire
+  // de plein écran). Sur iOS le splash NATIF fait déjà le hero parfaitement →
+  // pas de splash JS (sinon double splash + zoom = la régression constatée).
+  const isAndroid = Platform.OS === 'android';
   const [splashGone, setSplashGone] = useState(false);
+
+  // iOS : on cache simplement le splash natif (full hero) une fois prêt.
+  useEffect(() => {
+    if (isAndroid) return; // Android : géré par <AppSplash /> (onLayout)
+    if (!fontsLoaded) return;
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 500);
+    return () => clearTimeout(t);
+  }, [isAndroid, fontsLoaded]);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -218,7 +228,7 @@ function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <ActiveDeliveryBanner />
-      {!splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
+      {isAndroid && !splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
