@@ -189,6 +189,8 @@ function buildHtml(
       /* Drop-shadow autour du cycliste pour le detacher de la carte */
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 2px rgba(255,255,255,0.8));
     }
+    /* Flip horizontal fluide quand le livreur change de sens de marche */
+    .driver-pin-inner img { transition: transform 0.3s ease; }
     /* Halo qui pulse autour de l'avatar */
     @keyframes driver-pulse-ring {
       0%   { transform: scale(0.9); opacity: 0.45; }
@@ -230,17 +232,34 @@ function buildHtml(
       return (brng + 360) % 360;
     }
 
+    // Oriente le sprite du livreur selon son sens de deplacement : la 3D est
+    // une vue 3/4 qui regarde a GAUCHE par defaut. S'il va vers l'EST (droite),
+    // on miroir horizontalement pour qu'il regarde a droite.
+    function orientDriver(m, brng) {
+      try {
+        var el = m.getElement && m.getElement();
+        if (!el) return;
+        var img = el.querySelector('img');
+        if (!img) return;
+        var faceRight = brng > 10 && brng < 170; // cap vers l'est
+        var faceLeft = brng > 190 && brng < 350;  // cap vers l'ouest
+        if (faceRight) img.style.transform = 'scaleX(-1)';
+        else if (faceLeft) img.style.transform = 'scaleX(1)';
+        // (cap quasi nord/sud : on garde l'orientation precedente)
+      } catch (e) {}
+    }
+
     // API exposee a React Native pour mettre a jour sans rebuild.
     window.updateMarker = function(id, lat, lng) {
       try {
         var m = window._markers[id];
         if (!m) return;
 
-        // Le marker est un pin vertical : pas de flip horizontal a faire,
-        // mais on garde la trace de la position precedente au cas ou
-        // on veut afficher une orientation visuelle plus tard.
         var prev = window._prevPositions && window._prevPositions[id];
         if (prev && (Math.abs(prev.lat - lat) > 1e-6 || Math.abs(prev.lng - lng) > 1e-6)) {
+          // Oriente le livreur dans le sens de marche reel.
+          var brng = computeBearing(prev.lat, prev.lng, lat, lng);
+          orientDriver(m, brng);
           window._prevPositions[id] = { lat: lat, lng: lng };
         }
 
