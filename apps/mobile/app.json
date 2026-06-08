@@ -16,6 +16,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.qalitylabs.tolle",
+      "splash": {
+        "image": "./assets/images/toole-splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#0F5132"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Toolé utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
         "NSCameraUsageDescription": "Toolé utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",

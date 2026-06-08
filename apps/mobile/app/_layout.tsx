@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -70,10 +70,23 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
-  // Splash hero JS (hero plein écran centré) sur les 2 plateformes. C'est CE
-  // splash que l'utilisateur veut (rendu identique, cover exact via dimensions
-  // explicites). <AppSplash /> gère lui-même hideAsync (onLayout) + hold + fondu.
+  // SPLASH — architecture définitive :
+  //  • iOS : le splash NATIF affiche déjà le hero plein écran (cover). On NE
+  //    superpose PAS de splash JS, sinon on a 2 images légèrement différentes
+  //    (natif gravé ≠ JS) → effet de "saut/zoom" au moment de la bascule.
+  //    Donc iOS = natif seul. Une seule image, aucune transition.
+  //  • Android : le splash natif (Android 12+) ne peut PAS faire de plein écran
+  //    (l'OS force un logo centré). On affiche donc le hero via <AppSplash />.
+  const isAndroid = Platform.OS === 'android';
   const [splashGone, setSplashGone] = useState(false);
+
+  // iOS : on cache le splash natif (qui montre déjà le hero) une fois prêt.
+  useEffect(() => {
+    if (isAndroid) return; // Android : <AppSplash /> gère hideAsync (onLayout)
+    if (!fontsLoaded) return;
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 400);
+    return () => clearTimeout(t);
+  }, [isAndroid, fontsLoaded]);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -219,7 +232,7 @@ function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <ActiveDeliveryBanner />
-      {!splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
+      {isAndroid && !splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
