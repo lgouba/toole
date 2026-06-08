@@ -25,19 +25,19 @@ import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
 
-// Palette sombre premium (maquette suivi)
+// Palette claire (cohérente avec le reste de l'app)
 const D = {
-  bg: '#0E1326',
-  sheet: '#171E38',
-  surface: 'rgba(255,255,255,0.05)',
-  surfaceStrong: 'rgba(255,255,255,0.08)',
-  border: 'rgba(255,255,255,0.09)',
-  text: '#F1F4FF',
-  textMuted: '#9AA3C4',
-  green: '#00E676',
-  greenDeep: '#16A34A',
-  greenGlow: 'rgba(0,230,118,0.18)',
-  star: '#FFC53D',
+  bg: '#FFFFFF',
+  sheet: '#FFFFFF',
+  surface: '#F1F5F9',
+  surfaceStrong: '#E2E8F0',
+  border: '#E8EDF3',
+  text: '#0F172A',
+  textMuted: '#64748B',
+  green: '#16A34A',
+  greenDeep: '#15803D',
+  greenGlow: '#E7FBEF',
+  star: '#F59E0B',
 };
 
 const RIDER_AVATAR = require('@/assets/images/rider/rider-avatar.png');
@@ -266,14 +266,13 @@ export default function ActiveDeliveryScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Map
         center={mapCenter}
         zoom={14}
         markers={mapMarkers}
         routeCoordinates={routeCoords}
         fitToContent
-        theme="dark"
         contentInsetTop={120}
         contentInsetBottom={SHEET_MAX_H + 30}
       />
@@ -470,22 +469,28 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(14,19,38,0.72)',
-    borderWidth: 1,
-    borderColor: D.border,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(14,19,38,0.82)',
-    borderWidth: 1,
-    borderColor: D.border,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   pillDot: {
     width: 8,
@@ -504,10 +509,13 @@ const styles = StyleSheet.create({
     backgroundColor: D.sheet,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: D.border,
     paddingTop: 10,
     maxHeight: SHEET_MAX_H,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 16,
   },
   sheetContent: { paddingHorizontal: 20, paddingBottom: 28 },
   handle: {
@@ -599,23 +607,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: D.greenGlow,
     borderWidth: 1,
-    borderColor: 'rgba(0,230,118,0.35)',
+    borderColor: 'rgba(22,163,74,0.25)',
   },
   codeTitle: {
-    color: D.green,
+    color: D.greenDeep,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 2,
   },
   codeValue: {
-    color: '#fff',
+    color: D.greenDeep,
     fontSize: 46,
     fontWeight: '900',
     letterSpacing: 12,
     marginVertical: 8,
-    textShadowColor: 'rgba(0,230,118,0.7)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
   },
   codeHint: { color: D.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 16 },
 
