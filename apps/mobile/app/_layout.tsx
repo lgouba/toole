@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -27,6 +27,7 @@ import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { ActiveDeliveryBanner } from '@/components/ActiveDeliveryBanner';
+import { AppSplash } from '@/components/AppSplash';
 import { ForceUpdateGate } from '@/components/ForceUpdateGate';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
@@ -73,6 +74,10 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
+  // Splash JS plein écran (full-bleed identique iOS/Android, voir AppSplash).
+  const [startHideSplash, setStartHideSplash] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
+
   useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
@@ -116,15 +121,21 @@ function RootLayout() {
     return () => setAuthExpiredHandler(null);
   }, [logout]);
 
+  // 1) Cache le splash NATIF rapidement : notre <AppSplash /> JS (déjà monté
+  //    par-dessus l'app) prend le relais en plein écran. Le petit délai laisse
+  //    l'image JS se peindre pour éviter un flash de contenu.
   useEffect(() => {
-    if (fontsLoaded) {
-      const elapsed = Date.now() - appStartedAt;
-      const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - elapsed);
-      const timer = setTimeout(() => {
-        SplashScreen.hideAsync().catch(() => {});
-      }, remaining);
-      return () => clearTimeout(timer);
-    }
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 150);
+    return () => clearTimeout(t);
+  }, []);
+
+  // 2) Garde le splash JS visible la durée minimale, puis lance son fade-out.
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    const elapsed = Date.now() - appStartedAt;
+    const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - elapsed);
+    const t = setTimeout(() => setStartHideSplash(true), remaining);
+    return () => clearTimeout(t);
   }, [fontsLoaded]);
 
   // Au démarrage et à chaque transition auth->logged, rafraîchir le user depuis le backend
@@ -226,6 +237,12 @@ function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <ActiveDeliveryBanner />
+      {!splashGone && (
+        <AppSplash
+          hide={startHideSplash}
+          onHidden={() => setSplashGone(true)}
+        />
+      )}
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
