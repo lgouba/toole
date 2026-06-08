@@ -87,7 +87,7 @@ function buildHtml(
                   <div class="driver-pin-outer">
                     <div class="driver-pin-halo"></div>
                     <div class="driver-pin-inner" data-id="${m.id}">
-                      <img src="${RIDER_MARKER_URI}" width="60" height="60" style="display:block;" alt="livreur" />
+                      <img src="${RIDER_MARKER_URI}" width="66" height="66" style="display:block;" alt="livreur" />
                     </div>
                   </div>
                 \`,
