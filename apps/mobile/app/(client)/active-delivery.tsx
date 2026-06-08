@@ -8,6 +8,7 @@ import {
   Share,
   Alert,
   Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -40,6 +41,12 @@ const D = {
 };
 
 const RIDER_AVATAR = require('@/assets/images/rider/rider-avatar.png');
+
+// Hauteur max du bottom sheet (≈ moitié basse). Sert aussi de marge basse pour
+// le cadrage de la carte (le livreur reste visible au-dessus du sheet).
+const SCREEN_H = Dimensions.get('window').height;
+const SHEET_RATIO = 0.52;
+const SHEET_MAX_H = SCREEN_H * SHEET_RATIO;
 
 const VEHICLE_LABEL: Record<string, string> = {
   moto: 'Moto',
@@ -267,6 +274,8 @@ export default function ActiveDeliveryScreen() {
         routeCoordinates={routeCoords}
         fitToContent
         theme="dark"
+        contentInsetTop={120}
+        contentInsetBottom={SHEET_MAX_H + 30}
       />
 
       {/* Back + pill statut */}
@@ -498,7 +507,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: D.border,
     paddingTop: 10,
-    maxHeight: '64%',
+    maxHeight: SHEET_MAX_H,
   },
   sheetContent: { paddingHorizontal: 20, paddingBottom: 28 },
   handle: {

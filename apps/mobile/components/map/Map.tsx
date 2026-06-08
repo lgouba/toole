@@ -3,6 +3,7 @@ import { StyleSheet, View, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LatLng } from '@/types';
 import { colors } from '@/theme';
+import { RIDER_MARKER_URI } from './riderMarker';
 
 export interface MapMarker {
   id: string;
@@ -32,6 +33,14 @@ interface MapProps {
    * rues, rendu sombre premium). 'light' = OSM standard. Défaut 'light'.
    */
   theme?: 'light' | 'dark';
+  /**
+   * Hauteur (px) masquée en bas par un panneau/sheet superposé. Le cadrage
+   * (fitToContent) ajoute cette marge en bas pour que les markers (livreur,
+   * destination) restent dans la zone VISIBLE au-dessus du panneau.
+   */
+  contentInsetBottom?: number;
+  /** Idem en haut (barre de statut/boutons superposés). Défaut 100. */
+  contentInsetTop?: number;
 }
 
 /** Serialise uniquement la structure d'un marker (pas sa position precise). */
@@ -54,6 +63,8 @@ function buildHtml(
   interactive: boolean,
   fitToContent: boolean,
   theme: 'light' | 'dark',
+  contentInsetTop: number,
+  contentInsetBottom: number,
 ): string {
   const isDark = theme === 'dark';
   const tileUrl = isDark
@@ -76,79 +87,7 @@ function buildHtml(
                   <div class="driver-pin-outer">
                     <div class="driver-pin-halo"></div>
                     <div class="driver-pin-inner" data-id="${m.id}">
-                      <svg viewBox="0 0 100 100" width="68" height="68" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Pas de forme container : le cycliste est affiche seul,
-                             avec juste un drop-shadow CSS sur le parent pour le detacher
-                             visuellement du fond de la carte. -->
-                        <g>
-
-                        <!-- ombre sous le velo -->
-                        <ellipse cx="50" cy="86" rx="32" ry="3" fill="rgba(0,0,0,0.18)"/>
-
-                        <!-- ======= VELO ======= -->
-
-                        <!-- Roue arriere -->
-                        <circle cx="22" cy="74" r="14" fill="none" stroke="#1a1a1a" stroke-width="3"/>
-                        <circle cx="22" cy="74" r="2.5" fill="#1a1a1a"/>
-                        <line x1="22" y1="60" x2="22" y2="88" stroke="#fff" stroke-width="1" opacity="0.7"/>
-                        <line x1="8" y1="74" x2="36" y2="74" stroke="#fff" stroke-width="1" opacity="0.7"/>
-                        <line x1="12" y1="64" x2="32" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
-                        <line x1="32" y1="64" x2="12" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
-
-                        <!-- Roue avant -->
-                        <circle cx="78" cy="74" r="14" fill="none" stroke="#1a1a1a" stroke-width="3"/>
-                        <circle cx="78" cy="74" r="2.5" fill="#1a1a1a"/>
-                        <line x1="78" y1="60" x2="78" y2="88" stroke="#fff" stroke-width="1" opacity="0.7"/>
-                        <line x1="64" y1="74" x2="92" y2="74" stroke="#fff" stroke-width="1" opacity="0.7"/>
-                        <line x1="68" y1="64" x2="88" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
-                        <line x1="88" y1="64" x2="68" y2="84" stroke="#fff" stroke-width="0.8" opacity="0.6"/>
-
-                        <!-- Cadre velo en V (orange Toolé) -->
-                        <path d="M 22 74 L 50 52 L 78 74 M 50 52 L 50 66 L 22 74" stroke="${colors.secondary}" stroke-width="4" fill="none" stroke-linecap="round"/>
-
-                        <!-- Tige de selle + selle -->
-                        <line x1="50" y1="52" x2="40" y2="40" stroke="${colors.secondary}" stroke-width="3.5" stroke-linecap="round"/>
-                        <ellipse cx="40" cy="38" rx="7" ry="2.5" fill="#1a1a1a"/>
-
-                        <!-- Guidon -->
-                        <line x1="78" y1="74" x2="66" y2="40" stroke="${colors.secondary}" stroke-width="3.5" stroke-linecap="round"/>
-                        <line x1="60" y1="38" x2="72" y2="42" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>
-
-                        <!-- Pedalier -->
-                        <circle cx="50" cy="74" r="3.5" fill="#1a1a1a"/>
-
-                        <!-- ======= CYCLISTE ======= -->
-
-                        <!-- Jambe avant pliee (pedale) -->
-                        <path d="M 50 74 L 58 58 L 50 48" stroke="#2a3a55" stroke-width="6" stroke-linecap="round" fill="none"/>
-                        <!-- Jambe arriere etendue -->
-                        <path d="M 50 74 L 42 64 L 36 76" stroke="#2a3a55" stroke-width="6" stroke-linecap="round" fill="none"/>
-
-                        <!-- Tronc (T-shirt clair) -->
-                        <path d="M 38 42 Q 38 32 50 28 Q 62 32 62 42 L 60 50 L 40 50 Z" fill="#fafafa" stroke="#d4d4d4" stroke-width="0.8"/>
-
-                        <!-- Sac de livraison cube dans le dos -->
-                        <rect x="30" y="26" width="18" height="22" rx="2.5" fill="${colors.secondary}" stroke="#fff" stroke-width="1.5"/>
-                        <text x="39" y="40" font-family="Arial, sans-serif" font-size="13" font-weight="900" fill="#fff" text-anchor="middle">T</text>
-                        <path d="M 48 26 L 52 22 L 54 24" stroke="#8a3a1f" stroke-width="2" fill="none" stroke-linecap="round"/>
-
-                        <!-- Bras qui tient le guidon -->
-                        <path d="M 58 38 Q 64 38 67 41" stroke="#fafafa" stroke-width="5" stroke-linecap="round" fill="none"/>
-
-                        <!-- Cou -->
-                        <rect x="49" y="22" width="6" height="6" fill="#c48b62"/>
-
-                        <!-- Tete -->
-                        <circle cx="52" cy="20" r="7" fill="#c48b62"/>
-
-                        <!-- Casque (vert primaire pour rappel marque) -->
-                        <path d="M 45 19 Q 45 11 52 9 Q 59 11 59 19 L 59 23 L 45 23 Z" fill="${colors.primary}" stroke="#0a4d35" stroke-width="0.8"/>
-                        <line x1="45" y1="15" x2="59" y2="15" stroke="#fff" stroke-width="1.2"/>
-                        <line x1="50" y1="23" x2="51" y2="27" stroke="#1a1a1a" stroke-width="0.8"/>
-
-                        </g>
-
-                      </svg>
+                      <img src="${RIDER_MARKER_URI}" width="60" height="60" style="display:block;" alt="livreur" />
                     </div>
                   </div>
                 \`,
@@ -344,7 +283,14 @@ function buildHtml(
       ].join(', ')}];
       if (_points.length >= 2) {
         try {
-          map.fitBounds(_points, { padding: [60, 60], maxZoom: 16 });
+          map.fitBounds(_points, {
+            // Marges asymétriques : on réserve de l'espace en haut (barre) et
+            // surtout en bas (panneau/sheet) pour que les markers restent
+            // visibles dans la zone non masquée.
+            paddingTopLeft: [40, ${Math.max(40, contentInsetTop)}],
+            paddingBottomRight: [40, ${Math.max(40, contentInsetBottom)}],
+            maxZoom: 16,
+          });
         } catch (e) {}
       }
     `
@@ -366,6 +312,8 @@ export function Map({
   interactive = true,
   fitToContent = false,
   theme = 'light',
+  contentInsetTop = 100,
+  contentInsetBottom = 0,
 }: MapProps) {
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
@@ -395,12 +343,14 @@ export function Map({
         interactive,
         fitToContent,
         theme,
+        contentInsetTop,
+        contentInsetBottom,
       ),
     // NOTE: on ne met PAS center.latitude/longitude dans les deps pour éviter
     // les rebuilds intempestifs (tremblement). Le recentrage se fait via JS
     // injection dans l'useEffect ci-dessous.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [zoom, structureKey, interactive, fitToContent, theme],
+    [zoom, structureKey, interactive, fitToContent, theme, contentInsetTop, contentInsetBottom],
   );
 
   // Detecte un changement significatif du center (ex: GPS qui arrive après
