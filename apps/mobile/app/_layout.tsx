@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
+import { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -27,7 +27,6 @@ import { useLocationStore } from '@/stores/location.store';
 import { SocketProvider } from '@/providers/SocketProvider';
 import { ConnectionBanner } from '@/components/ConnectionBanner';
 import { ActiveDeliveryBanner } from '@/components/ActiveDeliveryBanner';
-import { AppSplash } from '@/components/AppSplash';
 import { ForceUpdateGate } from '@/components/ForceUpdateGate';
 import { ActiveDeliveryGuard } from '@/providers/ActiveDeliveryGuard';
 import { ThemeGate } from '@/providers/ThemeGate';
@@ -42,8 +41,8 @@ export { ErrorBoundary } from 'expo-router';
 // Comme ca, meme un crash dans le tout premier rendu est capture.
 initSentry();
 
-// Empêche le splash natif de se cacher tout seul : <AppSplash /> le cachera
-// (sur son 1er onLayout) une fois le hero JS peint, pour une bascule sans flash.
+// Empêche le splash natif de se cacher tout seul : on le cache nous-mêmes une
+// fois les polices chargées (cf. effet hideAsync), pour éviter un flash blanc.
 SplashScreen.preventAutoHideAsync();
 
 function RootLayout() {
@@ -70,23 +69,16 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
-  // SPLASH — architecture définitive :
-  //  • iOS : le splash NATIF affiche déjà le hero plein écran (cover). On NE
-  //    superpose PAS de splash JS, sinon on a 2 images légèrement différentes
-  //    (natif gravé ≠ JS) → effet de "saut/zoom" au moment de la bascule.
-  //    Donc iOS = natif seul. Une seule image, aucune transition.
-  //  • Android : le splash natif (Android 12+) ne peut PAS faire de plein écran
-  //    (l'OS force un logo centré). On affiche donc le hero via <AppSplash />.
-  const isAndroid = Platform.OS === 'android';
-  const [splashGone, setSplashGone] = useState(false);
-
-  // iOS : on cache le splash natif (qui montre déjà le hero) une fois prêt.
+  // SPLASH — un seul écran, 100% natif sur les 2 plateformes (pas de splash JS) :
+  //  • iOS    : splash natif = hero plein écran (cover).
+  //  • Android: splash natif = logo Toolé coloré centré sur vert (Android 12+
+  //    impose un logo centré, pas de plein écran possible).
+  // On cache simplement le splash natif une fois les polices chargées.
   useEffect(() => {
-    if (isAndroid) return; // Android : <AppSplash /> gère hideAsync (onLayout)
     if (!fontsLoaded) return;
-    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 400);
+    const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 300);
     return () => clearTimeout(t);
-  }, [isAndroid, fontsLoaded]);
+  }, [fontsLoaded]);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -232,7 +224,6 @@ function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <ActiveDeliveryBanner />
-      {isAndroid && !splashGone && <AppSplash onHidden={() => setSplashGone(true)} />}
     </SocketProvider>
     </ForceUpdateGate>
     </ThemeGate>
