@@ -16,6 +16,9 @@ RUN npm run build
 FROM nginx:alpine AS runtime
 
 COPY --from=builder /app/dist /usr/share/nginx/html
+# Garantit la présence des fichiers de deep linking à la racine (Vite peut
+# ignorer les dossiers cachés selon la version) — copie explicite.
+COPY --from=builder /app/public/.well-known /usr/share/nginx/html/.well-known
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

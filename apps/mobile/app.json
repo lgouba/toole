@@ -30,7 +30,8 @@
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
-      }
+      },
+      "associatedDomains": ["applinks:admin-tolle.qalitylabs.fr"]
     },
     "android": {
       "package": "com.qalitylabs.tolle",
@@ -49,6 +50,20 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
         "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "admin-tolle.qalitylabs.fr",
+              "pathPrefix": "/track"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {

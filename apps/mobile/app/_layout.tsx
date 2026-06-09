@@ -141,6 +141,10 @@ function RootLayout() {
     const inAuth = topSegment === '(auth)';
     const inClient = topSegment === '(client)';
     const inDriver = topSegment === '(driver)';
+    // Route PUBLIQUE de suivi destinataire (ouverte via universal/app link).
+    // Pas d'auth requise : on n'applique aucun guard/redirection ici.
+    const inTrack = topSegment === 'track';
+    if (inTrack) return;
 
     if (!isOnboarded) {
       if (!inAuth) router.replace('/(auth)/onboarding');
@@ -213,6 +217,7 @@ function RootLayout() {
         <Stack.Screen name="(client)" />
         <Stack.Screen name="(driver)" />
         <Stack.Screen name="delivery/[id]" />
+        <Stack.Screen name="track/[token]" />
         <Stack.Screen name="profile-edit" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="about" />
