@@ -4,7 +4,9 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.qalitylabs.tolle",
-      "sha256_cert_fingerprints": ["__ANDROID_SHA256__"]
+      "sha256_cert_fingerprints": [
+        "3C:95:D8:C3:FB:A9:05:29:5F:35:77:DB:71:C4:B3:3A:B3:92:9B:EB:AE:5D:AE:1E:51:DA:B0:64:40:9A:E7:74"
+      ]
     }
   }
 ]
