@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
 
@@ -36,6 +36,11 @@ interface PublicDelivery {
     currentLocation: { latitude: number; longitude: number } | null;
     lastLocationUpdate: string | null;
   };
+  // Itinéraire routier réel (suit les rues), phase-aware. null = ligne directe.
+  route?: {
+    path: { latitude: number; longitude: number }[] | null;
+    phase: 'to_pickup' | 'to_delivery' | null;
+  } | null;
 }
 
 const POLL_MS = 5_000;
@@ -167,7 +172,7 @@ function Header() {
   return (
     <div style={s.header}>
       <div style={s.logo}>
-        <span style={{ color: '#1d9e75' }}>T</span>ollé
+        <span style={{ color: '#1d9e75' }}>T</span>oolé
       </div>
       <div style={s.headerSub}>Suivi de livraison</div>
     </div>
@@ -175,13 +180,45 @@ function Header() {
 }
 
 function Map({ delivery }: { delivery: PublicDelivery }) {
-  // Carte Leaflet via iframe srcDoc pour ne pas avoir a installer leaflet
-  // sur l'admin. C'est une page publique simple, l'overhead est OK.
-  const html = useMemo(() => buildMapHtml(delivery), [delivery]);
+  // Carte Leaflet via iframe srcDoc (pas besoin d'installer leaflet sur l'admin).
+  // IMPORTANT : le HTML est construit UNE seule fois (au 1er rendu). Les mises à
+  // jour (position du livreur, itinéraire) passent par postMessage → le marqueur
+  // GLISSE au lieu de recharger toute la carte (plus de clignotement).
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const readyRef = useRef(false);
+  const [html] = useState(() => buildMapHtml(delivery));
+
+  const post = () => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(
+      {
+        type: 'tracking',
+        status: delivery.status,
+        driver: delivery.driver?.currentLocation ?? null,
+        path: delivery.route?.path ?? null,
+        pickup: delivery.pickupLocation,
+        delivery: delivery.deliveryLocation,
+      },
+      '*',
+    );
+  };
+
+  // À chaque nouveau poll (delivery change), on pousse la MAJ dans l'iframe.
+  useEffect(() => {
+    if (readyRef.current) post();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delivery]);
+
   return (
     <div style={s.mapWrap}>
       <iframe
+        ref={iframeRef}
         srcDoc={html}
+        onLoad={() => {
+          readyRef.current = true;
+          post();
+        }}
         style={{ width: '100%', height: '100%', border: 0 }}
         title="Carte de suivi"
       />
@@ -338,6 +375,13 @@ function buildMapHtml(d: PublicDelivery): string {
   const pickup = d.pickupLocation;
   const delivery = d.deliveryLocation;
   const driver = d.driver?.currentLocation;
+  const path = d.route?.path ?? null;
+  const initRouteJs =
+    path && path.length >= 2
+      ? `setRoute([${path.map((p) => `[${p.latitude}, ${p.longitude}]`).join(',')}]);`
+      : driver
+        ? `var _t = targetFor(${JSON.stringify(d.status)}); if (_t) setRoute([[${driver.latitude}, ${driver.longitude}], _t]); else setRoute([pickup, delivery]);`
+        : `setRoute([pickup, delivery]);`;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -361,24 +405,72 @@ function buildMapHtml(d: PublicDelivery): string {
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map', { zoomControl: true, attributionControl: false });
+    var map = L.map('map', { zoomControl: true, attributionControl: false });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-    const pickup = [${pickup.latitude}, ${pickup.longitude}];
-    const delivery = [${delivery.latitude}, ${delivery.longitude}];
+    var pickup = [${pickup.latitude}, ${pickup.longitude}];
+    var delivery = [${delivery.latitude}, ${delivery.longitude}];
     L.marker(pickup, { icon: L.divIcon({ className: 'pickup-marker', html: '🟢' }) }).addTo(map);
     L.marker(delivery, { icon: L.divIcon({ className: 'delivery-marker', html: '🔴' }) }).addTo(map);
 
-    ${
+    var driverMarker = ${
       driver
-        ? `L.marker([${driver.latitude}, ${driver.longitude}], { icon: L.divIcon({ className: 'driver-marker', html: '🛵' }) }).addTo(map);`
-        : ''
+        ? `L.marker([${driver.latitude}, ${driver.longitude}], { icon: L.divIcon({ className: 'driver-marker', html: '🛵' }) }).addTo(map)`
+        : 'null'
+    };
+    var routeLine = null;
+    var animTimer = null;
+
+    // Cible de la phase courante (pour le fallback ligne directe si pas d'OSRM).
+    function targetFor(status) {
+      if (status === 'accepted' || status === 'picking_up') return pickup;
+      if (status === 'picked_up' || status === 'delivering') return delivery;
+      return null;
+    }
+    function styleFor(len) {
+      // Trace plein = vrai itineraire routier ; pointille = ligne directe.
+      return { color: '#1d9e75', weight: 4, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: (len >= 3 ? null : '6 6') };
+    }
+    function setRoute(latlngs) {
+      if (!latlngs || latlngs.length < 2) return;
+      if (routeLine) { routeLine.setLatLngs(latlngs); routeLine.setStyle(styleFor(latlngs.length)); }
+      else { routeLine = L.polyline(latlngs, styleFor(latlngs.length)).addTo(map); }
+    }
+    // Glisse le marqueur livreur vers sa nouvelle position (~4s, fluide).
+    function glide(toLat, toLng) {
+      if (!driverMarker) {
+        driverMarker = L.marker([toLat, toLng], { icon: L.divIcon({ className: 'driver-marker', html: '🛵' }) }).addTo(map);
+        return;
+      }
+      var from = driverMarker.getLatLng();
+      if (Math.abs(from.lat - toLat) < 1e-7 && Math.abs(from.lng - toLng) < 1e-7) return;
+      var start = Date.now(); var dur = 4000;
+      if (animTimer) clearInterval(animTimer);
+      animTimer = setInterval(function () {
+        var t = Math.min(1, (Date.now() - start) / dur);
+        driverMarker.setLatLng([from.lat + (toLat - from.lat) * t, from.lng + (toLng - from.lng) * t]);
+        if (t >= 1) { clearInterval(animTimer); animTimer = null; }
+      }, 50);
     }
 
-    L.polyline([pickup, delivery], { color: '#1d9e75', weight: 3, dashArray: '6 6', opacity: 0.7 }).addTo(map);
+    ${initRouteJs}
 
-    const bounds = [pickup, delivery${driver ? `, [${driver.latitude}, ${driver.longitude}]` : ''}];
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    var initBounds = [pickup, delivery${driver ? `, [${driver.latitude}, ${driver.longitude}]` : ''}];
+    map.fitBounds(initBounds, { padding: [40, 40], maxZoom: 15 });
+
+    // Mises a jour live poussees par la page (postMessage) : deplacement fluide
+    // + itineraire routier phase-aware (livreur -> recup puis livreur -> livraison).
+    window.addEventListener('message', function (ev) {
+      var msg = ev.data || {};
+      if (!msg || msg.type !== 'tracking') return;
+      if (msg.path && msg.path.length >= 2) {
+        setRoute(msg.path.map(function (p) { return [p.latitude, p.longitude]; }));
+      } else if (msg.driver) {
+        var t = targetFor(msg.status);
+        if (t) setRoute([[msg.driver.latitude, msg.driver.longitude], t]);
+      }
+      if (msg.driver) glide(msg.driver.latitude, msg.driver.longitude);
+    });
   </script>
 </body>
 </html>`;

@@ -511,9 +511,23 @@ export async function getPublicTrackingByToken(token: string) {
     delivery.deliveryLng,
   );
 
+  // Itineraire routier reel (geometrie) pour la page de suivi destinataire,
+  // phase-aware (livreur -> recup puis livreur -> livraison). Meme cache que
+  // l'ETA ci-dessus (aucun appel OSRM supplementaire). null si indispo.
+  const route = await computePublicRoutePath(
+    delivery.status,
+    delivery.driver?.driverProfile?.currentLat ?? null,
+    delivery.driver?.driverProfile?.currentLng ?? null,
+    delivery.pickupLat,
+    delivery.pickupLng,
+    delivery.deliveryLat,
+    delivery.deliveryLng,
+  );
+
   // Sanitize : on n'expose QUE ce qui est sur la page tracking
   return {
     eta,
+    route,
     reference: delivery.reference,
     status: delivery.status,
     recipientName: delivery.recipientName,
@@ -582,6 +596,42 @@ async function computeDeliveryEta(
     return null;
   }
   return computeRouteEta(driverLat, driverLng, destLat, destLng);
+}
+
+/**
+ * Geometrie de l'itineraire routier pour la phase courante (meme logique que
+ * computeDeliveryEta, mais renvoie le trace). Partage le cache OSRM avec l'ETA.
+ */
+async function computePublicRoutePath(
+  status: DeliveryStatus,
+  driverLat: number | null | undefined,
+  driverLng: number | null | undefined,
+  pickupLat: number,
+  pickupLng: number,
+  deliveryLat: number,
+  deliveryLng: number,
+): Promise<{
+  path: { latitude: number; longitude: number }[];
+  phase: 'to_pickup' | 'to_delivery';
+} | null> {
+  if (driverLat == null || driverLng == null) return null;
+  let destLat: number;
+  let destLng: number;
+  let phase: 'to_pickup' | 'to_delivery';
+  if (status === 'accepted' || status === 'picking_up') {
+    destLat = pickupLat;
+    destLng = pickupLng;
+    phase = 'to_pickup';
+  } else if (status === 'picked_up' || status === 'delivering') {
+    destLat = deliveryLat;
+    destLng = deliveryLng;
+    phase = 'to_delivery';
+  } else {
+    return null;
+  }
+  const r = await computeRoute(driverLat, driverLng, destLat, destLng);
+  if (!r || r.coordinates.length < 2) return null;
+  return { path: r.coordinates, phase };
 }
 
 export async function getDeliveryForUser(
