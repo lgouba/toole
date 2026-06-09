@@ -126,8 +126,11 @@ export default function ActiveDeliveryScreen() {
             );
             setActiveDelivery(fresh);
           }
-          // Si la position du livreur est connue côté backend mais pas encore en store
-          if (fresh.driverId && !useDeliveryStore.getState().driverLocation) {
+          // Position du livreur : rafraîchie à CHAQUE cycle (pas seulement au
+          // premier), pour que le client voie le livreur se déplacer même si un
+          // event socket est perdu (réseau BF instable). Le backend stocke la
+          // dernière position GPS poussée par le livreur (~10s).
+          if (fresh.driverId) {
             const d = await getDriverById(fresh.driverId);
             if (d?.driverProfile?.currentLocation) {
               setDriverLocation(d.driverProfile.currentLocation);
@@ -156,22 +159,34 @@ export default function ActiveDeliveryScreen() {
     }
   }, [driverLocation]);
 
-  // Position reelle du livreur, interpolee pour une animation fluide
-  // entre chaque heartbeat (~10s). Tant qu'on n'a pas encore reçu la
-  // premiere position, on se base sur pickup comme fallback visuel.
-  const fallback: LatLng | null = delivery?.pickupLocation ?? null;
-  const { position: driverPos } = useAnimatedPosition(
-    driverLocation,
-    fallback,
-  );
+  // Phase courante : avant récupération, le livreur roule vers le point A
+  // (récupération) ; après récupération, il roule vers le point B (livraison).
+  const isAfterPickup =
+    delivery?.status === 'picked_up' || delivery?.status === 'delivering';
 
-  // Toujours afficher le trajet complet pickup -> delivery. Le livreur
-  // apparait en plus sur la carte a sa position courante et se deplace
-  // le long (en principe) de ce trajet.
+  // Position live du livreur, interpolée pour une animation fluide entre chaque
+  // mise à jour (~10s socket / 5s polling). PAS de fallback sur le pickup : tant
+  // qu'on n'a pas reçu sa vraie position, on n'affiche pas le marqueur livreur
+  // (sinon on ferait croire qu'il est déjà au point de récupération).
+  const { position: driverPos } = useAnimatedPosition(driverLocation, null);
+
+  // Tracé du parcours, ancré sur la position RÉELLE du livreur :
+  //  • avant récupération : livreur (C) → récupération (A)
+  //  • après récupération  : livreur      → livraison (B)
+  // Tant que la position du livreur est inconnue, on montre au moins A → B.
   const routeCoords = useMemo<[LatLng, LatLng] | undefined>(() => {
     if (!delivery) return undefined;
+    const phaseTarget = isAfterPickup
+      ? delivery.deliveryLocation
+      : delivery.pickupLocation;
+    if (driverLocation) return [driverLocation, phaseTarget];
     return [delivery.pickupLocation, delivery.deliveryLocation];
-  }, [delivery?.pickupLocation, delivery?.deliveryLocation]);
+  }, [
+    delivery?.pickupLocation,
+    delivery?.deliveryLocation,
+    driverLocation,
+    isAfterPickup,
+  ]);
 
   // Marqueurs : toujours afficher pickup + delivery + (livreur si connu)
   const mapMarkers = useMemo(() => {
@@ -199,10 +214,9 @@ export default function ActiveDeliveryScreen() {
     if (driverPos) {
       // Le livreur regarde la cible de la phase courante : récup tant que le
       // colis n'est pas pris, puis livraison.
-      const target =
-        delivery.status === 'picked_up' || delivery.status === 'delivering'
-          ? delivery.deliveryLocation
-          : delivery.pickupLocation;
+      const target = isAfterPickup
+        ? delivery.deliveryLocation
+        : delivery.pickupLocation;
       list.push({
         id: 'driver',
         coordinate: driverPos,
@@ -212,7 +226,7 @@ export default function ActiveDeliveryScreen() {
       });
     }
     return list;
-  }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation, delivery?.status]);
+  }, [driverPos, delivery?.pickupLocation, delivery?.deliveryLocation, isAfterPickup]);
 
   // Centre la carte sur le livreur tant qu'il bouge, sinon sur pickup
   const mapCenter = driverPos ?? delivery?.pickupLocation ?? {
