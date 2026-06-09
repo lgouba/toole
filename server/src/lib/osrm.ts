@@ -1,31 +1,45 @@
 import { logger } from './logger.js';
 
 /**
- * Helper OSRM pour calculer un ETA (temps d'arrivee estime) entre deux points
- * en suivant la route routiere reelle.
+ * Helper OSRM : calcule un itineraire routier reel entre deux points
+ * (geometrie complete qui suit les rues + duree + distance).
  *
- * Utilise par defaut l'instance publique de demonstration OSRM, qui est
- * gratuite mais rate-limitee. Pour la prod, deployer sa propre instance
- * (https://github.com/Project-OSRM/osrm-backend) et pointer dessus via
- * OSRM_BASE_URL.
+ * En prod on pointe sur une instance OSRM auto-hebergee (gratuite, illimitee)
+ * via OSRM_BASE_URL (cf. docker-compose : service `tolle-osrm`). A defaut, on
+ * retombe sur l'instance publique de demo (rate-limitee, NE PAS utiliser en
+ * prod serieuse).
  *
- * Cache en memoire (TTL 15s par cle) pour eviter de hammer OSRM lors des
- * pollings clients/livreurs (rafraichissement toutes les 5s).
+ * Cache en memoire (TTL 15s par cle, arrondi ~11m) pour ne pas marteler OSRM
+ * lors des pollings clients/livreurs (rafraichissement ~5s). Une seule requete
+ * OSRM sert a la fois la geometrie ET l'ETA (meme appel `overview=full`).
  */
 
 const OSRM_BASE = process.env.OSRM_BASE_URL ?? 'https://router.project-osrm.org';
 const CACHE_TTL_MS = 15_000;
 const FETCH_TIMEOUT_MS = 4_000;
 
-export interface EtaResult {
+export interface RoutePoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RouteResult {
   /** Duree estimee en secondes pour parcourir le trajet en voiture. */
   durationSeconds: number;
   /** Distance reelle de la route en metres (peut differer du vol-d'oiseau). */
   distanceMeters: number;
+  /** Geometrie du trajet (suit les rues), du depart vers l'arrivee. */
+  coordinates: RoutePoint[];
+}
+
+/** Sous-ensemble historique (ETA seul). Conserve pour compat des callers. */
+export interface EtaResult {
+  durationSeconds: number;
+  distanceMeters: number;
 }
 
 interface CacheEntry {
-  value: EtaResult;
+  value: RouteResult;
   expiresAt: number;
 }
 
@@ -44,27 +58,30 @@ function cacheKey(
 }
 
 /**
- * Calcule l'ETA entre deux points GPS. Retourne null si l'API ne repond pas
- * ou retourne une erreur (le caller doit gerer le fallback proprement —
- * typiquement, masquer l'ETA dans l'UI).
+ * Calcule l'itineraire routier complet (geometrie + ETA) entre deux points GPS.
+ * Retourne null si l'API ne repond pas ou retourne une erreur (le caller doit
+ * gerer le fallback : typiquement, tracer une ligne directe a la place).
  */
-export async function computeRouteEta(
+export async function computeRoute(
   fromLat: number,
   fromLng: number,
   toLat: number,
   toLng: number,
-): Promise<EtaResult | null> {
+): Promise<RouteResult | null> {
   const key = cacheKey(fromLat, fromLng, toLat, toLng);
   const now = Date.now();
 
-  // Cache hit
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) {
     return cached.value;
   }
 
-  // OSRM coords format : "lng,lat;lng,lat"
-  const url = `${OSRM_BASE.replace(/\/+$/, '')}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false&alternatives=false&steps=false`;
+  // OSRM coords format : "lng,lat;lng,lat". overview=full + geometries=geojson
+  // => geometrie detaillee qui suit les rues (tableau de [lng,lat]).
+  const url =
+    `${OSRM_BASE.replace(/\/+$/, '')}/route/v1/driving/` +
+    `${fromLng},${fromLat};${toLng},${toLat}` +
+    `?overview=full&geometries=geojson&alternatives=false&steps=false`;
 
   try {
     const controller = new AbortController();
@@ -78,21 +95,27 @@ export async function computeRouteEta(
     }
     const json = (await res.json()) as {
       code?: string;
-      routes?: Array<{ duration: number; distance: number }>;
+      routes?: Array<{
+        duration: number;
+        distance: number;
+        geometry?: { coordinates?: Array<[number, number]> };
+      }>;
     };
     if (json.code !== 'Ok' || !json.routes || json.routes.length === 0) {
       logger.warn({ code: json.code }, 'OSRM returned no route');
       return null;
     }
     const route = json.routes[0];
-    const result: EtaResult = {
+    const coords = route.geometry?.coordinates ?? [];
+    const result: RouteResult = {
       durationSeconds: Math.round(route.duration),
       distanceMeters: Math.round(route.distance),
+      // GeoJSON = [lng, lat] -> on expose { latitude, longitude }
+      coordinates: coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
     };
     cache.set(key, { value: result, expiresAt: now + CACHE_TTL_MS });
 
-    // Garde le cache borne (max 500 entrees, drop les plus anciennes en LRU
-    // approximatif via insertion order).
+    // Garde le cache borne (max 500 entrees, drop les plus anciennes).
     if (cache.size > 500) {
       const firstKey = cache.keys().next().value;
       if (firstKey) cache.delete(firstKey);
@@ -107,4 +130,19 @@ export async function computeRouteEta(
     }
     return null;
   }
+}
+
+/**
+ * Calcule l'ETA seul entre deux points (reutilise le meme cache/appel que
+ * computeRoute). Retourne null en cas d'echec (le caller cache l'ETA dans l'UI).
+ */
+export async function computeRouteEta(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): Promise<EtaResult | null> {
+  const r = await computeRoute(fromLat, fromLng, toLat, toLng);
+  if (!r) return null;
+  return { durationSeconds: r.durationSeconds, distanceMeters: r.distanceMeters };
 }

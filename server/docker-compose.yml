@@ -55,9 +55,10 @@ services:
       # URL publique utilisee dans le SMS destinataire pour le lien de suivi.
       # Ex: https://admin.tolle.qalitylabs.fr -> .../track/<token>
       PUBLIC_TRACKING_BASE_URL: ${PUBLIC_TRACKING_BASE_URL:-}
-      # OSRM (routing pour ETA). Defaut: instance publique de demo (rate-limitee).
-      # Pour la prod, deployer une instance dediee et pointer dessus.
-      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      # OSRM (routing reel : ETA + geometrie du trajet). Pointe sur notre
+      # instance auto-hebergee `tolle-osrm` (gratuite, illimitee). Fallback
+      # possible sur l'instance publique en surchargeant OSRM_BASE_URL.
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-http://tolle-osrm:5000}
       # Sentry crash reporting (optionnel - laisser vide pour desactiver)
       SENTRY_DSN: ${SENTRY_DSN:-}
       # SHA du commit deploye, expose comme release Sentry (optionnel)
@@ -78,6 +79,23 @@ services:
     networks:
       nginx-proxy:
       tolle-internal:
+
+  # Moteur de routing auto-heberge (gratuit, illimite). Sert l'itineraire
+  # routier reel (geometrie + ETA) a l'API via le reseau interne.
+  # /!\ Les donnees doivent etre preparees AVANT le 1er demarrage :
+  #     bash scripts/setup-osrm.sh   (cf. ce script)
+  # Le service ne fait que SERVIR les fichiers .osrm deja prepares.
+  tolle-osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: tolle-osrm
+    restart: unless-stopped
+    command: osrm-routed --algorithm mld /data/burkina-faso-latest.osrm
+    volumes:
+      - ./osrm-data:/data
+    networks:
+      - tolle-internal
+    expose:
+      - "5000"
 
 volumes:
   tolle-db-data:

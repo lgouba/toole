@@ -189,6 +189,40 @@ export async function getDeliveryById(id: string): Promise<Delivery | null> {
   }
 }
 
+export interface DeliveryRoute {
+  /** Geometrie du trajet routier (suit les rues). null = tracer une ligne directe. */
+  path: LatLng[] | null;
+  eta: { durationSeconds: number; distanceMeters: number } | null;
+  phase: 'to_pickup' | 'to_delivery' | null;
+}
+
+/**
+ * Recupere l'itineraire routier reel de la phase courante (livreur -> récup,
+ * puis livreur -> livraison). Calcule cote serveur via OSRM (clé non exposée).
+ * Retourne null en cas d'echec reseau ; { path: null } si pas d'itineraire
+ * disponible (course pas en route, position livreur inconnue, OSRM indispo) :
+ * dans tous ces cas le client retombe sur une ligne directe.
+ */
+export async function getDeliveryRoute(id: string): Promise<DeliveryRoute | null> {
+  try {
+    const res = await api.get(`/deliveries/${id}/route`);
+    const d = unwrap<any>(res);
+    return {
+      path:
+        Array.isArray(d?.path) && d.path.length >= 2
+          ? d.path.map((p: any) => ({
+              latitude: Number(p.latitude),
+              longitude: Number(p.longitude),
+            }))
+          : null,
+      eta: d?.eta ?? null,
+      phase: d?.phase ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function updateDeliveryStatus(
   id: string,
   status: DeliveryStatus

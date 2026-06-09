@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { shareLocationWhatsApp } from '@/utils/linking';
 import { formatEta, formatDistance, formatRating } from '@/utils/format';
-import { getDeliveryById } from '@/services/delivery.service';
+import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
@@ -66,6 +66,10 @@ export default function ActiveDeliveryScreen() {
 
   const delivery = activeDelivery;
   const driver = activeDriver;
+
+  // Itinéraire routier réel (suit les rues), calculé côté serveur via OSRM.
+  // null tant qu'on n'a rien → la carte trace une ligne directe en fallback.
+  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
 
   // Trace chaque changement de status pour debug in-app
   useEffect(() => {
@@ -136,6 +140,12 @@ export default function ActiveDeliveryScreen() {
               setDriverLocation(d.driverProfile.currentLocation);
             }
           }
+
+          // Itinéraire routier réel (livreur → cible de la phase). Calculé
+          // serveur via OSRM (cache 15s → pas de surcharge). path=null si pas
+          // disponible → la carte retombe sur la ligne directe.
+          const route = await getDeliveryRoute(deliveryId);
+          if (route) setRoutePath(route.path);
         } catch (err) {
           console.warn('[ActiveDelivery] refresh failed', err);
         }
@@ -294,6 +304,7 @@ export default function ActiveDeliveryScreen() {
         zoom={14}
         markers={mapMarkers}
         routeCoordinates={routeCoords}
+        routePath={routePath ?? undefined}
         fitToContent
         contentInsetTop={120}
         contentInsetBottom={SHEET_MAX_H + 30}

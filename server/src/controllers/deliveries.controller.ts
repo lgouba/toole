@@ -15,6 +15,7 @@ import {
   rateDelivery,
   estimatePrice,
   getPublicTrackingByToken,
+  getDeliveryRoute,
 } from '../services/delivery.service.js';
 
 const createDeliverySchema = z.object({
@@ -128,6 +129,23 @@ export async function getDeliveryCtrl(
       req.user!.userType,
     );
     return success(res, delivery);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDeliveryRouteCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const data = await getDeliveryRoute(
+      req.params.id,
+      req.user!.id,
+      req.user!.userType,
+    );
+    return success(res, data);
   } catch (err) {
     next(err);
   }

@@ -4,6 +4,7 @@ import {
   createDeliveryCtrl,
   listDeliveriesCtrl,
   getDeliveryCtrl,
+  getDeliveryRouteCtrl,
   acceptCtrl,
   rejectCtrl,
   pickupCtrl,
@@ -25,6 +26,7 @@ router.use(authRequired);
 router.post('/', createDeliveryCtrl);
 router.get('/', listDeliveriesCtrl);
 router.get('/:id', getDeliveryCtrl);
+router.get('/:id/route', getDeliveryRouteCtrl);
 router.put('/:id/accept', acceptCtrl);
 router.put('/:id/reject', rejectCtrl);
 router.put('/:id/pickup-confirm', pickupCtrl);

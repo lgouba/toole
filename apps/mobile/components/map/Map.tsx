@@ -26,7 +26,13 @@ interface MapProps {
   markers?: MapMarker[];
   onPress?: (coordinate: LatLng) => void;
   showsRoute?: boolean;
+  /** Ligne directe (fallback) entre 2 points. Utilisée si `routePath` absent. */
   routeCoordinates?: [LatLng, LatLng];
+  /**
+   * Itinéraire routier réel (suit les rues), tableau de N points. S'il contient
+   * ≥ 2 points, il remplace `routeCoordinates` (tracé plein, pas pointillé).
+   */
+  routePath?: LatLng[];
   style?: ViewStyle;
   interactive?: boolean;
   /**
@@ -58,15 +64,28 @@ function markersStructureKey(markers: MapMarker[]): string {
 }
 
 /** Serialise uniquement la structure d'une route (existe ou pas). */
-function routeStructureKey(r: [LatLng, LatLng] | undefined): string {
-  return r ? 'route' : 'no-route';
+function routeStructureKey(r: LatLng[] | null): string {
+  return r && r.length >= 2 ? 'route' : 'no-route';
+}
+
+/** Indique si deux tracés diffèrent (longueur ou un point). */
+function routePathChanged(a: LatLng[] | null, b: LatLng[] | null): boolean {
+  if (!a && !b) return false;
+  if (!a || !b) return true;
+  if (a.length !== b.length) return true;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].latitude !== b[i].latitude || a[i].longitude !== b[i].longitude) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function buildHtml(
   center: LatLng,
   zoom: number,
   markers: MapMarker[],
-  route: [LatLng, LatLng] | null,
+  route: LatLng[] | null,
   interactive: boolean,
   fitToContent: boolean,
   theme: 'light' | 'dark',
@@ -145,12 +164,22 @@ function buildHtml(
     })
     .join('\n');
 
+  // Tracé : si c'est un vrai itinéraire routier (≥ 3 points), ligne PLEINE qui
+  // suit les rues ; si c'est juste une ligne directe (2 points = fallback), on
+  // garde le pointillé pour signaler que ce n'est pas le parcours réel.
+  const isRealRoute = !!route && route.length >= 3;
+  const routeLatLngsJs = route
+    ? '[' + route.map((p) => `[${p.latitude}, ${p.longitude}]`).join(',') + ']'
+    : '[]';
   const routeJs = route
     ? `
-      window._route = L.polyline([
-        [${route[0].latitude}, ${route[0].longitude}],
-        [${route[1].latitude}, ${route[1].longitude}]
-      ], { color: '${routeColor}', weight: 4, opacity: 0.85, dashArray: '10, 10' }).addTo(map);
+      window._route = L.polyline(${routeLatLngsJs}, {
+        color: '${routeColor}',
+        weight: 5,
+        opacity: 0.9,
+        lineJoin: 'round',
+        lineCap: 'round'${isRealRoute ? '' : `,\n        dashArray: '10, 10'`}
+      }).addTo(map);
     `
     : `window._route = null;`;
 
@@ -322,6 +351,23 @@ function buildHtml(
         }
       } catch (e) {}
     };
+    // Met à jour le tracé complet (itinéraire routier de N points) sans rebuild.
+    window.updateRoutePath = function(points) {
+      try {
+        if (!points || points.length < 2) return;
+        var solid = points.length >= 3;
+        if (window._route) {
+          window._route.setLatLngs(points);
+          window._route.setStyle({ dashArray: solid ? null : '10, 10' });
+        } else {
+          window._route = L.polyline(points, {
+            color: '${routeColor}', weight: 5, opacity: 0.9,
+            lineJoin: 'round', lineCap: 'round',
+            dashArray: solid ? null : '10, 10'
+          }).addTo(map);
+        }
+      } catch (e) {}
+    };
     window.panToMarker = function(id) {
       try {
         var m = window._markers[id];
@@ -343,10 +389,7 @@ function buildHtml(
           (m) => `[${m.coordinate.latitude}, ${m.coordinate.longitude}]`,
         ),
         ...(route
-          ? [
-              `[${route[0].latitude}, ${route[0].longitude}]`,
-              `[${route[1].latitude}, ${route[1].longitude}]`,
-            ]
+          ? route.map((p) => `[${p.latitude}, ${p.longitude}]`)
           : []),
       ].join(', ')}];
       if (_points.length >= 2) {
@@ -376,6 +419,7 @@ export function Map({
   markers = [],
   onPress,
   routeCoordinates,
+  routePath,
   style,
   interactive = true,
   fitToContent = false,
@@ -385,7 +429,17 @@ export function Map({
 }: MapProps) {
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
-  const prevRouteRef = useRef<[LatLng, LatLng] | undefined>(undefined);
+  const prevRouteRef = useRef<LatLng[] | null>(null);
+
+  // Tracé effectif : l'itinéraire routier réel (≥ 2 points) s'il existe, sinon
+  // la ligne directe `routeCoordinates` en fallback. Mémoïsé pour une identité
+  // stable entre les rendus (sinon l'effet de diff se déclencherait à tort).
+  const routeLine = useMemo<LatLng[] | null>(() => {
+    if (routePath && routePath.length >= 2) return routePath;
+    if (routeCoordinates) return [routeCoordinates[0], routeCoordinates[1]];
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routePath, routeCoordinates]);
   // Le center initial est fige au premier rendu. Les changements ulterieurs
   // passent par injectJavaScript (setView) pour éviter de reload tout le
   // WebView (qui provoquait un effet "tremblement" quand center suivait la
@@ -397,8 +451,8 @@ export function Map({
   // presence ou non d'une route). Les simples changements de coordonnees passent
   // par injectJavaScript (plus rapide, pas de flash, anim CSS).
   const structureKey = useMemo(
-    () => markersStructureKey(markers) + '|' + routeStructureKey(routeCoordinates),
-    [markers, routeCoordinates],
+    () => markersStructureKey(markers) + '|' + routeStructureKey(routeLine),
+    [markers, routeLine],
   );
 
   const html = useMemo(
@@ -407,7 +461,7 @@ export function Map({
         initialCenterRef.current,
         zoom,
         markers,
-        routeCoordinates || null,
+        routeLine,
         interactive,
         fitToContent,
         theme,
@@ -472,18 +526,19 @@ export function Map({
       }
     }
 
-    // Met a jour la route si son trace a change (mais qu'elle existait déjà)
+    // Met à jour le tracé (itinéraire routier ou ligne directe) s'il a changé
+    // et qu'il existait déjà (sinon c'est un rebuild HTML qui le dessine).
     if (
-      routeCoordinates &&
+      routeLine &&
+      routeLine.length >= 2 &&
       prevRouteRef.current &&
-      (routeCoordinates[0].latitude !== prevRouteRef.current[0].latitude ||
-        routeCoordinates[0].longitude !== prevRouteRef.current[0].longitude ||
-        routeCoordinates[1].latitude !== prevRouteRef.current[1].latitude ||
-        routeCoordinates[1].longitude !== prevRouteRef.current[1].longitude)
+      routePathChanged(prevRouteRef.current, routeLine)
     ) {
-      snippets.push(
-        `window.updateRoute && window.updateRoute(${routeCoordinates[0].latitude}, ${routeCoordinates[0].longitude}, ${routeCoordinates[1].latitude}, ${routeCoordinates[1].longitude});`,
-      );
+      const pts =
+        '[' +
+        routeLine.map((p) => `[${p.latitude}, ${p.longitude}]`).join(',') +
+        ']';
+      snippets.push(`window.updateRoutePath && window.updateRoutePath(${pts});`);
     }
 
     if (snippets.length > 0) {
@@ -492,8 +547,8 @@ export function Map({
     }
 
     prevMarkersRef.current = markers;
-    prevRouteRef.current = routeCoordinates;
-  }, [markers, routeCoordinates]);
+    prevRouteRef.current = routeLine;
+  }, [markers, routeLine]);
 
   return (
     <View style={[styles.container, style]}>

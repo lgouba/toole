@@ -10,7 +10,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useLocationStore } from '@/stores/location.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
-import { getDeliveryById } from '@/services/delivery.service';
+import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
 import { formatEta, formatDistance } from '@/utils/format';
 import { LatLng } from '@/types';
 
@@ -21,6 +21,8 @@ export default function DeliveryNavigationScreen() {
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
   const driverPos = useLocationStore((s) => s.current);
   const [showCancel, setShowCancel] = useState(false);
+  // Itinéraire routier réel (livreur → livraison), calculé serveur via OSRM.
+  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
 
   // Verifie au mount et toutes les 10s que la livraison existe toujours
   // côté backend. Si elle a été supprimée/annulée/expirée, on dégage.
@@ -40,6 +42,9 @@ export default function DeliveryNavigationScreen() {
         router.replace('/(driver)');
       } else {
         useDriverStore.setState({ activeDelivery: fresh });
+        // Itinéraire routier réel (suit les rues) vers la livraison.
+        const r = await getDeliveryRoute(activeDelivery.id);
+        if (!cancelled && r) setRoutePath(r.path);
       }
     };
     check();
@@ -90,6 +95,7 @@ export default function DeliveryNavigationScreen() {
         zoom={14}
         markers={markers}
         routeCoordinates={route}
+        routePath={routePath ?? undefined}
         fitToContent
         contentInsetTop={120}
         contentInsetBottom={SHEET_INSET}

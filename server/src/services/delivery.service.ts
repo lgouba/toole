@@ -23,7 +23,7 @@ import { logDriverLocation } from './location-log.service.js';
 import { getAppSettings } from './settings.service.js';
 import { sendSms } from '../lib/sms.js';
 import { env } from '../config/env.js';
-import { computeRouteEta } from '../lib/osrm.js';
+import { computeRouteEta, computeRoute } from '../lib/osrm.js';
 import {
   validatePromoCode,
   consumePromoCode,
@@ -644,6 +644,97 @@ export async function getDeliveryForUser(
     return { ...delivery, validationCode: null, pickupValidationCode: null, eta };
   }
   return { ...delivery, eta };
+}
+
+/**
+ * Itineraire routier reel (geometrie qui suit les rues) pour la phase courante :
+ *   - accepted / picking_up  : livreur -> recuperation (point A)
+ *   - picked_up / delivering : livreur -> livraison    (point B)
+ *
+ * Retourne { path: null } si la course n'est pas "en route", si la position du
+ * livreur est inconnue, ou si OSRM echoue. Le client trace alors une ligne
+ * directe en fallback (jamais d'ecran casse).
+ *
+ * Accessible au client expediteur ET au livreur assigne a la course.
+ */
+export async function getDeliveryRoute(
+  deliveryId: string,
+  userId: string,
+  _userType?: string,
+): Promise<{
+  path: { latitude: number; longitude: number }[] | null;
+  eta: { durationSeconds: number; distanceMeters: number } | null;
+  phase: 'to_pickup' | 'to_delivery' | null;
+}> {
+  const delivery = await prisma.delivery.findUnique({
+    where: { id: deliveryId },
+    select: {
+      id: true,
+      senderId: true,
+      driverId: true,
+      status: true,
+      pickupLat: true,
+      pickupLng: true,
+      deliveryLat: true,
+      deliveryLng: true,
+      driver: {
+        select: {
+          driverProfile: {
+            select: { currentLat: true, currentLng: true },
+          },
+        },
+      },
+    },
+  });
+  if (!delivery) {
+    throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
+  }
+  const isParty =
+    delivery.senderId === userId || delivery.driverId === userId;
+  if (!isParty) {
+    throw new HttpError(403, 'FORBIDDEN', 'Access denied');
+  }
+
+  const empty = { path: null, eta: null, phase: null } as const;
+
+  // Cible selon la phase
+  let destLat: number;
+  let destLng: number;
+  let phase: 'to_pickup' | 'to_delivery';
+  if (delivery.status === 'accepted' || delivery.status === 'picking_up') {
+    destLat = delivery.pickupLat;
+    destLng = delivery.pickupLng;
+    phase = 'to_pickup';
+  } else if (
+    delivery.status === 'picked_up' ||
+    delivery.status === 'delivering'
+  ) {
+    destLat = delivery.deliveryLat;
+    destLng = delivery.deliveryLng;
+    phase = 'to_delivery';
+  } else {
+    return empty;
+  }
+
+  const driverLat = delivery.driver?.driverProfile?.currentLat;
+  const driverLng = delivery.driver?.driverProfile?.currentLng;
+  if (driverLat == null || driverLng == null) {
+    return empty;
+  }
+
+  const route = await computeRoute(driverLat, driverLng, destLat, destLng);
+  if (!route || route.coordinates.length < 2) {
+    return { path: null, eta: null, phase };
+  }
+
+  return {
+    path: route.coordinates,
+    eta: {
+      durationSeconds: route.durationSeconds,
+      distanceMeters: route.distanceMeters,
+    },
+    phase,
+  };
 }
 
 export async function acceptDelivery(deliveryId: string, driverId: string) {
