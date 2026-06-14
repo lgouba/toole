@@ -25,6 +25,7 @@ import { parseLocationUrl, isShortLocationUrl } from '@/utils/parseLocation';
 import {
   reverseGeocode,
   searchAddresses,
+  bboxAround,
   GeocodeSuggestion,
 } from '@/utils/geocode';
 import { DEFAULT_MAP_REGION } from '@/utils/geo';
@@ -58,6 +59,7 @@ export default function AddressPickerScreen() {
   const { draft, setDraftField } = useDeliveryStore();
   const userLocation = useLocationStore((s) => s.current);
   const countryCode = useLocationStore((s) => s.countryCode);
+  const cityBbox = useLocationStore((s) => s.cityBbox);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
   const favorites = useAddressFavoritesStore((s) => s.favorites);
@@ -116,11 +118,12 @@ export default function AddressPickerScreen() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const r = await searchAddresses(
-          q,
-          userLocation ?? getCenter(),
-          countryCode,
-        );
+        const center = userLocation ?? getCenter();
+        // On RESTREINT strictement les résultats à la zone du client :
+        //  - bbox exacte de la ville si détectée,
+        //  - sinon ~24 km autour de sa position (filtre dur bounded=1).
+        const bbox = cityBbox ?? bboxAround(center);
+        const r = await searchAddresses(q, center, countryCode, bbox);
         setSuggestions(r);
       } finally {
         setLoading(false);

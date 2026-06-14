@@ -1,3 +1,4 @@
+import * as Location from 'expo-location';
 import { LatLng } from '@/types';
 
 export interface GeocodeSuggestion {
@@ -147,25 +148,137 @@ export async function geocodeAddress(
   return results[0] ?? null;
 }
 
-export async function reverseGeocode(location: LatLng): Promise<string | null> {
+/** Distance (mètres) entre deux points GPS — formule de Haversine. */
+function distanceMeters(a: LatLng, b: LatLng): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLng = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Construit une bbox carrée autour d'un point (deltaDeg ≈ 0.22 ° ≈ 24 km). */
+export function bboxAround(center: LatLng, deltaDeg = 0.22): CityBbox {
+  return {
+    south: center.latitude - deltaDeg,
+    north: center.latitude + deltaDeg,
+    west: center.longitude - deltaDeg,
+    east: center.longitude + deltaDeg,
+  };
+}
+
+/** Étiquette de ZONE (quartier/secteur + ville) — honnête quand l'adresse précise est inconnue. */
+function buildAreaLabel(d: { address?: Record<string, string> }): string {
+  const a = d.address ?? {};
+  const sector =
+    a.neighbourhood || a.suburb || a.quarter || a.city_district || a.district;
+  const city = a.city || a.town || a.village || a.municipality;
+  return [sector, city].filter(Boolean).join(', ');
+}
+
+/**
+ * Reverse-geocode natif (Apple/Google). Renvoie l'adresse DU point exact
+ * (pas "la feature la plus proche" comme Nominatim), donc pas de décalage.
+ */
+async function nativeReverse(
+  loc: LatLng,
+): Promise<{ label: string; precise: boolean } | null> {
+  try {
+    const r = (await Location.reverseGeocodeAsync(loc))[0];
+    if (!r) return null;
+    const street =
+      r.streetNumber && r.street
+        ? `${r.streetNumber} ${r.street}`
+        : r.street || r.name || null;
+    const area = r.district || (r as any).subregion || null;
+    const city = r.city || r.region || null;
+    const seen = new Set<string>();
+    const parts = [street, area, city].filter((x): x is string => {
+      if (!x || seen.has(x)) return false;
+      seen.add(x);
+      return true;
+    });
+    if (parts.length === 0) return null;
+    // "precise" si on a une vraie rue (pas juste ville/région).
+    const precise = !!r.street;
+    return { label: parts.join(', '), precise };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reverse-geocode Nominatim avec VALIDATION DE DISTANCE : si la feature
+ * renvoyée est à plus de ~150 m du point demandé, c'est une autre adresse
+ * proche → on ne la présente PAS comme l'adresse exacte (on tombe sur la zone).
+ */
+async function nominatimReverse(
+  loc: LatLng,
+): Promise<{ label: string; precise: boolean } | null> {
   const params = new URLSearchParams({
-    lat: String(location.latitude),
-    lon: String(location.longitude),
+    lat: String(loc.latitude),
+    lon: String(loc.longitude),
     format: 'json',
     'accept-language': 'fr',
     zoom: '18',
     addressdetails: '1',
   });
-
   const data = await fetchJson<{
+    lat?: string;
+    lon?: string;
     display_name?: string;
     address?: Record<string, string>;
   }>(`${NOMINATIM_BASE}/reverse?${params}`);
-
   if (!data) return null;
-  // Pour un reverse-geocode (ex. "Ma position actuelle"), on veut une adresse
-  // la plus complète possible : numéro + rue + quartier + ville.
-  return buildFullAddress(data) || buildShortName(data) || data.display_name || null;
+
+  const a = data.address ?? {};
+  const hasStreet = !!(
+    a.road || a.pedestrian || a.footway || a.residential || a.house_number
+  );
+  // Distance entre le point demandé et la feature renvoyée par Nominatim.
+  let closeEnough = true;
+  if (data.lat && data.lon) {
+    const d = distanceMeters(loc, {
+      latitude: parseFloat(data.lat),
+      longitude: parseFloat(data.lon),
+    });
+    closeEnough = d <= 150;
+  }
+  const full = buildFullAddress(data);
+  if (hasStreet && closeEnough && full) {
+    return { label: full, precise: true };
+  }
+  // Imprécis → étiquette de zone honnête (pas de fausse rue).
+  const area =
+    buildAreaLabel(data) ||
+    (data.display_name ?? '').split(',').slice(0, 2).join(',').trim();
+  return area ? { label: area, precise: false } : null;
+}
+
+/**
+ * Reverse-geocode robuste pour "Ma position actuelle" / carte / lien partagé.
+ *
+ * Stratégie (du plus fiable au plus permissif) :
+ *  1. Natif (Apple/Google) : adresse DU point exact. Si rue précise → on prend.
+ *  2. Nominatim avec validation de distance (rejette une rue à >150 m).
+ *  3. Repli sur la meilleure étiquette de ZONE (quartier, ville) — honnête,
+ *     plutôt qu'une rue voisine fausse. La coordonnée GPS exacte reste, elle,
+ *     toujours conservée par l'appelant (le livreur va au bon point).
+ */
+export async function reverseGeocode(location: LatLng): Promise<string | null> {
+  const native = await nativeReverse(location);
+  if (native?.precise) return native.label;
+
+  const nom = await nominatimReverse(location);
+  if (nom?.precise) return nom.label;
+
+  // Aucune adresse précise fiable : meilleure étiquette de zone dispo.
+  return native?.label || nom?.label || null;
 }
 
 /**
