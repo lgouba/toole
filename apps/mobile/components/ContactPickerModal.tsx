@@ -9,8 +9,9 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { colors, typography, spacing, borderRadius } from '@/theme';
@@ -104,9 +105,18 @@ export function ContactPickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      {/* SafeAreaProvider OBLIGATOIRE ici : un Modal RN s'affiche hors de l'arbre
+          React, donc le SafeAreaProvider racine n'est pas accessible → sans lui,
+          SafeAreaView ne reçoit aucun inset et l'en-tête (avec la croix) passe
+          SOUS la barre de statut/encoche → croix intappable. */}
+      <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} hitSlop={10}>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 24 }}
+            style={styles.closeBtn}
+          >
             <Ionicons name="close" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>{title}</Text>
@@ -139,6 +149,20 @@ export function ContactPickerModal({
               Autorisez l'accès aux contacts dans les paramètres du téléphone pour
               utiliser cette fonctionnalité.
             </Text>
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => Linking.openSettings()}
+            >
+              <Ionicons name="settings-outline" size={18} color={colors.primary} />
+              <Text style={styles.settingsBtnText}>Ouvrir les réglages</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.closeLink}
+              onPress={onClose}
+              hitSlop={10}
+            >
+              <Text style={styles.closeLinkText}>Saisir le numéro manuellement</Text>
+            </TouchableOpacity>
           </View>
         ) : loading ? (
           <View style={styles.empty}>
@@ -180,6 +204,7 @@ export function ContactPickerModal({
           />
         )}
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -213,6 +238,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  closeBtn: { padding: 4 },
   title: { ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' },
   searchBox: {
     flexDirection: 'row',
@@ -268,4 +294,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  settingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    marginTop: spacing.md,
+  },
+  settingsBtnText: { ...typography.bodyMedium, color: colors.primary, fontWeight: '700' },
+  closeLink: { paddingVertical: spacing.sm, marginTop: spacing.xs },
+  closeLinkText: { ...typography.bodySmall, color: colors.textSecondary, textDecorationLine: 'underline' },
 });
