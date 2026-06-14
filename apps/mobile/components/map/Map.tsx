@@ -203,9 +203,24 @@ function buildHtml(
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body { background: ${bodyBg}; }
-    /* Descend le contrôle zoom sous la barre de statut, à droite. */
-    .leaflet-top { top: ${Math.max(40, contentInsetTop)}px; }
-    .leaflet-right { right: 10px; }
+    /* Contrôle zoom : centré verticalement dans la ZONE VISIBLE (entre l'inset
+       du haut et le bottom sheet), collé à droite. Cet emplacement n'est jamais
+       recouvert par les overlays RN (bouton retour en haut-gauche, pastille de
+       statut en haut-centre, sheet en bas) — d'où le "souvent masqué" résolu. */
+    .leaflet-top.leaflet-right {
+      top: 50%;
+      bottom: auto;
+      right: 12px;
+      margin-top: ${Math.round((contentInsetTop - contentInsetBottom) / 2)}px;
+      transform: translateY(-50%);
+    }
+    /* Boutons +/- plus grands (cible tactile confortable). */
+    .leaflet-bar a {
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 20px;
+    }
     ${isDark ? `
     /* Boutons zoom adaptés au thème sombre */
     .leaflet-bar a {

@@ -12,7 +12,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -571,9 +571,16 @@ export default function AddressPickerScreen() {
 
       {/* Modal carte */}
       <Modal visible={showMap} animationType="slide">
-        <View style={styles.modalContainer}>
+        {/* SafeAreaProvider requis dans un Modal RN (hors arbre React) sinon
+            l'en-tête + la croix passent sous l'encoche → croix intappable. */}
+        <SafeAreaProvider>
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowMap(false)} hitSlop={10}>
+            <TouchableOpacity
+              onPress={() => setShowMap(false)}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 24 }}
+              style={{ padding: 4 }}
+            >
               <Ionicons name="close" size={26} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Pointer sur la carte</Text>
@@ -596,7 +603,8 @@ export default function AddressPickerScreen() {
           <View style={styles.modalFooter}>
             <Button title="Confirmer cette position" onPress={confirmMapLocation} />
           </View>
-        </View>
+        </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
 
       {/* Modal "Enregistrer comme..." */}
