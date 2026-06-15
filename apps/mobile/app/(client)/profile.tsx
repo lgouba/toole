@@ -1,127 +1,122 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Avatar, Card } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import { recap as R, profile as P } from '@/theme/recapTokens';
 import { useAuthStore } from '@/stores/auth.store';
-import { formatPhone } from '@/utils/format';
-import { resolveUploadUrl } from '@/services/upload.service';
+import { getDeliveries } from '@/services/delivery.service';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { MenuSection } from '@/components/profile/MenuSection';
 
-const menuItems = [
-  { icon: 'person-outline', label: 'Modifier le profil', route: '/profile-edit' },
-  { icon: 'cube-outline', label: 'Mes envois', route: '/(client)/shipments' },
-  { icon: 'bookmark-outline', label: 'Mes adresses', route: '/(client)/favorites' },
-  { icon: 'settings-outline', label: 'Paramètres', route: '/settings' },
-  { icon: 'information-circle-outline', label: 'À propos & support', route: '/about' },
-] as const;
+const ACTIVE = ['pending', 'accepted', 'picking_up', 'picked_up', 'delivering'];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser } = useAuthStore();
+  const [stats, setStats] = useState<{ total: number; active: number } | null>(null);
 
-  // Refetch /auth/me a chaque focus pour avoir ratingCount/ratingAvg a jour
-  // apres qu'un livreur a note le client.
   useFocusEffect(
     useCallback(() => {
       refreshUser().catch(() => {});
+      let cancelled = false;
+      getDeliveries('', 'client')
+        .then((list) => {
+          if (cancelled) return;
+          setStats({
+            total: list.length,
+            active: list.filter((d) => ACTIVE.includes(d.status)).length,
+          });
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
     }, [refreshUser]),
   );
 
   if (!user) return null;
 
+  // Certaines routes (groupes expo-router) ne sont pas dans le type généré → cast.
+  const go = (path: string) => router.push(path as any);
+
+  const memberYear = user.createdAt ? new Date(user.createdAt).getFullYear() : undefined;
+  const version = Constants.expoConfig?.version ?? '1.0.0';
+
+  const confirmLogout = () => {
+    Alert.alert('Se déconnecter ?', 'Tu devras te reconnecter pour envoyer un colis.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: () => logout().catch(() => {}) },
+    ]);
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Avatar
-            name={user.fullName}
-            uri={resolveUploadUrl(user.avatarUrl) ?? undefined}
-            size="xl"
-          />
-          <Text style={styles.name}>{user.fullName}</Text>
-          <Text style={styles.phone}>{formatPhone(user.phone)}</Text>
-        </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ProfileHeader
+          fullName={user.fullName}
+          phone={user.phone}
+          memberSinceYear={memberYear}
+          stats={stats}
+          onEdit={() => go('/profile-edit')}
+        />
 
-        <Card style={styles.menu}>
-          {menuItems.map((item, i) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[styles.menuItem, i < menuItems.length - 1 && styles.menuItemBorder]}
-              activeOpacity={0.6}
-              onPress={() => {
-                if (item.route) router.push(item.route as any);
-              }}
-            >
-              <Ionicons name={item.icon as any} size={22} color={colors.textSecondary} />
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
-          ))}
-        </Card>
+        <MenuSection
+          title="COMPTE"
+          items={[
+            { icon: 'person', tint: 'green', label: 'Modifier le profil', onPress: () => go('/profile-edit') },
+            { icon: 'location-on', tint: 'blue', label: 'Mes adresses', onPress: () => go('/(client)/favorites') },
+          ]}
+        />
 
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Ionicons name="log-out-outline" size={22} color={colors.error} />
+        <MenuSection
+          title="ACTIVITÉ"
+          items={[
+            { icon: 'inventory-2', tint: 'green', label: 'Mes envois', onPress: () => go('/(client)/shipments') },
+          ]}
+        />
+
+        <MenuSection
+          title="APPLICATION"
+          items={[
+            { icon: 'settings', tint: 'violet', label: 'Paramètres', onPress: () => go('/settings') },
+            { icon: 'info', tint: 'neutral', label: 'À propos & support', onPress: () => go('/about') },
+          ]}
+        />
+
+        <TouchableOpacity style={styles.logout} onPress={confirmLogout} activeOpacity={0.8}>
+          <MaterialIcons name="logout" size={20} color={P.danger} />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
+
+        <Text style={styles.version}>Toolé · version {version}</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-    marginTop: spacing.md,
-  },
-  name: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginTop: spacing.sm,
-  },
-  phone: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  menu: {
-    marginBottom: spacing.xl,
-    padding: 0,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  menuLabel: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  logoutButton: {
+  container: { flex: 1, backgroundColor: P.canvas },
+  content: { paddingHorizontal: R.space.gut, paddingBottom: R.space.xxl },
+  logout: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: R.space.sm,
+    height: 50,
+    borderRadius: P.radius.card,
+    backgroundColor: P.surface,
+    borderWidth: 1,
+    borderColor: P.dangerBorder,
+    marginTop: R.space.xs,
   },
-  logoutText: {
-    ...typography.bodyMedium,
-    color: colors.error,
+  logoutText: { fontFamily: R.font.bodyBold, fontSize: 15, color: P.danger },
+  version: {
+    textAlign: 'center',
+    fontFamily: R.font.mono,
+    fontSize: 11,
+    color: P.textMuted,
+    marginTop: R.space.gut,
   },
 });

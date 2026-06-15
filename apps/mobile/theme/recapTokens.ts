@@ -149,6 +149,30 @@ export const home = {
   radius: { card: 18, sheet: 26, marker: 999 },
 } as const;
 
+/** Tokens dédiés à l'écran Profil (client). */
+export const profile = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  divider: '#F0EAD9',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#8A8270',
+  green: '#15803D',
+  avatarBg: '#D9EDDD',
+  avatarFg: '#15803D',
+  danger: '#D6453C',
+  dangerBorder: '#F0D9D6',
+  tint: {
+    green: '#E7F2E9',
+    blue: '#E0EEFB',
+    amber: '#FBEFD6',
+    violet: '#EFE7FB',
+    neutral: '#F1F0EA',
+  },
+  radius: { card: 18, row: 11, avatar: 999 },
+} as const;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',
