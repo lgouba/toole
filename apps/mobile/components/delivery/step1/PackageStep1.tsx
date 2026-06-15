@@ -56,7 +56,7 @@ export function PackageStep1({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: R.space.md, paddingTop: 2 },
+  wrap: { gap: R.space.sm, paddingTop: 2 },
   title: { fontFamily: R.font.display, fontSize: 18, color: S.textPrim },
   subtitle: { fontFamily: R.font.body, fontSize: 13, color: S.textMuted, marginTop: 2 },
 });

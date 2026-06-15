@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
     paddingTop: spacing.xs,
   },
   contactBtn: {

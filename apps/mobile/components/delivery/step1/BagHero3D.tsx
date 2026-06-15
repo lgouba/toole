@@ -121,5 +121,5 @@ export function BagHero3D({
     }
   };
 
-  return <GLView style={{ width: 122, height: 134 }} onContextCreate={onContextCreate} />;
+  return <GLView style={{ width: 106, height: 116 }} onContextCreate={onContextCreate} />;
 }

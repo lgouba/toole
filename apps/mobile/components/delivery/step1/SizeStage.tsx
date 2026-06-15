@@ -15,7 +15,7 @@ const SIZES = S.sizes;
 export function SizeStage({ value, onChange }: Props) {
   const { height } = useWindowDimensions();
   const compact = height < 720;
-  const sceneH = compact ? 120 : 138;
+  const sceneH = compact ? 96 : 110;
 
   const meta = SIZES.find((s) => s.key === value) ?? SIZES[1];
 
@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
     backgroundColor: S.stageBg,
     borderWidth: 1,
     borderColor: S.stageTint,
-    paddingTop: R.space.md,
-    paddingBottom: R.space.lg,
+    paddingTop: R.space.sm,
+    paddingBottom: R.space.md,
     paddingHorizontal: R.space.gut,
     ...R.shadow.card,
   },
@@ -74,9 +74,9 @@ const styles = StyleSheet.create({
   scene: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: R.space.xs,
+    marginTop: 2,
   },
-  readout: { alignItems: 'center', marginTop: R.space.sm, gap: 1 },
+  readout: { alignItems: 'center', marginTop: R.space.xs, gap: 1 },
   readName: { fontFamily: R.font.displayXBold, fontSize: 19, color: S.textPrim },
   readWeight: { fontFamily: R.font.mono, fontSize: 12, color: S.textSec },
   segment: {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: R.radius.pill,
     padding: 4,
-    marginTop: R.space.md,
+    marginTop: R.space.sm,
     gap: 4,
     borderWidth: 1,
     borderColor: S.border,

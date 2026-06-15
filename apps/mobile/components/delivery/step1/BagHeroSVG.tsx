@@ -63,7 +63,7 @@ export function BagHeroSVG({ size, spinning = true }: { size: PackageSize; spinn
 
   return (
     <Animated.View style={[styles.wrap, style]}>
-      <Svg width={120} height={120} viewBox="0 0 132 124">
+      <Svg width={104} height={104} viewBox="0 0 132 124">
         <G>
           {/* Faces du carton */}
           <Polygon points="30,46 54,28 110,28 86,46" fill={KRAFT_TOP} />
@@ -84,5 +84,5 @@ export function BagHeroSVG({ size, spinning = true }: { size: PackageSize; spinn
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+  wrap: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
 });
