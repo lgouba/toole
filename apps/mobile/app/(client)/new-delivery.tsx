@@ -866,8 +866,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   stepContent: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   stepTitle: {
     ...typography.h3,
@@ -975,8 +975,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.xs,
   },
   contactBtn: {
     flexDirection: 'row',

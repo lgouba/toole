@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     borderColor: R.color.dashed,
     borderRadius: R.radius.field,
     paddingHorizontal: R.space.xl,
-    height: 50,
+    height: 46,
     backgroundColor: R.color.surface,
   },
   inputApplied: { borderColor: R.color.green, borderStyle: 'solid' },

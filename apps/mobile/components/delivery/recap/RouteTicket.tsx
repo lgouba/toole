@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     borderColor: R.color.border,
     ...R.shadow.card,
   },
-  routeBlock: { padding: R.space.pad },
+  routeBlock: { padding: R.space.xxl },
 
   stopRow: { flexDirection: 'row', gap: R.space.lg },
   dotPickupWrap: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   railCol: { width: 22, alignItems: 'center' },
   rail: {
     width: 2,
-    height: 28,
+    height: 20,
     borderRadius: 1,
     borderLeftWidth: 2,
     borderStyle: 'dashed',
@@ -197,12 +197,12 @@ const styles = StyleSheet.create({
     backgroundColor: R.color.dashed,
   },
 
-  priceBlock: { padding: R.space.pad, paddingTop: R.space.lg },
+  priceBlock: { padding: R.space.xxl, paddingTop: R.space.md },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 5,
+    paddingVertical: 3,
   },
   priceLabel: {
     fontFamily: R.font.body,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   totalDivider: {
     height: 1,
     backgroundColor: R.color.hairline,
-    marginVertical: R.space.md,
+    marginVertical: R.space.sm,
   },
   totalLabel: {
     fontFamily: R.font.mono,
@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontFamily: R.font.mono,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 27,
+    lineHeight: 31,
     color: R.color.green,
   },
 });

@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: R.space.md,
+    rowGap: R.space.sm,
   },
   tile: {
     width: '48.5%',
@@ -36,8 +36,9 @@ const styles = StyleSheet.create({
     borderRadius: R.radius.tile,
     borderWidth: 1,
     borderColor: R.color.border,
-    padding: R.space.xl,
-    gap: 5,
+    paddingVertical: R.space.md,
+    paddingHorizontal: R.space.lg,
+    gap: 3,
   },
   label: {
     fontFamily: R.font.mono,

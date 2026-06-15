@@ -115,12 +115,12 @@ export function DeliveryRecap({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: R.space.xxl, paddingTop: R.space.lg },
+  wrap: { gap: R.space.lg, paddingTop: R.space.xs },
   sectionLabel: {
     fontFamily: R.font.mono,
     fontSize: 9.5,
     letterSpacing: 1.4,
     color: R.color.textMuted,
-    marginBottom: R.space.sm,
+    marginBottom: R.space.xs,
   },
 });
