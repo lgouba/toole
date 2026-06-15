@@ -106,15 +106,9 @@ export default function NewDeliveryScreen() {
     draft.packageSize,
   );
 
-  // Taille par défaut = Moyen (la scène héro l'affiche par défaut) tant que
-  // l'utilisateur n'a rien choisi → "Continuer" ne dépend que de la catégorie.
-  React.useEffect(() => {
-    if (!draft.packageSize) {
-      setDraftField('packageSize', 'medium');
-      setDraftField('packageType', SIZE_TO_LEGACY_TYPE['medium']);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // NOTE: la taille par défaut "Moyen" est validée AU MOMENT du Continuer de
+  // l'étape 0 (cf. footer), pas au montage — sinon le useFocusEffect d'init voit
+  // un draft non vide et le reset (race), ce qui effaçait la taille.
 
   // Si le montant change (retour modifier colis/trajet) après un paiement mobile
   // validé, on invalide le paiement → l'utilisateur devra re-valider à l'étape 4.
@@ -418,12 +412,11 @@ export default function NewDeliveryScreen() {
               onPress={() => {
                 // Validation par étape
                 if (step === 0) {
+                  // La taille a un défaut "Moyen" (affiché par la scène). Si
+                  // l'utilisateur ne l'a pas changée, on l'entérine ici.
                   if (!draft.packageSize) {
-                    Alert.alert(
-                      'Taille manquante',
-                      'Sélectionnez la taille de votre colis (Petit / Moyen / Grand).',
-                    );
-                    return;
+                    setDraftField('packageSize', 'medium');
+                    setDraftField('packageType', SIZE_TO_LEGACY_TYPE['medium']);
                   }
                   if (!draft.packageCategory) {
                     Alert.alert(
