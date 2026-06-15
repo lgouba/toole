@@ -303,7 +303,8 @@ export async function findNearbyDriversForMap(
 ): Promise<MapDriver[]> {
   const latDelta = radiusKm / 111;
   const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1);
-  const activeCutoff = new Date(Date.now() - (await getActiveDriverMaxAgeMs()));
+  // Récence large (2h) juste pour AVOIR une position à afficher. Le STATUT
+  // (vert/gris) ne dépend QUE de isOnline (seule vérité, contrôlée par le user).
   const recentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
   const candidates = await prisma.driverProfile.findMany({
@@ -328,12 +329,13 @@ export async function findNearbyDriversForMap(
   for (const d of candidates) {
     if (!d.user.isActive || d.currentLat == null || d.currentLng == null) continue;
     if (haversineKm(lat, lng, d.currentLat, d.currentLng) > radiusKm) continue;
-    const fresh = !!d.lastLocationUpdate && d.lastLocationUpdate >= activeCutoff;
     out.push({
       id: d.userId,
       lat: round(d.currentLat),
       lng: round(d.currentLng),
-      status: d.isOnline && fresh ? 'online' : 'offline',
+      // Vert = en ligne (isOnline), gris = hors ligne. Indépendant de la
+      // fraîcheur de la dernière position.
+      status: d.isOnline ? 'online' : 'offline',
     });
   }
   // En ligne d'abord, puis plafond.
