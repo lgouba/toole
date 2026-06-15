@@ -20,11 +20,7 @@ import { RecipientStep3 } from '@/components/delivery/step3/RecipientStep3';
 import { isValidBF } from '@/utils/phone';
 import { formatCFA } from '@/utils/format';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
-import {
-  PaymentMethodPicker,
-  type ClientPaymentMethod,
-} from '@/components/PaymentMethodPicker';
-import { PaymentOtpModal } from '@/components/PaymentOtpModal';
+import { PaymentStep4, type PayMethod } from '@/components/delivery/step4/PaymentStep4';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -51,8 +47,12 @@ export default function NewDeliveryScreen() {
   const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
   // Code promo appliqué (validé côté serveur) — pour l'état visuel du champ.
   const [promoApplied, setPromoApplied] = useState(false);
-  // Modal de paiement Mobile Money (USSD + OTP simule)
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  // Paiement mobile money : OTP désormais validé EN LIGNE à l'étape 4 (plus de
+  // modale post-récap). On suit le statut + la transaction + le montant payé
+  // (pour invalider si le prix change ensuite).
+  const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid'>('unpaid');
+  const [paymentTxId, setPaymentTxId] = useState<string | undefined>(undefined);
+  const [paidAmount, setPaidAmount] = useState<number | undefined>(undefined);
   // Modal contact picker : 'recipient' = destinataire, 'sender' = expéditeur tiers
   const [contactPickerTarget, setContactPickerTarget] = useState<
     null | 'recipient' | 'sender'
@@ -116,6 +116,16 @@ export default function NewDeliveryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Si le montant change (retour modifier colis/trajet) après un paiement mobile
+  // validé, on invalide le paiement → l'utilisateur devra re-valider à l'étape 4.
+  React.useEffect(() => {
+    if (paymentStatus === 'paid' && estimate && paidAmount !== estimate.price) {
+      setPaymentStatus('unpaid');
+      setPaymentTxId(undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimate?.price]);
+
   // Applique un code promo : valide côté serveur, met à jour le draft + l'état visuel.
   const applyPromo = async (code: string) => {
     const trimmed = code.trim().toUpperCase();
@@ -168,11 +178,15 @@ export default function NewDeliveryScreen() {
       return;
     }
 
-    // Si paiement Mobile Money, on ouvre le modal USSD/OTP. La creation
-    // effective se fait dans `actuallyCreate` apres validation OTP.
+    // Paiement mobile money : l'OTP est validé à l'étape 4. Ici on vérifie juste
+    // que c'est bien payé (cas limite : montant changé entre-temps -> invalidé).
     const method = draft.paymentMethod ?? 'cash';
-    if (method === 'orange_money' || method === 'moov_money') {
-      setPaymentModalVisible(true);
+    if ((method === 'orange_money' || method === 'moov_money') && paymentStatus !== 'paid') {
+      Alert.alert(
+        'Paiement à valider',
+        "Le montant a changé ou le paiement n'est pas validé. Valide-le à l'étape Paiement.",
+        [{ text: 'OK', onPress: () => setStep(3) }],
+      );
       return;
     }
 
@@ -301,16 +315,28 @@ export default function NewDeliveryScreen() {
       />
     </View>,
 
-    // Step 3: Paiement (mode de paiement dedie pour clarte UX)
+    // Step 3: Paiement (refonte — OTP mobile money EN LIGNE ici, plus de modale)
     <View key="payment" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Mode de paiement</Text>
-      <Text style={styles.stepHint}>
-        Comment souhaitez-vous regler cette course ?
-      </Text>
-      <PaymentMethodPicker
-        value={(draft.paymentMethod as ClientPaymentMethod) ?? 'cash'}
-        onChange={(m) => setDraftField('paymentMethod', m)}
-        amount={estimate?.price ?? 0}
+      <Text style={styles.stepTitle}>Le paiement</Text>
+      <Text style={styles.stepHint}>Comment régler cette course ?</Text>
+
+      <PaymentStep4
+        estimate={estimate}
+        method={(draft.paymentMethod as PayMethod) ?? 'cash'}
+        onMethodChange={(m) => {
+          setDraftField('paymentMethod', m);
+          // Changement de mode/opérateur → paiement réinitialisé.
+          setPaymentStatus('unpaid');
+          setPaymentTxId(undefined);
+          setPaidAmount(undefined);
+        }}
+        paid={paymentStatus === 'paid'}
+        txId={paymentTxId}
+        onPaid={(r) => {
+          setPaymentStatus('paid');
+          setPaymentTxId(r.transactionId);
+          setPaidAmount(estimate?.price);
+        }}
       />
     </View>,
 
@@ -367,7 +393,14 @@ export default function NewDeliveryScreen() {
         <View style={styles.footer}>
           {step < 4 ? (
             <Button
-              title="Continuer"
+              title={
+                step === 3 &&
+                (draft.paymentMethod === 'orange_money' ||
+                  draft.paymentMethod === 'moov_money') &&
+                paymentStatus !== 'paid'
+                  ? 'Valide le paiement ci-dessus'
+                  : 'Continuer'
+              }
               disabled={
                 (step === 0 && !draft.packageCategory) ||
                 (step === 1 && (!draft.pickupLocation || !draft.deliveryLocation)) ||
@@ -376,7 +409,11 @@ export default function NewDeliveryScreen() {
                     !isValidBF(draft.recipientPhone || '') ||
                     (thirdPartyPickup &&
                       (!draft.senderContactName?.trim() ||
-                        !isValidBF(draft.senderContactPhone || '')))))
+                        !isValidBF(draft.senderContactPhone || ''))))) ||
+                (step === 3 &&
+                  (draft.paymentMethod === 'orange_money' ||
+                    draft.paymentMethod === 'moov_money') &&
+                  paymentStatus !== 'paid')
               }
               onPress={() => {
                 // Validation par étape
@@ -464,22 +501,6 @@ export default function NewDeliveryScreen() {
             setDraftField('senderContactPhone', phone);
           }
           setContactPickerTarget(null);
-        }}
-      />
-
-      {/* Modal paiement Mobile Money (USSD + OTP simule) */}
-      <PaymentOtpModal
-        visible={paymentModalVisible}
-        method={
-          (draft.paymentMethod === 'moov_money'
-            ? 'moov_money'
-            : 'orange_money') as 'orange_money' | 'moov_money'
-        }
-        amount={estimate?.price ?? 0}
-        onCancel={() => setPaymentModalVisible(false)}
-        onSuccess={async () => {
-          setPaymentModalVisible(false);
-          await actuallyCreate();
         }}
       />
     </SafeAreaView>

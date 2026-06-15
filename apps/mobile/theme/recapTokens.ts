@@ -132,3 +132,26 @@ export const step3 = {
   toggleActive: { bg: '#F3F9EF', border: '#16A34A', fg: '#15803D' },
   radius: { card: 20, field: 13, toggle: 18, avatar: 14, pill: 999 },
 } as const;
+
+/** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
+export const step4 = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#8A8270',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  cashBg: '#E7F2E9',
+  cashFg: '#15803D',
+  orange: '#F47A20',
+  moov: '#1E5BD6',
+  ussdBg: '#FBF3DC',
+  ussdBorder: '#E4CF95',
+  ussdFg: '#1A1A17',
+  successBg: '#F3F9EF',
+  successBorder: '#16A34A',
+  activeBg: '#F4FAF0',
+  radius: { card: 18, method: 16, field: 13, otp: 13, pill: 999 },
+} as const;
