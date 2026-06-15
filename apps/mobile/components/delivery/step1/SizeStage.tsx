@@ -1,13 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import { recap as R, step1 as S } from '@/theme/recapTokens';
 import { PackageSize } from '@/types';
-import { ParcelBox } from './ParcelBox';
+import { BagHero } from './BagHero';
 
 interface Props {
   value: PackageSize;
@@ -16,35 +11,20 @@ interface Props {
 
 const SIZES = S.sizes;
 
-/** Scène héro : carton kraft qui grandit/rétrécit (spring) + segmenté + readout. */
+/** Scène héro : sac Toolé rotatif (sans ombre au sol) + segmenté + readout. */
 export function SizeStage({ value, onChange }: Props) {
   const { height } = useWindowDimensions();
   const compact = height < 720;
-  const stageH = compact ? 84 : 104;
-  const boxBase = compact ? 82 : 102;
+  const sceneH = compact ? 120 : 138;
 
   const meta = SIZES.find((s) => s.key === value) ?? SIZES[1];
-  const scale = useSharedValue(meta.scale);
-
-  useEffect(() => {
-    scale.value = withSpring(meta.scale, { damping: 12, stiffness: 180, mass: 0.6 });
-  }, [meta.scale, scale]);
-
-  const boxStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const shadowStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: 0.55 + scale.value * 0.55 }],
-    opacity: 0.1 + scale.value * 0.14,
-  }));
 
   return (
     <View style={[styles.stage, { borderRadius: S.radius.stage }]}>
       <Text style={styles.eyebrow}>ÉTAPE 1 · VOTRE COLIS</Text>
 
-      <View style={[styles.scene, { height: stageH }]}>
-        <Animated.View style={[styles.groundShadow, shadowStyle]} />
-        <Animated.View style={[styles.boxWrap, boxStyle]}>
-          <ParcelBox size={boxBase} />
-        </Animated.View>
+      <View style={[styles.scene, { height: sceneH }]}>
+        <BagHero size={value} />
       </View>
 
       <View style={styles.readout}>
@@ -93,18 +73,8 @@ const styles = StyleSheet.create({
   },
   scene: {
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     marginTop: R.space.xs,
-  },
-  boxWrap: { transformOrigin: 'center bottom' },
-  groundShadow: {
-    position: 'absolute',
-    bottom: 4,
-    width: 90,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#1A1A17',
-    alignSelf: 'center',
   },
   readout: { alignItems: 'center', marginTop: R.space.sm, gap: 1 },
   readName: { fontFamily: R.font.displayXBold, fontSize: 19, color: S.textPrim },

@@ -17,6 +17,21 @@ Branchée dans `app/(client)/new-delivery.tsx` (step index 0) via `<PackageStep1
 sont **déjà** dans le build (utilisés ailleurs) → carton SVG + spring sans
 nouveau module natif (OTA-safe, pas de rebuild).
 
+## Héros = sac Toolé (BagHero) — MàJ
+
+L'objet héros est désormais le **sac de livraison Toolé** (`BagHero.tsx`), plus le
+carton (`ParcelBox.tsx` conservé mais non utilisé). **Ombre au sol supprimée.**
+
+- Rendu **SVG** (react-native-svg) — vert `#15803D` (constante `GREEN` dans
+  `BagHero.tsx`), roll-top, poche zippée + passepoil gris, poignée, bretelles,
+  wordmark blanc « Toolé » (overlay RN Text, police `displayXBold`).
+- "Rotation" = **oscillation rotateY douce + perspective + flottement** (reanimated).
+  Choix imposé par la contrainte OTA : Lottie et expo-gl/three sont des **modules
+  natifs** (rebuild + OTA cassé). Le **vrai spin 360 volumétrique** (modèle §4 du
+  brief) nécessiterait un build natif — non fait pour rester OTA.
+- Échelle ressort selon la taille (s/m/l → 0.82/1.0/1.18), dans `BagHero` (`SCALE`).
+- Couleur à ajuster : `GREEN`/`GREEN_DK`/`GREEN_SIDE` en haut de `BagHero.tsx`.
+
 ## Animation
 
 - **Reanimated** (`useSharedValue` + `withSpring damping 12 / stiffness 180`)
