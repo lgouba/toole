@@ -10,7 +10,9 @@ export interface MapMarker {
   coordinate: LatLng;
   color?: string;
   label?: string;
-  icon?: 'pickup' | 'delivery' | 'driver' | 'default';
+  icon?: 'pickup' | 'delivery' | 'driver' | 'courier' | 'default';
+  /** Pour un marqueur 'courier' : true = en ligne (vert), false = hors ligne (gris). */
+  online?: boolean;
   /**
    * Point vers lequel le marqueur (livreur) doit "regarder" : son sprite est
    * orienté (miroir horizontal) vers cette cible. Utilisé pour que le livreur
@@ -45,7 +47,7 @@ interface MapProps {
    * Thème de la carte. 'dark' utilise les tuiles CartoDB dark_matter (vraies
    * rues, rendu sombre premium). 'light' = OSM standard. Défaut 'light'.
    */
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark' | 'soft';
   /**
    * Hauteur (px) masquée en bas par un panneau/sheet superposé. Le cadrage
    * (fitToContent) ajoute cette marge en bas pour que les markers (livreur,
@@ -88,18 +90,43 @@ function buildHtml(
   route: LatLng[] | null,
   interactive: boolean,
   fitToContent: boolean,
-  theme: 'light' | 'dark',
+  theme: 'light' | 'dark' | 'soft',
   contentInsetTop: number,
   contentInsetBottom: number,
 ): string {
   const isDark = theme === 'dark';
+  const isSoft = theme === 'soft';
   const tileUrl = isDark
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  const bodyBg = isDark ? '#0E1326' : '#F5F5F0';
+    : isSoft
+      ? 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
+      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const bodyBg = isDark ? '#0E1326' : isSoft ? '#EDEAE3' : '#F5F5F0';
   const routeColor = isDark ? '#00E676' : colors.primary;
   const markersJs = markers
     .map((m) => {
+      if (m.icon === 'courier') {
+        // Marqueur moto : pastille blanche + 🛵, vert (en ligne) / gris (hors ligne),
+        // halo qui pulse pour signaler "live".
+        const col = m.online === false ? '#AEB2AB' : '#15803D';
+        return `
+          {
+            const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
+              icon: L.divIcon({
+                className: 'courier-marker',
+                html: \`
+                  <div class="courier-pin">
+                    <div class="courier-halo" style="background:${col}"></div>
+                    <div class="courier-dot" style="border-color:${col}">🛵</div>
+                  </div>\`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+              }),
+            }).addTo(map);
+            window._markers[${JSON.stringify(m.id)}] = marker;
+          }
+        `;
+      }
       if (m.icon === 'driver') {
         // Pin GPS style "Google Maps" avec cycliste SVG detaille a l'interieur.
         // Forme : pin/goutte avec tete ronde + pointe vers le bas (GPS exact).
@@ -231,6 +258,23 @@ function buildHtml(
     .leaflet-bar a:hover { background: rgba(32,40,64,0.95); }
     ` : ''}
     .custom-marker { transition: transform 0.4s linear; }
+
+    /* Marqueur livreur (moto) sur l'accueil */
+    .courier-pin { position: relative; width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; }
+    .courier-halo {
+      position: absolute; width: 30px; height: 30px; border-radius: 50%;
+      opacity: 0.35; animation: courier-pulse 1.8s ease-out infinite;
+    }
+    .courier-dot {
+      position: relative; width: 30px; height: 30px; border-radius: 50%;
+      background: #fff; border: 2.5px solid #15803D;
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    @keyframes courier-pulse {
+      0%   { transform: scale(0.7); opacity: 0.4; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
 
     /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
     .driver-pin-outer {

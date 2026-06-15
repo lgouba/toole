@@ -133,6 +133,22 @@ export const step3 = {
   radius: { card: 20, field: 13, toggle: 18, avatar: 14, pill: 999 },
 } as const;
 
+/** Tokens dédiés à l'accueil client (carte + onboarding). */
+export const home = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#8A8270',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  greenTint: '#E7F2E9',
+  courierOnline: '#15803D',
+  courierOffline: '#AEB2AB',
+  radius: { card: 18, sheet: 26, marker: 999 },
+} as const;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',
