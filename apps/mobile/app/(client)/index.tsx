@@ -16,6 +16,26 @@ import { getNearbyDriversForMap, MapDriver } from '@/services/driver.service';
 const REFRESH_MS = 20_000;
 const ACTIVE_STATUSES = ['accepted', 'picking_up', 'picked_up', 'delivering'];
 
+// Livreurs fictifs (états mélangés) autour de la position — fallback quand le
+// flux réel /drivers/map ne renvoie encore rien (avant déploiement serveur ou
+// zone sans livreur). Reproduit la maquette (motos vertes + grises).
+function mockCouriers(center: { latitude: number; longitude: number }): MapDriver[] {
+  const offs = [
+    { dx: 0.012, dy: 0.008, online: true },
+    { dx: -0.015, dy: 0.004, online: true },
+    { dx: 0.006, dy: -0.013, online: false },
+    { dx: -0.009, dy: -0.01, online: true },
+    { dx: 0.018, dy: -0.002, online: false },
+    { dx: -0.004, dy: 0.015, online: true },
+    { dx: 0.01, dy: 0.016, online: false },
+  ];
+  return offs.map((o, i) => ({
+    id: `mock-${i}`,
+    location: { latitude: center.latitude + o.dy, longitude: center.longitude + o.dx },
+    online: o.online,
+  }));
+}
+
 /**
  * Accueil client = LANCEUR + surface d'état. Aucune saisie d'adresse ici : la
  * carte est décorative et montre les livreurs en ligne (moto verte). Le CTA
@@ -43,7 +63,9 @@ export default function ClientHomeScreen() {
       let cancelled = false;
       const load = async (pos: { latitude: number; longitude: number }) => {
         const drivers = await getNearbyDriversForMap(pos);
-        if (!cancelled) setMapDrivers(drivers);
+        if (cancelled) return;
+        // Fallback mock (états mélangés) si aucun livreur réel encore.
+        setMapDrivers(drivers.length > 0 ? drivers : mockCouriers(pos));
       };
       (async () => {
         const pos = userLocation ?? (await refreshLocation());
@@ -74,7 +96,14 @@ export default function ClientHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Map center={getCenter()} zoom={13} markers={markers} theme="soft" interactive />
+      <Map
+        center={getCenter()}
+        zoom={13}
+        markers={markers}
+        theme="soft"
+        interactive
+        coverage={{ center: getCenter(), radiusKm: 6 }}
+      />
 
       {/* Salutation flottante */}
       <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">

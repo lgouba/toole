@@ -35,6 +35,11 @@ interface MapProps {
    * ≥ 2 points, il remplace `routeCoordinates` (tracé plein, pas pointillé).
    */
   routePath?: LatLng[];
+  /**
+   * Halo "zone desservie" : cercle vert translucide + pin central. Décoratif
+   * (accueil). Aucune interaction.
+   */
+  coverage?: { center: LatLng; radiusKm: number };
   style?: ViewStyle;
   interactive?: boolean;
   /**
@@ -61,7 +66,10 @@ interface MapProps {
 /** Serialise uniquement la structure d'un marker (pas sa position precise). */
 function markersStructureKey(markers: MapMarker[]): string {
   return markers
-    .map((m) => `${m.id}:${m.icon ?? 'default'}:${m.color ?? ''}`)
+    .map(
+      (m) =>
+        `${m.id}:${m.icon ?? 'default'}:${m.color ?? ''}:${m.online === undefined ? '' : m.online}`,
+    )
     .join('|');
 }
 
@@ -93,6 +101,7 @@ function buildHtml(
   theme: 'light' | 'dark' | 'soft',
   contentInsetTop: number,
   contentInsetBottom: number,
+  coverage?: { center: LatLng; radiusKm: number },
 ): string {
   const isDark = theme === 'dark';
   const isSoft = theme === 'soft';
@@ -106,21 +115,23 @@ function buildHtml(
   const markersJs = markers
     .map((m) => {
       if (m.icon === 'courier') {
-        // Marqueur moto : pastille blanche + 🛵, vert (en ligne) / gris (hors ligne),
-        // halo qui pulse pour signaler "live".
-        const col = m.online === false ? '#AEB2AB' : '#15803D';
+        // Marqueur livreur : pastille blanche + ICÔNE MOTO (SVG, jamais d'emoji),
+        // colorée UNIQUEMENT selon le statut : vert en ligne / gris hors ligne.
+        // Halo (onde) seulement quand en ligne.
+        const online = m.online !== false;
+        const col = online ? '#15803D' : '#AEB2AB';
+        const moto =
+          '<svg width="17" height="17" viewBox="0 0 24 24"><path fill="' +
+          col +
+          '" d="M19.44 9.03 15.41 5H11v2h3.59l2 2H5C2.24 9 0 11.24 0 14s2.24 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.76 2.24 5 5 5s5-2.24 5-5c0-2.76-2.21-4.97-4.56-4.97M7.82 15C7.4 16.15 6.28 17 5 17c-1.66 0-3-1.34-3-3s1.34-3 3-3c1.28 0 2.4.85 2.82 2H5v2h2.82M19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3"/></svg>';
         return `
           {
             const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
               icon: L.divIcon({
                 className: 'courier-marker',
-                html: \`
-                  <div class="courier-pin">
-                    <div class="courier-halo" style="background:${col}"></div>
-                    <div class="courier-dot" style="border-color:${col}">🛵</div>
-                  </div>\`,
-                iconSize: [40, 40],
-                iconAnchor: [20, 20],
+                html: \`<div class="courier-pin">${online ? '<div class="courier-halo"></div>' : ''}<div class="courier-bubble">${moto}</div></div>\`,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
               }),
             }).addTo(map);
             window._markers[${JSON.stringify(m.id)}] = marker;
@@ -210,6 +221,20 @@ function buildHtml(
     `
     : `window._route = null;`;
 
+  const coverageJs = coverage
+    ? `
+      L.circle([${coverage.center.latitude}, ${coverage.center.longitude}], {
+        radius: ${Math.round(coverage.radiusKm * 1000)},
+        color: 'rgba(21,128,61,0.35)', weight: 1.5,
+        fillColor: '#15803D', fillOpacity: 0.12, interactive: false
+      }).addTo(map);
+      L.marker([${coverage.center.latitude}, ${coverage.center.longitude}], {
+        icon: L.divIcon({ className: 'coverage-pin', html: '<div class="cov-pin"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }),
+        interactive: false
+      }).addTo(map);
+    `
+    : '';
+
   const clickJs = `
     map.on('click', function(e) {
       window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -260,20 +285,26 @@ function buildHtml(
     .custom-marker { transition: transform 0.4s linear; }
 
     /* Marqueur livreur (moto) sur l'accueil */
-    .courier-pin { position: relative; width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; }
+    .courier-pin { position: relative; width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; }
+    .courier-bubble {
+      position: relative; width: 30px; height: 30px; border-radius: 50%;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.25);
+    }
     .courier-halo {
       position: absolute; width: 30px; height: 30px; border-radius: 50%;
-      opacity: 0.35; animation: courier-pulse 1.8s ease-out infinite;
-    }
-    .courier-dot {
-      position: relative; width: 30px; height: 30px; border-radius: 50%;
-      background: #fff; border: 2.5px solid #15803D;
-      display: flex; align-items: center; justify-content: center; font-size: 15px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      border: 2px solid rgba(21,128,61,0.55);
+      animation: courier-pulse 1.7s ease-out infinite;
     }
     @keyframes courier-pulse {
-      0%   { transform: scale(0.7); opacity: 0.4; }
-      100% { transform: scale(2.2); opacity: 0; }
+      0%   { transform: scale(0.8); opacity: 0.7; }
+      100% { transform: scale(2.1); opacity: 0; }
+    }
+    /* Pin central de la zone desservie */
+    .cov-pin {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #15803D; border: 3px solid #fff;
+      box-shadow: 0 0 0 2px rgba(21,128,61,0.3);
     }
 
     /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
@@ -435,6 +466,7 @@ function buildHtml(
       } catch (e) {}
     };
 
+    ${coverageJs}
     ${markersJs}
     ${routeJs}
     ${interactive ? clickJs : ''}
@@ -479,6 +511,7 @@ export function Map({
   onPress,
   routeCoordinates,
   routePath,
+  coverage,
   style,
   interactive = true,
   fitToContent = false,
@@ -526,12 +559,22 @@ export function Map({
         theme,
         contentInsetTop,
         contentInsetBottom,
+        coverage,
       ),
     // NOTE: on ne met PAS center.latitude/longitude dans les deps pour éviter
     // les rebuilds intempestifs (tremblement). Le recentrage se fait via JS
     // injection dans l'useEffect ci-dessous.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [zoom, structureKey, interactive, fitToContent, theme, contentInsetTop, contentInsetBottom],
+    [
+      zoom,
+      structureKey,
+      interactive,
+      fitToContent,
+      theme,
+      contentInsetTop,
+      contentInsetBottom,
+      coverage ? `${coverage.center.latitude},${coverage.center.longitude},${coverage.radiusKm}` : '',
+    ],
   );
 
   // Detecte un changement significatif du center (ex: GPS qui arrive après
