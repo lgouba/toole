@@ -6,6 +6,7 @@ import {
   setOnline,
   updateLocation,
   findNearbyDrivers,
+  findNearbyDriversForMap,
   getPublicDriverProfile,
 } from '../services/driver.service.js';
 import { getDriverStats } from '../services/driver-stats.service.js';
@@ -111,6 +112,20 @@ export async function getNearby(
   try {
     const { lat, lng, radiusKm } = nearbySchema.parse(req.query);
     const drivers = await findNearbyDrivers(lat, lng, radiusKm);
+    return success(res, drivers);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getMapDrivers(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { lat, lng, radiusKm } = nearbySchema.parse(req.query);
+    const drivers = await findNearbyDriversForMap(lat, lng, radiusKm);
     return success(res, drivers);
   } catch (err) {
     next(err);

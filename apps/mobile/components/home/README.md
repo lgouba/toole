@@ -17,17 +17,25 @@ carte est **décorative** (pan/zoom uniquement).
 
 ## Livreurs en ligne (temps réel)
 
-Source = `useDeliveryStore().nearbyDrivers` (vrais livreurs en ligne proches, via
-`fetchNearbyDrivers`), rafraîchi **toutes les 20s au focus** et **coupé hors focus**
-(perf/batterie). Mapping état → couleur du marqueur :
-- en ligne (`online: true`) → moto **verte `#15803D`** + halo qui pulse ;
-- hors ligne (`online: false`) → moto **grise `#AEB2AB`** (pas d'utilisation
-  actuelle : `nearbyDrivers` ne renvoie que des livreurs en ligne).
+Source = **endpoint serveur `GET /drivers/map`** (NOUVEAU) → livreurs proches
+**en ligne ET hors ligne récents** avec statut. `findNearbyDrivers` ne renvoyait
+que les `isOnline:true` → impossible d'afficher des gris ; d'où ce nouvel endpoint.
+Rafraîchi **toutes les 20s au focus**, **coupé hors focus** (perf/batterie).
 
-**Pas de nouvel event Socket.IO** ajouté (il n'existe pas de flux public
-"livreurs en ligne autour de moi"). Pour brancher un vrai flux temps réel
-plus tard (ex. `courier:online` / `courier:position`), il suffit d'alimenter la
-même liste de marqueurs `courier` — l'UI ne change pas.
+Mapping état → couleur du marqueur :
+- `status:'online'` (en ligne + position fraîche) → moto **verte `#15803D`** + halo pulsant ;
+- `status:'offline'` (position < 2h mais hors ligne) → moto **grise `#AEB2AB`**.
+
+Vie privée : coordonnées **arrondies ~3 décimales (≈110 m)** côté serveur, récence
+bornée à 2h, liste plafonnée à 40. ⚠️ Note : on expose la dernière position
+(approx.) de livreurs hors ligne — choix produit assumé (demande explicite
+d'afficher les hors-ligne en gris). À revoir si jugé trop intrusif.
+
+**Pas d'event Socket.IO** (polling 20s). Pour passer en temps réel plus tard,
+alimenter la même liste `courier` — l'UI ne change pas.
+
+⚠️ **Déploiement serveur requis** : `/drivers/map` doit être déployé
+(`docker compose up -d --build tolle-api`), sinon l'accueil affiche 0 livreur.
 
 ## Onboarding = lanceur uniquement
 

@@ -5,6 +5,36 @@ export async function setOnlineStatus(isOnline: boolean): Promise<void> {
   await api.put('/drivers/status', { isOnline });
 }
 
+/** Marqueur livreur pour la carte d'accueil (statut en ligne/hors ligne). */
+export interface MapDriver {
+  id: string;
+  location: LatLng;
+  online: boolean;
+}
+
+/**
+ * Livreurs proches POUR LA CARTE D'ACCUEIL (en ligne ET hors ligne récents).
+ * Coordonnées déjà arrondies côté serveur (vie privée). Endpoint public.
+ */
+export async function getNearbyDriversForMap(
+  loc: LatLng,
+  radiusKm = 8,
+): Promise<MapDriver[]> {
+  try {
+    const res = await api.get('/drivers/map', {
+      params: { lat: loc.latitude, lng: loc.longitude, radiusKm },
+    });
+    const arr = unwrap<any[]>(res) || [];
+    return arr.map((d) => ({
+      id: String(d.id),
+      location: { latitude: Number(d.lat), longitude: Number(d.lng) },
+      online: d.status === 'online',
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Récupéré un livreur public (pour refresh client quand on a perdu un event).
  * Le backend renvoie { ...user, driverProfile: { currentLat, currentLng, ... } }.

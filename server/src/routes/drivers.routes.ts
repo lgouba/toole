@@ -4,6 +4,7 @@ import {
   updateStatus,
   updateDriverLocation,
   getNearby,
+  getMapDrivers,
   getDriver,
   updateKyc,
   getKyc,
@@ -14,6 +15,7 @@ const router = Router();
 
 // Public
 router.get('/nearby', getNearby);
+router.get('/map', getMapDrivers);
 
 // Driver-only (place AVANT la route /:id pour ne pas etre capture)
 router.put('/status', authRequired, requireRole('driver'), updateStatus);

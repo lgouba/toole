@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { recap as R, home as H } from '@/theme/recapTokens';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useLocationStore } from '@/stores/location.store';
+import { getNearbyDriversForMap, MapDriver } from '@/services/driver.service';
 
 const REFRESH_MS = 20_000;
 const ACTIVE_STATUSES = ['accepted', 'picking_up', 'picked_up', 'delivering'];
@@ -23,27 +24,33 @@ const ACTIVE_STATUSES = ['accepted', 'picking_up', 'picked_up', 'delivering'];
 export default function ClientHomeScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { nearbyDrivers, fetchNearbyDrivers, activeDelivery } = useDeliveryStore();
+  const activeDelivery = useDeliveryStore((s) => s.activeDelivery);
   const userLocation = useLocationStore((s) => s.current);
   const refreshLocation = useLocationStore((s) => s.refresh);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
+
+  const [mapDrivers, setMapDrivers] = useState<MapDriver[]>([]);
 
   const firstName = user?.fullName?.split(' ')[0] || 'Client';
   const hasActiveDelivery =
     !!activeDelivery && ACTIVE_STATUSES.includes(activeDelivery.status);
 
-  // Rafraîchit les livreurs proches au focus + toutes les 20s ; on coupe le
-  // polling quand l'écran perd le focus (perf / batterie).
+  // Rafraîchit les livreurs (en ligne + hors ligne) proches au focus + toutes
+  // les 20s ; on coupe le polling quand l'écran perd le focus (perf / batterie).
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      const load = async (pos: { latitude: number; longitude: number }) => {
+        const drivers = await getNearbyDriversForMap(pos);
+        if (!cancelled) setMapDrivers(drivers);
+      };
       (async () => {
         const pos = userLocation ?? (await refreshLocation());
-        if (!cancelled) fetchNearbyDrivers(pos ?? getCenter());
+        load(pos ?? getCenter());
       })();
       intervalRef.current = setInterval(() => {
-        fetchNearbyDrivers(useLocationStore.getState().current ?? getCenter());
+        load(useLocationStore.getState().current ?? getCenter());
       }, REFRESH_MS);
       return () => {
         cancelled = true;
@@ -53,18 +60,16 @@ export default function ClientHomeScreen() {
     }, []),
   );
 
-  // Marqueurs moto (livreurs en ligne) — données réelles `nearbyDrivers`.
+  // Marqueurs moto : vert (en ligne) / gris (hors ligne).
   const markers = useMemo(
     () =>
-      nearbyDrivers
-        .filter((d) => d.driverProfile?.currentLocation)
-        .map((d) => ({
-          id: d.id,
-          coordinate: d.driverProfile.currentLocation!,
-          icon: 'courier' as const,
-          online: true,
-        })),
-    [nearbyDrivers],
+      mapDrivers.map((d) => ({
+        id: d.id,
+        coordinate: d.location,
+        icon: 'courier' as const,
+        online: d.online,
+      })),
+    [mapDrivers],
   );
 
   return (

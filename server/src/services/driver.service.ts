@@ -280,6 +280,67 @@ export async function findNearbyDrivers(
   return results;
 }
 
+export interface MapDriver {
+  id: string;
+  lat: number;
+  lng: number;
+  status: 'online' | 'offline';
+}
+
+/**
+ * Livreurs proches POUR LA CARTE D'ACCUEIL (décorative) : en ligne ET hors ligne
+ * récents, avec leur statut. Coordonnées ARRONDIES (~3 décimales ≈ 110 m) pour
+ * ne pas exposer la position exacte d'une personne sur un écran public. Bornée
+ * en récence (2h) pour ne pas afficher de vieilles positions, et plafonnée.
+ *
+ *  - en ligne (isOnline + position fraîche) → 'online' (vert)
+ *  - sinon (position < 2h mais hors ligne / stale) → 'offline' (gris)
+ */
+export async function findNearbyDriversForMap(
+  lat: number,
+  lng: number,
+  radiusKm: number,
+): Promise<MapDriver[]> {
+  const latDelta = radiusKm / 111;
+  const lngDelta = radiusKm / (111 * Math.cos((lat * Math.PI) / 180) || 1);
+  const activeCutoff = new Date(Date.now() - (await getActiveDriverMaxAgeMs()));
+  const recentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+  const candidates = await prisma.driverProfile.findMany({
+    where: {
+      lastLocationUpdate: { gte: recentCutoff },
+      currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
+      currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
+      verificationStatus: { in: ['verified', 'pending'] },
+    },
+    select: {
+      userId: true,
+      isOnline: true,
+      currentLat: true,
+      currentLng: true,
+      lastLocationUpdate: true,
+      user: { select: { isActive: true } },
+    },
+  });
+
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  const out: MapDriver[] = [];
+  for (const d of candidates) {
+    if (!d.user.isActive || d.currentLat == null || d.currentLng == null) continue;
+    if (haversineKm(lat, lng, d.currentLat, d.currentLng) > radiusKm) continue;
+    const fresh = !!d.lastLocationUpdate && d.lastLocationUpdate >= activeCutoff;
+    out.push({
+      id: d.userId,
+      lat: round(d.currentLat),
+      lng: round(d.currentLng),
+      status: d.isOnline && fresh ? 'online' : 'offline',
+    });
+  }
+  // En ligne d'abord, puis plafond.
+  out.sort((a, b) => (a.status === b.status ? 0 : a.status === 'online' ? -1 : 1));
+  return out.slice(0, 40);
+}
+
 export async function getPublicDriverProfile(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
