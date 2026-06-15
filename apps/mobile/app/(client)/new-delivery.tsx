@@ -12,9 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input, Card } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
 import { AddressField } from '@/components/AddressField';
-import { PriceEstimate, SchedulePicker } from '@/components/delivery';
+import { DeliveryRecap } from '@/components/delivery/recap/DeliveryRecap';
+import { formatCFA } from '@/utils/format';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
 import {
   PaymentMethodPicker,
@@ -62,6 +63,8 @@ export default function NewDeliveryScreen() {
   // de bloquer la soumission si l'utilisateur a active le toggle mais que la
   // date saisie est invalide (auquel cas draft.scheduledFor est undefined).
   const [scheduleEnabled, setScheduleEnabled] = useState(!!draft.scheduledFor);
+  // Code promo appliqué (validé côté serveur) — pour l'état visuel du champ.
+  const [promoApplied, setPromoApplied] = useState(false);
   // Modal de paiement Mobile Money (USSD + OTP simule)
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   // Modal contact picker : 'recipient' = destinataire, 'sender' = expéditeur tiers
@@ -116,6 +119,26 @@ export default function NewDeliveryScreen() {
     draft.deliveryLocation,
     draft.packageSize,
   );
+
+  // Applique un code promo : valide côté serveur, met à jour le draft + l'état visuel.
+  const applyPromo = async (code: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+    if (!estimate?.price) {
+      Alert.alert('Code promo', "Renseigne d'abord le trajet pour connaître le prix.");
+      return;
+    }
+    try {
+      const result = await apiValidatePromoCode(trimmed, estimate.price);
+      setDraftField('promoCode', result.code);
+      setPromoApplied(true);
+      Alert.alert('Code appliqué', `-${result.discountAmount.toLocaleString('fr-FR')} FCFA de remise`);
+    } catch (err: any) {
+      setPromoApplied(false);
+      setDraftField('promoCode', '');
+      Alert.alert('Code promo', err?.response?.data?.error?.message ?? 'Code promo invalide.');
+    }
+  };
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -452,91 +475,21 @@ export default function NewDeliveryScreen() {
       />
     </View>,
 
-    // Step 4: Summary
+    // Step 4: Récapitulatif (direction "billet / itinéraire")
     <View key="summary" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Recapitulatif</Text>
-      {estimate && <PriceEstimate estimate={estimate} />}
-      <Card style={styles.summaryCard}>
-        {draft.packageSize && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Taille</Text>
-            <Text style={styles.summaryValue}>
-              {PACKAGE_SIZE_META[draft.packageSize].label} ·{' '}
-              {PACKAGE_SIZE_META[draft.packageSize].weight}
-            </Text>
-          </View>
-        )}
-        {draft.packageCategory && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Catégorie</Text>
-            <Text style={styles.summaryValue}>
-              {PACKAGE_CATEGORY_META[draft.packageCategory].emoji}{' '}
-              {PACKAGE_CATEGORY_META[draft.packageCategory].label}
-            </Text>
-          </View>
-        )}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Récupération</Text>
-          <Text style={styles.summaryValue} numberOfLines={1}>
-            {draft.pickupAddress || '-'}
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Livraison</Text>
-          <Text style={styles.summaryValue} numberOfLines={1}>
-            {draft.deliveryAddress || '-'}
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Destinataire</Text>
-          <Text style={styles.summaryValue}>{draft.recipientName || '-'}</Text>
-        </View>
-        {thirdPartyPickup && draft.senderContactName && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Expéditeur</Text>
-            <Text style={styles.summaryValue}>{draft.senderContactName}</Text>
-          </View>
-        )}
-        {draft.declaredValue ? (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Valeur estimée</Text>
-            <Text style={styles.summaryValue}>
-              {draft.declaredValue.toLocaleString('fr-FR')} FCFA
-            </Text>
-          </View>
-        ) : null}
-        {draft.isFragile ? (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Fragile</Text>
-            <Text style={[styles.summaryValue, { color: '#B91C1C', fontWeight: '700' }]}>
-              🍷 Oui — manipulation délicate
-            </Text>
-          </View>
-        ) : null}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Paiement</Text>
-          <Text style={styles.summaryValue}>
-            {draft.paymentMethod === 'orange_money'
-              ? '🟠 Orange Money'
-              : draft.paymentMethod === 'moov_money'
-                ? '🔵 Moov Money'
-                : '💵 Espèces à la livraison'}
-          </Text>
-        </View>
-      </Card>
-
-      {/* Code promo */}
-      <PromoCodeBlock
-        code={draft.promoCode ?? ''}
-        onChange={(v) => setDraftField('promoCode', v)}
-        orderAmount={estimate?.price ?? 0}
-      />
-
-      {/* Programmer la livraison */}
-      <SchedulePicker
-        value={draft.scheduledFor}
-        onChange={(iso) => setDraftField('scheduledFor', iso)}
-        onEnabledChange={setScheduleEnabled}
+      <DeliveryRecap
+        draft={draft}
+        estimate={estimate}
+        scheduleValue={draft.scheduledFor}
+        onScheduleChange={(iso) => setDraftField('scheduledFor', iso)}
+        onScheduleEnabledChange={setScheduleEnabled}
+        promo={draft.promoCode ?? ''}
+        onPromoChange={(v) => {
+          setDraftField('promoCode', v);
+          if (promoApplied) setPromoApplied(false);
+        }}
+        onApplyPromo={applyPromo}
+        promoApplied={promoApplied}
       />
     </View>,
   ];
@@ -631,7 +584,15 @@ export default function NewDeliveryScreen() {
               }}
             />
           ) : (
-            <Button title="Confirmer" onPress={handleSubmit} loading={isLoading} />
+            <Button
+              title={
+                estimate
+                  ? `Confirmer l'envoi · ${formatCFA(estimate.price)}`
+                  : "Confirmer l'envoi"
+              }
+              onPress={handleSubmit}
+              loading={isLoading}
+            />
           )}
         </View>
       </KeyboardAvoidingView>
@@ -1139,112 +1100,3 @@ function StepsIndicator({
   );
 }
 
-/**
- * Bloc "Code promo" : champ texte + bouton "Appliquer". Au submit, appelle
- * l'API /promo/validate pour valider le code et afficher la remise.
- *
- * Si valide -> chip vert "Code XXXX applique : -1500 FCFA"
- * Si invalide -> message d'erreur rouge sous le champ
- */
-function PromoCodeBlock({
-  code,
-  onChange,
-  orderAmount,
-}: {
-  code: string;
-  onChange: (v: string) => void;
-  orderAmount: number;
-}) {
-  const [input, setInput] = useState(code);
-  const [applied, setApplied] = useState<{
-    code: string;
-    discountAmount: number;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const apply = async () => {
-    const trimmed = input.trim().toUpperCase();
-    if (!trimmed) return;
-    if (!orderAmount) {
-      setError(
-        "Veuillez d'abord remplir les autres étapes pour qu'on connaisse le prix.",
-      );
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await apiValidatePromoCode(trimmed, orderAmount);
-      setApplied({ code: result.code, discountAmount: result.discountAmount });
-      onChange(result.code);
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.error?.message ?? 'Code promo invalide.';
-      setError(msg);
-      setApplied(null);
-      onChange('');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clear = () => {
-    setInput('');
-    setApplied(null);
-    setError(null);
-    onChange('');
-  };
-
-  if (applied) {
-    return (
-      <View style={styles.promoApplied}>
-        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.promoAppliedTitle}>
-            Code {applied.code} appliqué
-          </Text>
-          <Text style={styles.promoAppliedAmount}>
-            -{applied.discountAmount.toLocaleString('fr-FR')} FCFA de remise
-          </Text>
-        </View>
-        <TouchableOpacity onPress={clear}>
-          <Ionicons name="close-circle" size={22} color={colors.textTertiary} />
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.promoBlock}>
-      <Text style={styles.promoLabel}>Code promo</Text>
-      <View style={styles.promoRow}>
-        <View style={styles.promoInputWrap}>
-          <Input
-            value={input}
-            onChangeText={(v) => {
-              setInput(v.toUpperCase());
-              if (error) setError(null);
-            }}
-            placeholder="Entrez un code promo"
-            autoCapitalize="characters"
-            containerStyle={{ marginBottom: 0 }}
-          />
-        </View>
-        <TouchableOpacity
-          style={[styles.promoApplyBtn, !input.trim() && { opacity: 0.5 }]}
-          onPress={apply}
-          disabled={!input.trim() || loading}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.promoApplyText}>
-            {loading ? '...' : 'Appliquer'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      {error ? (
-        <Text style={styles.promoError}>{error}</Text>
-      ) : null}
-    </View>
-  );
-}
