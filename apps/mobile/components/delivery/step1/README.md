@@ -25,10 +25,21 @@ carton (`ParcelBox.tsx` conservé mais non utilisé). **Ombre au sol supprimée.
 - Rendu **SVG** (react-native-svg) — vert `#15803D` (constante `GREEN` dans
   `BagHero.tsx`), roll-top, poche zippée + passepoil gris, poignée, bretelles,
   wordmark blanc « Toolé » (overlay RN Text, police `displayXBold`).
-- "Rotation" = **oscillation rotateY douce + perspective + flottement** (reanimated).
-  Choix imposé par la contrainte OTA : Lottie et expo-gl/three sont des **modules
-  natifs** (rebuild + OTA cassé). Le **vrai spin 360 volumétrique** (modèle §4 du
-  brief) nécessiterait un build natif — non fait pour rester OTA.
+### Deux rendus (3D natif + fallback SVG)
+
+- `BagHero3D.tsx` = **vrai 3D** (expo-gl + three + expo-three), modèle exact du
+  §4 (corps, roll-top, poche, passepoil, poignée demi-tore, bretelles), lumières
+  ambiante+directionnelle, rotation idle `rotation.y += 0.012`, échelle lerp,
+  wordmark = texture PNG (`assets/images/toole-wordmark.png`). Pas de sol/ombre.
+- `BagHeroSVG.tsx` = **fallback** (oscillation rotateY douce + flottement).
+- `BagHero.tsx` = orchestrateur : `require('./BagHero3D')` dans un `try/catch`
+  + error boundary. expo-gl appelle `requireNativeModule` à l'IMPORT → sur un
+  binaire SANS expo-gl natif, le require échoue → repli SVG, **sans crash (OTA-safe)**.
+  Le 3D ne s'active donc **qu'après un build natif** incluant expo-gl.
+
+**Build requis pour activer le 3D** : `eas build` (expo-gl est natif). Les
+installs OTA actuelles restent sur le SVG. Profiler `pixelRatio` sur entrée de
+gamme si besoin (actuellement rendu natif via GLView 122×134).
 - Échelle ressort selon la taille (s/m/l → 0.82/1.0/1.18), dans `BagHero` (`SCALE`).
 - Couleur à ajuster : `GREEN`/`GREEN_DK`/`GREEN_SIDE` en haut de `BagHero.tsx`.
 
