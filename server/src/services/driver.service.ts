@@ -309,10 +309,12 @@ export async function findNearbyDriversForMap(
 
   const candidates = await prisma.driverProfile.findMany({
     where: {
-      lastLocationUpdate: { gte: recentCutoff },
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
       verificationStatus: { in: ['verified', 'pending'] },
+      // En ligne -> toujours inclus (vert) dès qu'on a une position, même
+      // ancienne. Hors ligne -> seulement si position récente (< 2h) pour le gris.
+      OR: [{ isOnline: true }, { lastLocationUpdate: { gte: recentCutoff } }],
     },
     select: {
       userId: true,

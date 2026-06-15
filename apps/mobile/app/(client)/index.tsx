@@ -64,8 +64,11 @@ export default function ClientHomeScreen() {
       const load = async (pos: { latitude: number; longitude: number }) => {
         const drivers = await getNearbyDriversForMap(pos);
         if (cancelled) return;
-        // Fallback mock (états mélangés) si aucun livreur réel encore.
-        setMapDrivers(drivers.length > 0 ? drivers : mockCouriers(pos));
+        // En PROD on n'affiche que les vrais livreurs (pas de faux qui induisent
+        // en erreur). Le mock (états mélangés) ne sert qu'en développement pour
+        // reproduire la maquette sans backend.
+        if (drivers.length > 0) setMapDrivers(drivers);
+        else setMapDrivers(__DEV__ ? mockCouriers(pos) : []);
       };
       (async () => {
         const pos = userLocation ?? (await refreshLocation());
