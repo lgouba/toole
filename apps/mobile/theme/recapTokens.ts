@@ -112,3 +112,23 @@ export const step2 = {
   linkBorder: '#EFE3C4',
   radius: { card: 20, row: 15, tile: 16, field: 15, pill: 999, summary: 18 },
 } as const;
+
+/** Tokens dédiés à l'étape 3 (destinataire). Même famille crème + vert. */
+export const step3 = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#A59E8C',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  avatarRecipient: { bg: '#E7F2E9', fg: '#15803D' },
+  avatarHolder: { bg: '#FBEFD6', fg: '#C5961A' },
+  contactsBtn: { bg: '#F3F9EF', border: '#CFE6C7', fg: '#15803D' },
+  fieldBg: '#FBF9F4',
+  fieldFocus: '#16A34A',
+  toggleIdle: { bg: '#FBF6E9', border: '#EFE3C4', fg: '#C5961A' },
+  toggleActive: { bg: '#F3F9EF', border: '#16A34A', fg: '#15803D' },
+  radius: { card: 20, field: 13, toggle: 18, avatar: 14, pill: 999 },
+} as const;

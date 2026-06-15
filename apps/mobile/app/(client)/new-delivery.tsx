@@ -12,10 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { DeliveryRecap } from '@/components/delivery/recap/DeliveryRecap';
 import { PackageStep1 } from '@/components/delivery/step1/PackageStep1';
 import { TripStep2 } from '@/components/delivery/step2/TripStep2';
+import { RecipientStep3 } from '@/components/delivery/step3/RecipientStep3';
+import { isValidBF } from '@/utils/phone';
 import { formatCFA } from '@/utils/format';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
 import {
@@ -271,96 +273,32 @@ export default function NewDeliveryScreen() {
       />
     </View>,
 
-    // Step 2: Recipient
+    // Step 2: Destinataire (refonte cartes personne + bascule détenteur)
     <View key="recipient" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Destinataire</Text>
+      <Text style={styles.stepTitle}>Le destinataire</Text>
+      <Text style={styles.stepHint}>À qui — et où — remettre le colis.</Text>
 
-      {/* Picker contact */}
-      <TouchableOpacity
-        style={styles.contactBtn}
-        onPress={() => setContactPickerTarget('recipient')}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="people-outline" size={18} color={colors.primary} />
-        <Text style={styles.contactBtnText}>Choisir depuis mes contacts</Text>
-      </TouchableOpacity>
-
-      <Input
-        label="Nom du destinataire"
-        placeholder="Ex: Rasmane Kindo"
-        value={draft.recipientName || ''}
-        onChangeText={(v) => setDraftField('recipientName', v)}
-        autoCapitalize="words"
-        containerStyle={styles.inputMargin}
-      />
-      <Input
-        label="Téléphone du destinataire"
-        placeholder="70 12 34 56"
-        value={draft.recipientPhone || ''}
-        onChangeText={(v) => setDraftField('recipientPhone', v)}
-        keyboardType="phone-pad"
-        containerStyle={styles.inputMargin}
-      />
-
-      {/* Toggle expéditeur tiers — UX améliorée */}
-      <TouchableOpacity
-        style={styles.toggleRow}
-        onPress={() => {
-          const next = !thirdPartyPickup;
+      <RecipientStep3
+        recipientName={draft.recipientName || ''}
+        recipientPhone={draft.recipientPhone || ''}
+        onRecipientName={(v) => setDraftField('recipientName', v)}
+        onRecipientPhone={(n) => setDraftField('recipientPhone', n)}
+        heldByOther={thirdPartyPickup}
+        onHeldByOther={(next) => {
           setThirdPartyPickup(next);
           if (!next) {
             setDraftField('senderContactName', undefined);
             setDraftField('senderContactPhone', undefined);
           }
         }}
-        activeOpacity={0.7}
-      >
-        <View
-          style={[styles.checkbox, thirdPartyPickup && styles.checkboxChecked]}
-        >
-          {thirdPartyPickup && (
-            <Ionicons name="checkmark" size={16} color={colors.white} />
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.toggleLabel}>
-            Quelqu'un d'autre détient le colis
-          </Text>
-          <Text style={styles.toggleHint}>
-            Activez cette option si le colis n'est pas chez vous (ex : chez un
-            ami, dans une boutique). Le livreur contactera cette personne.
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      {thirdPartyPickup && (
-        <View style={styles.thirdPartyBlock}>
-          <TouchableOpacity
-            style={styles.contactBtn}
-            onPress={() => setContactPickerTarget('sender')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="people-outline" size={18} color={colors.primary} />
-            <Text style={styles.contactBtnText}>Choisir depuis mes contacts</Text>
-          </TouchableOpacity>
-          <Input
-            label="Nom de l'expéditeur"
-            placeholder="Ex: Awa Sawadogo"
-            value={draft.senderContactName || ''}
-            onChangeText={(v) => setDraftField('senderContactName', v)}
-            autoCapitalize="words"
-            containerStyle={styles.inputMargin}
-          />
-          <Input
-            label="Téléphone de l'expéditeur"
-            placeholder="70 12 34 56"
-            value={draft.senderContactPhone || ''}
-            onChangeText={(v) => setDraftField('senderContactPhone', v)}
-            keyboardType="phone-pad"
-            containerStyle={styles.inputMargin}
-          />
-        </View>
-      )}
+        holderName={draft.senderContactName || ''}
+        holderPhone={draft.senderContactPhone || ''}
+        onHolderName={(v) => setDraftField('senderContactName', v)}
+        onHolderPhone={(n) => setDraftField('senderContactPhone', n)}
+        onPickContact={(which) =>
+          setContactPickerTarget(which === 'holder' ? 'sender' : 'recipient')
+        }
+      />
     </View>,
 
     // Step 3: Paiement (mode de paiement dedie pour clarte UX)
@@ -432,7 +370,13 @@ export default function NewDeliveryScreen() {
               title="Continuer"
               disabled={
                 (step === 0 && !draft.packageCategory) ||
-                (step === 1 && (!draft.pickupLocation || !draft.deliveryLocation))
+                (step === 1 && (!draft.pickupLocation || !draft.deliveryLocation)) ||
+                (step === 2 &&
+                  (!draft.recipientName?.trim() ||
+                    !isValidBF(draft.recipientPhone || '') ||
+                    (thirdPartyPickup &&
+                      (!draft.senderContactName?.trim() ||
+                        !isValidBF(draft.senderContactPhone || '')))))
               }
               onPress={() => {
                 // Validation par étape
