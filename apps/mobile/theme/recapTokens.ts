@@ -64,3 +64,31 @@ export const recap = {
 
 /** Fuseau opérationnel (Ouagadougou = UTC+0, sans DST). */
 export const APP_TIMEZONE = 'Africa/Ouagadougou';
+
+/** Tokens dédiés à l'étape 1 (taille + catégorie). Cohérents crème + vert. */
+export const step1 = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#8A8270',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  stageBg: '#ECF1E8',
+  stageTint: 'rgba(22,163,74,0.10)',
+  radius: { stage: 26, tile: 18, card: 16, field: 14 },
+  parcel: {
+    top: '#E6C699',
+    front: '#CFA168',
+    side: '#B5854F',
+    tape: '#1E9E50',
+    tapeTop: '#15A150',
+  },
+  // Clés alignées sur PackageSize du repo ('small'|'medium'|'large').
+  sizes: [
+    { key: 'small', name: 'Petit', weight: 'moins de 5 kg', scale: 0.58 },
+    { key: 'medium', name: 'Moyen', weight: '5 – 20 kg · standard', scale: 0.9 },
+    { key: 'large', name: 'Grand', weight: 'plus de 20 kg', scale: 1.24 },
+  ] as const,
+} as const;

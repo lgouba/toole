@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
 import { AddressField } from '@/components/AddressField';
 import { DeliveryRecap } from '@/components/delivery/recap/DeliveryRecap';
+import { PackageStep1 } from '@/components/delivery/step1/PackageStep1';
 import { formatCFA } from '@/utils/format';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
 import {
@@ -28,28 +29,11 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useDeliveryPrice } from '@/hooks/useDeliveryPrice';
 import {
-  PackageCategory,
   PackageSize,
-  PACKAGE_CATEGORY_META,
-  PACKAGE_SIZE_META,
   SIZE_TO_LEGACY_TYPE,
 } from '@/types';
 import { OUAGADOUGOU_CENTER } from '@/utils/geo';
 import { validatePromoCode as apiValidatePromoCode } from '@/services/delivery.service';
-
-// Ordre d'affichage des categories dans la grille (2 colonnes).
-const CATEGORY_ORDER: PackageCategory[] = [
-  'meal',
-  'cake',
-  'fresh',
-  'grocery',
-  'pharmacy',
-  'cosmetics',
-  'gift',
-  'other',
-];
-
-const SIZE_ORDER: PackageSize[] = ['small', 'medium', 'large'];
 
 export default function NewDeliveryScreen() {
   const router = useRouter();
@@ -119,6 +103,16 @@ export default function NewDeliveryScreen() {
     draft.deliveryLocation,
     draft.packageSize,
   );
+
+  // Taille par défaut = Moyen (la scène héro l'affiche par défaut) tant que
+  // l'utilisateur n'a rien choisi → "Continuer" ne dépend que de la catégorie.
+  React.useEffect(() => {
+    if (!draft.packageSize) {
+      setDraftField('packageSize', 'medium');
+      setDraftField('packageType', SIZE_TO_LEGACY_TYPE['medium']);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Applique un code promo : valide côté serveur, met à jour le draft + l'état visuel.
   const applyPromo = async (code: string) => {
@@ -227,126 +221,24 @@ export default function NewDeliveryScreen() {
   };
 
   const steps = [
-    // Step 0: Colis (taille + categorie + valeur + fragile + description)
+    // Step 0: Colis (refonte "scène héro" : taille + catégories + détails repliables)
     <View key="type" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Parlons de votre colis</Text>
-      <Text style={styles.stepHint}>
-        Quelques détails pour préparer le livreur.
-      </Text>
-
-      {/* TAILLE — 3 cards */}
-      <Text style={styles.sectionTitle}>Quelle est la taille de votre colis ?</Text>
-      <View style={styles.sizesRow}>
-        {SIZE_ORDER.map((size) => {
-          const selected = draft.packageSize === size;
-          const meta = PACKAGE_SIZE_META[size];
-          return (
-            <TouchableOpacity
-              key={size}
-              style={[
-                styles.sizeCard,
-                selected && styles.sizeCardSelected,
-              ]}
-              onPress={() => {
-                setDraftField('packageSize', size);
-                // Bridge legacy packageType pour back-compat backend
-                setDraftField('packageType', SIZE_TO_LEGACY_TYPE[size]);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sizeEmoji}>📦</Text>
-              <Text
-                style={[
-                  styles.sizeLabel,
-                  selected && styles.sizeLabelSelected,
-                ]}
-              >
-                {meta.label}
-              </Text>
-              <Text style={styles.sizeWeight}>{meta.weight}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* CATEGORIE — grille 2 colonnes */}
-      <Text style={styles.sectionTitle}>Que souhaitez-vous envoyer ?</Text>
-      <Text style={styles.sectionHint}>
-        Cela aide à mieux organiser la livraison
-      </Text>
-      <View style={styles.categoryGrid}>
-        {CATEGORY_ORDER.map((cat) => {
-          const selected = draft.packageCategory === cat;
-          const meta = PACKAGE_CATEGORY_META[cat];
-          return (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categoryCard,
-                selected && styles.categoryCardSelected,
-              ]}
-              onPress={() => setDraftField('packageCategory', cat)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.categoryEmoji}>{meta.emoji}</Text>
-              <Text
-                style={[
-                  styles.categoryLabel,
-                  selected && styles.categoryLabelSelected,
-                ]}
-                numberOfLines={2}
-              >
-                {meta.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Input
-        label="Description (optionnel)"
-        placeholder="Ex: Téléphone portable"
-        value={draft.packageDescription || ''}
-        onChangeText={(v) => setDraftField('packageDescription', v)}
-        containerStyle={styles.inputMargin}
-      />
-
-      <Input
-        label="Valeur estimée du colis (FCFA)"
-        placeholder="Ex: 25 000"
-        value={draft.declaredValue ? String(draft.declaredValue) : ''}
-        onChangeText={(v) => {
-          const n = parseInt(v.replace(/\D/g, ''), 10);
-          setDraftField('declaredValue', isNaN(n) ? undefined : n);
+      <PackageStep1
+        size={(draft.packageSize ?? 'medium') as PackageSize}
+        onSizeChange={(s) => {
+          setDraftField('packageSize', s);
+          // Bridge legacy packageType pour back-compat backend
+          setDraftField('packageType', SIZE_TO_LEGACY_TYPE[s]);
         }}
-        keyboardType="numeric"
-        containerStyle={styles.inputMargin}
+        category={draft.packageCategory}
+        onCategoryChange={(c) => setDraftField('packageCategory', c)}
+        description={draft.packageDescription || ''}
+        onDescriptionChange={(v) => setDraftField('packageDescription', v)}
+        declaredValue={draft.declaredValue ?? undefined}
+        onDeclaredValueChange={(n) => setDraftField('declaredValue', n)}
+        fragile={!!draft.isFragile}
+        onFragileChange={(b) => setDraftField('isFragile', b)}
       />
-      <Text style={styles.fieldHint}>
-        Aide le livreur à prendre soin du colis. Pas de paiement supplémentaire.
-      </Text>
-
-      <TouchableOpacity
-        style={styles.fragileRow}
-        onPress={() => setDraftField('isFragile', !draft.isFragile)}
-        activeOpacity={0.7}
-      >
-        <View
-          style={[styles.checkbox, draft.isFragile && styles.checkboxChecked]}
-        >
-          {draft.isFragile && (
-            <Ionicons name="checkmark" size={16} color={colors.white} />
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.toggleLabel}>
-            🍷 Colis fragile
-          </Text>
-          <Text style={styles.toggleHint}>
-            Manipulation délicate requise. Le livreur en sera averti.
-          </Text>
-        </View>
-      </TouchableOpacity>
     </View>,
 
     // Step 1: Addresses
@@ -529,6 +421,7 @@ export default function NewDeliveryScreen() {
           {step < 4 ? (
             <Button
               title="Continuer"
+              disabled={step === 0 && !draft.packageCategory}
               onPress={() => {
                 // Validation par étape
                 if (step === 0) {
