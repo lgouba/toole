@@ -108,7 +108,7 @@ function buildHtml(
   const tileUrl = isDark
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : isSoft
-      ? 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
       : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   const bodyBg = isDark ? '#0E1326' : isSoft ? '#EDEAE3' : '#F5F5F0';
   const routeColor = isDark ? '#00E676' : colors.primary;
@@ -221,16 +221,14 @@ function buildHtml(
     `
     : `window._route = null;`;
 
+  // Halo "zone desservie" (cercle translucide), SANS pin central (le point vert
+  // était pris pour un faux livreur). Seuls les vrais livreurs en ligne s'affichent.
   const coverageJs = coverage
     ? `
       L.circle([${coverage.center.latitude}, ${coverage.center.longitude}], {
         radius: ${Math.round(coverage.radiusKm * 1000)},
         color: 'rgba(21,128,61,0.35)', weight: 1.5,
-        fillColor: '#15803D', fillOpacity: 0.12, interactive: false
-      }).addTo(map);
-      L.marker([${coverage.center.latitude}, ${coverage.center.longitude}], {
-        icon: L.divIcon({ className: 'coverage-pin', html: '<div class="cov-pin"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }),
-        interactive: false
+        fillColor: '#15803D', fillOpacity: 0.10, interactive: false
       }).addTo(map);
     `
     : '';
