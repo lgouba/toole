@@ -20,8 +20,8 @@ const SIZES = S.sizes;
 export function SizeStage({ value, onChange }: Props) {
   const { height } = useWindowDimensions();
   const compact = height < 720;
-  const stageH = compact ? 96 : 122;
-  const boxBase = compact ? 92 : 116;
+  const stageH = compact ? 84 : 104;
+  const boxBase = compact ? 82 : 102;
 
   const meta = SIZES.find((s) => s.key === value) ?? SIZES[1];
   const scale = useSharedValue(meta.scale);
@@ -79,8 +79,8 @@ const styles = StyleSheet.create({
     backgroundColor: S.stageBg,
     borderWidth: 1,
     borderColor: S.stageTint,
-    paddingTop: R.space.lg,
-    paddingBottom: R.space.gut,
+    paddingTop: R.space.md,
+    paddingBottom: R.space.lg,
     paddingHorizontal: R.space.gut,
     ...R.shadow.card,
   },
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   scene: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-    marginTop: R.space.sm,
+    marginTop: R.space.xs,
   },
   boxWrap: { transformOrigin: 'center bottom' },
   groundShadow: {
@@ -106,22 +106,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A17',
     alignSelf: 'center',
   },
-  readout: { alignItems: 'center', marginTop: R.space.md, gap: 2 },
-  readName: { fontFamily: R.font.displayXBold, fontSize: 20, color: S.textPrim },
+  readout: { alignItems: 'center', marginTop: R.space.sm, gap: 1 },
+  readName: { fontFamily: R.font.displayXBold, fontSize: 19, color: S.textPrim },
   readWeight: { fontFamily: R.font.mono, fontSize: 12, color: S.textSec },
   segment: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: R.radius.pill,
     padding: 4,
-    marginTop: R.space.lg,
+    marginTop: R.space.md,
     gap: 4,
     borderWidth: 1,
     borderColor: S.border,
   },
   segItem: {
     flex: 1,
-    paddingVertical: R.space.md,
+    paddingVertical: R.space.sm,
     borderRadius: R.radius.pill,
     alignItems: 'center',
   },

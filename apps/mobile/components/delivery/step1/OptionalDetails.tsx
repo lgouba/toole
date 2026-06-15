@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     borderColor: S.border,
     paddingHorizontal: R.space.gut,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: R.space.sm, paddingVertical: R.space.lg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: R.space.sm, paddingVertical: R.space.md },
   headerTitle: { fontFamily: R.font.bodyBold, fontSize: 14.5, color: S.textPrim },
   headerOpt: { fontFamily: R.font.body, fontSize: 13, color: S.textMuted },
   body: { paddingBottom: R.space.gut },

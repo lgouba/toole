@@ -157,3 +157,4 @@ Palette : terra cotta + sable + vert kola. Admin peut configurer la couleur prim
 - Pas de docs/README inventés sans demande explicite.
 - Pas d'emojis sauf demande.
 - Tester en prod = via les testeurs, donc EAS preview puis production après validation.
+- **UI « sans scroll » : sur tout écran refondu, viser à montrer TOUTES les infos décisionnelles à la première vue, sans scroll (sur écran standard type iPhone 14/15). Resserrer les espacements/paddings plutôt que laisser déborder. Le contenu optionnel (blocs repliables) peut rester hors champ. S'applique à TOUS les écrans, pas seulement celui demandé.**

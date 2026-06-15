@@ -58,9 +58,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: R.space.md,
+    rowGap: R.space.sm,
   },
-  cell: { width: '23%', alignItems: 'center', gap: 6 },
+  cell: { width: '23%', alignItems: 'center', gap: 4 },
   tile: {
     width: '100%',
     aspectRatio: 1,
