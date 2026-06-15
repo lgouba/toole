@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,18 +9,20 @@ import Animated, {
   withSpring,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Rect, Path, Circle, Line } from 'react-native-svg';
-import { recap as R } from '@/theme/recapTokens';
+import Svg, { Polygon, Rect, G, Line } from 'react-native-svg';
 import { PackageSize } from '@/types';
 
 /**
- * Sac de livraison Toolé en SVG + reanimated (fallback OTA-safe, sans module
- * natif). Oscillation rotateY + flottement + échelle ressort. AUCUNE ombre au sol.
+ * Carton kraft 2.5D en SVG + reanimated (fallback OTA-safe, sans module natif).
+ * Ruban adhésif vert (avant + dessus) + étiquette d'expédition. Oscillation
+ * rotateY + flottement + échelle ressort. AUCUNE ombre au sol.
  */
-const GREEN = '#15803D';
-const GREEN_DK = '#0C5326';
-const GREEN_SIDE = '#10692F';
-const GREY = '#C3CCC5';
+const KRAFT_TOP = '#D7AC6E';
+const KRAFT_FRONT = '#C89B5E';
+const KRAFT_SIDE = '#B0844A';
+const TAPE = '#16A34A';
+const LABEL = '#F6F1E6';
+const BARCODE = '#3A332A';
 
 const SCALE: Record<PackageSize, number> = { small: 0.82, medium: 1.0, large: 1.18 };
 
@@ -37,8 +39,8 @@ export function BagHeroSVG({ size, spinning = true }: { size: PackageSize; spinn
     if (spinning) {
       angle.value = withRepeat(
         withSequence(
-          withTiming(26, { duration: 2300, easing: Easing.inOut(Easing.quad) }),
-          withTiming(-26, { duration: 2300, easing: Easing.inOut(Easing.quad) }),
+          withTiming(28, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
+          withTiming(-28, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
         ),
         -1,
         true,
@@ -61,36 +63,26 @@ export function BagHeroSVG({ size, spinning = true }: { size: PackageSize; spinn
 
   return (
     <Animated.View style={[styles.wrap, style]}>
-      <Svg width={116} height={128} viewBox="0 0 132 146">
-        <Rect x="40" y="14" width="16" height="30" rx="7" fill={GREEN_DK} />
-        <Rect x="76" y="14" width="16" height="30" rx="7" fill={GREEN_DK} />
-        <Path d="M54 22 Q66 6 78 22" stroke={GREEN_DK} strokeWidth={7} fill="none" strokeLinecap="round" />
-        <Rect x="24" y="26" width="84" height="20" rx="10" fill={GREEN_SIDE} />
-        <Rect x="24" y="24" width="84" height="16" rx="8" fill={GREEN} />
-        <Rect x="26" y="40" width="80" height="98" rx="18" fill={GREEN} />
-        <Path d="M101 44 Q106 44 106 58 L106 122 Q106 134 99 136 L99 44 Z" fill={GREEN_SIDE} opacity={0.9} />
-        <Rect x="33" y="46" width="3" height="86" rx="1.5" fill={GREY} opacity={0.75} />
-        <Rect x="96" y="46" width="3" height="86" rx="1.5" fill={GREY} opacity={0.55} />
-        <Rect x="42" y="64" width="48" height="58" rx="13" fill={GREEN} stroke={GREY} strokeWidth={2.4} />
-        <Line x1="48" y1="74" x2="84" y2="74" stroke={GREEN_DK} strokeWidth={2.2} strokeLinecap="round" />
-        <Circle cx="85" cy="74" r="3" fill={GREY} />
-        <Rect x="34" y="130" width="64" height="8" rx="4" fill={GREEN_DK} opacity={0.5} />
+      <Svg width={120} height={120} viewBox="0 0 132 124">
+        <G>
+          {/* Faces du carton */}
+          <Polygon points="30,46 54,28 110,28 86,46" fill={KRAFT_TOP} />
+          <Polygon points="86,46 110,28 110,96 86,112" fill={KRAFT_SIDE} />
+          <Rect x="30" y="46" width="56" height="66" fill={KRAFT_FRONT} />
+
+          {/* Ruban adhésif vert : dessus + avant */}
+          <Polygon points="50,46 66,46 90,28 74,28" fill={TAPE} />
+          <Rect x="50" y="46" width="16" height="66" fill={TAPE} />
+
+          {/* Étiquette d'expédition (avant, à droite du ruban) */}
+          <Rect x="68" y="64" width="15" height="20" rx="1.5" fill={LABEL} />
+          <Line x1="70" y1="78" x2="81" y2="78" stroke={BARCODE} strokeWidth={3} />
+        </G>
       </Svg>
-      <Text style={styles.wordmark}>Toolé</Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: 116, height: 128, alignItems: 'center', justifyContent: 'center' },
-  wordmark: {
-    position: 'absolute',
-    top: 74,
-    width: 116,
-    textAlign: 'center',
-    color: '#FFFFFF',
-    fontFamily: R.font.displayXBold,
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
+  wrap: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,87 +1,63 @@
 import React, { useEffect, useRef } from 'react';
 import { GLView, ExpoWebGLRenderingContext } from 'expo-gl';
-import { Renderer, TextureLoader } from 'expo-three';
-import { Asset } from 'expo-asset';
+import { Renderer } from 'expo-three';
 import * as THREE from 'three';
 import { PackageSize } from '@/types';
 
 /**
- * Sac Toolé en VRAI 3D (expo-gl + three), modèle §4. NÉCESSITE un build natif
- * (expo-gl) — sur un binaire sans ce module, le rendu de GLView lève une erreur
- * captée par l'error boundary de BagHero → repli automatique sur le SVG.
+ * Carton kraft en VRAI 3D (expo-gl + three), modèle §4 : cube kraft + ruban
+ * adhésif vert (avant/dessus/arrière) + étiquette d'expédition (code-barres).
+ * Tourne sur l'axe Y. AUCUNE ombre au sol.
  *
- * AUCUNE ombre au sol, pas de plan de sol. Rotation idle continue (axe Y).
+ * NÉCESSITE un build natif (expo-gl). Sur un binaire sans ce module, l'import
+ * lève une erreur captée par BagHero (try/catch + error boundary) → repli SVG.
  */
-const GREEN = 0x15803d;
-const GREEN_DK = 0x0c5326;
-const GREY = 0xc3ccc5;
+const TAPE = 0x16a34a;
 const STAGE_BG = 0xecf1e8;
 
 const SCALE: Record<PackageSize, number> = { small: 0.82, medium: 1.0, large: 1.18 };
 
-function mat(color: number, roughness = 0.66) {
+function flat(color: number, roughness = 0.9) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
 }
 function box(w: number, h: number, d: number, color: number) {
-  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), flat(color));
 }
 
-function buildBag(): THREE.Group {
+function buildParcel(): THREE.Group {
   const g = new THREE.Group();
 
-  // Corps
-  g.add(box(1.5, 1.66, 1.1, GREEN));
+  // Corps kraft — matériaux par face : [px, nx, py, ny, pz, nz]
+  const faceMats = [
+    flat(0xc6995c), // droite
+    flat(0xc6995c), // gauche
+    flat(0xd7ac6e), // dessus (clair)
+    flat(0xb0844a), // dessous (foncé)
+    flat(0xc89b5e), // avant
+    flat(0xbe9054), // arrière
+  ];
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), faceMats));
 
-  // Roll-top (cylindre horizontal)
-  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 1.5, 20), mat(GREEN));
-  roll.rotation.z = Math.PI / 2;
-  roll.position.set(0, 0.9, 0.06);
-  g.add(roll);
+  // Ruban adhésif vert (avant → dessus → arrière)
+  const tFront = box(0.3, 1.42, 0.03, TAPE);
+  tFront.position.set(0, 0, 0.715);
+  g.add(tFront);
+  const tBack = box(0.3, 1.42, 0.03, TAPE);
+  tBack.position.set(0, 0, -0.715);
+  g.add(tBack);
+  const tTop = box(0.3, 0.03, 1.42, TAPE);
+  tTop.position.set(0, 0.715, 0);
+  g.add(tTop);
 
-  // Poche avant (relief)
-  const pocket = box(1.24, 1.32, 0.06, GREEN);
-  pocket.position.set(0, -0.12, 0.56);
-  g.add(pocket);
-
-  // Passepoil vertical (réfléchissant gris)
-  const pip1 = box(0.05, 1.66, 0.05, GREY);
-  pip1.position.set(0.74, 0, 0.55);
-  g.add(pip1);
-  const pip2 = box(0.05, 1.66, 0.05, GREY);
-  pip2.position.set(-0.74, 0, 0.55);
-  g.add(pip2);
-
-  // Poignée (demi-tore)
-  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.04, 12, 24, Math.PI), mat(GREEN_DK));
-  handle.position.set(0, 1.02, -0.16);
-  g.add(handle);
-
-  // Bretelles
-  [-0.4, 0.4].forEach((x) => {
-    const back = box(0.24, 1.46, 0.16, GREEN_DK);
-    back.position.set(x, -0.04, -0.58);
-    g.add(back);
-    const top = box(0.24, 0.16, 0.6, GREEN_DK);
-    top.position.set(x, 0.84, -0.3);
-    g.add(top);
-    const front = box(0.24, 0.42, 0.16, GREEN_DK);
-    front.position.set(x, 0.66, -0.02);
-    g.add(front);
-  });
+  // Étiquette d'expédition (avant, dégagée du ruban) + code-barres
+  const label = box(0.46, 0.32, 0.012, 0xf6f1e6);
+  label.position.set(0.34, -0.1, 0.706);
+  g.add(label);
+  const barcode = box(0.34, 0.05, 0.014, 0x3a332a);
+  barcode.position.set(0.34, -0.18, 0.708);
+  g.add(barcode);
 
   return g;
-}
-
-async function addWordmark(bag: THREE.Group) {
-  const asset = Asset.fromModule(require('@/assets/images/toole-wordmark.png'));
-  await asset.downloadAsync();
-  const tex = new TextureLoader().load(asset.localUri || asset.uri);
-  const plane = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.92, 0.36),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true }),
-  );
-  plane.position.set(0, -0.12, 0.605);
-  bag.add(plane);
 }
 
 export function BagHero3D({
@@ -110,35 +86,32 @@ export function BagHero3D({
     try {
       const w = gl.drawingBufferWidth;
       const h = gl.drawingBufferHeight;
-      // expo-three Renderer = THREE.WebGLRenderer au runtime (types incomplets).
       const renderer: any = new Renderer({ gl });
       renderer.setSize(w, h);
       renderer.setClearColor(STAGE_BG, 1);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-      camera.position.set(0, 0, 5.2);
+      camera.position.set(0, 0, 5);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.32);
-      dir.position.set(2, 4, 4);
-      scene.add(dir);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+      const d1 = new THREE.DirectionalLight(0xffffff, 0.6);
+      d1.position.set(3, 5, 4);
+      scene.add(d1);
+      const d2 = new THREE.DirectionalLight(0xffffff, 0.22);
+      d2.position.set(-3, 2, -2);
+      scene.add(d2);
 
-      const bag = buildBag();
-      bag.rotation.x = -0.12;
-      scene.add(bag);
-      try {
-        await addWordmark(bag);
-      } catch {
-        /* wordmark best-effort */
-      }
+      const parcel = buildParcel();
+      parcel.rotation.x = -0.16;
+      scene.add(parcel);
 
       const animate = () => {
         rafRef.current = requestAnimationFrame(animate);
-        if (spinRef.current) bag.rotation.y += 0.012;
+        if (spinRef.current) parcel.rotation.y += 0.012;
         const target = SCALE[sizeRef.current];
         curScale.current += (target - curScale.current) * 0.12;
-        bag.scale.setScalar(curScale.current);
+        parcel.scale.setScalar(curScale.current);
         renderer.render(scene, camera);
         gl.endFrameEXP();
       };
