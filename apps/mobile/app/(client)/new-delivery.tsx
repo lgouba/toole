@@ -13,9 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
-import { AddressField } from '@/components/AddressField';
 import { DeliveryRecap } from '@/components/delivery/recap/DeliveryRecap';
 import { PackageStep1 } from '@/components/delivery/step1/PackageStep1';
+import { TripStep2 } from '@/components/delivery/step2/TripStep2';
 import { formatCFA } from '@/utils/format';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
 import {
@@ -241,25 +241,34 @@ export default function NewDeliveryScreen() {
       />
     </View>,
 
-    // Step 1: Addresses
+    // Step 1: Trajet (refonte inline — billet + panneau source, sans carte)
     <View key="addresses" style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Trajet</Text>
+      <Text style={styles.stepTitle}>Le trajet</Text>
       <Text style={styles.stepHint}>
-        Appuyez sur chaque champ pour saisir l'adresse.
+        Indique où récupérer puis où livrer le colis.
       </Text>
 
-      <View style={{ gap: spacing.sm }}>
-        <AddressField
-          variant="pickup"
-          address={draft.pickupAddress}
-          location={draft.pickupLocation}
-        />
-        <AddressField
-          variant="delivery"
-          address={draft.deliveryAddress}
-          location={draft.deliveryLocation}
-        />
-      </View>
+      <TripStep2
+        pickup={
+          draft.pickupLocation
+            ? { label: draft.pickupAddress || 'Point de récupération', location: draft.pickupLocation }
+            : null
+        }
+        dropoff={
+          draft.deliveryLocation
+            ? { label: draft.deliveryAddress || 'Point de livraison', location: draft.deliveryLocation }
+            : null
+        }
+        onPickup={(p) => {
+          setDraftField('pickupAddress', p.label);
+          setDraftField('pickupLocation', p.location);
+        }}
+        onDropoff={(p) => {
+          setDraftField('deliveryAddress', p.label);
+          setDraftField('deliveryLocation', p.location);
+        }}
+        estimate={estimate ? { distanceKm: estimate.distanceKm, price: estimate.price } : null}
+      />
     </View>,
 
     // Step 2: Recipient
@@ -421,7 +430,10 @@ export default function NewDeliveryScreen() {
           {step < 4 ? (
             <Button
               title="Continuer"
-              disabled={step === 0 && !draft.packageCategory}
+              disabled={
+                (step === 0 && !draft.packageCategory) ||
+                (step === 1 && (!draft.pickupLocation || !draft.deliveryLocation))
+              }
               onPress={() => {
                 // Validation par étape
                 if (step === 0) {

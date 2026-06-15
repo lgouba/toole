@@ -92,3 +92,23 @@ export const step1 = {
     { key: 'large', name: 'Grand', weight: 'plus de 20 kg', scale: 1.24 },
   ] as const,
 } as const;
+
+/** Tokens dédiés à l'étape 2 (trajet / adresses). Même famille crème + vert. */
+export const step2 = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#8A8270',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  dotPickup: '#16A34A',
+  dotDropoff: '#1A1A17',
+  activeRing: '#16A34A',
+  activeBg: '#F4FAF0',
+  summaryBg: '#1A1A17',
+  linkBg: '#FBF6E9',
+  linkBorder: '#EFE3C4',
+  radius: { card: 20, row: 15, tile: 16, field: 15, pill: 999, summary: 18 },
+} as const;
