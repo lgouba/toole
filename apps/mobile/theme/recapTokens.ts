@@ -242,6 +242,29 @@ export const deliveries = {
   radius: { card: 18, pill: 999, btn: 12 },
 } as const;
 
+/** Tokens dédiés au Portefeuille livreur (carte Toolé). */
+export const wallet = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  divider: '#F0EAD9',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#A59E8C',
+  green: '#15803D',
+  cardGradFrom: '#1F9A4C',
+  cardGradTo: '#0E5E2A',
+  amberBg: '#FBF3DC',
+  amberBorder: '#EFD9A2',
+  amberFg: '#B5710C',
+  amberDot: '#E0A21C',
+  plus: '#15803D',
+  minus: '#B5710C',
+  orange: '#F47A20',
+  moov: '#1E5BD6',
+  radius: { card: 22, btn: 14, row: 14 },
+} as const;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',
