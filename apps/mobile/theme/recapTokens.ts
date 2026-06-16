@@ -201,6 +201,24 @@ export const shipmentStatus = {
 
 export type ShipmentBucket = keyof typeof shipmentStatus;
 
+/** Tokens dédiés à l'accueil LIVREUR (cockpit, thème clair). */
+export const driverHome = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  divider: '#F0EAD9',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#A59E8C',
+  green: '#15803D',
+  greenMid: '#16A34A',
+  greenBright: '#22C55E',
+  halo: 'rgba(22,163,74,0.22)',
+  ping: 'rgba(21,128,61,0.42)',
+  offGrey: '#C9C6BD',
+  radius: { dial: 999, card: 16 },
+} as const;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',

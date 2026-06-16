@@ -1,184 +1,151 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Map } from '@/components/map/Map';
-import { OnlineToggle } from '@/components/driver';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { MapScrim } from '@/components/driver/cockpit/MapScrim';
+import { IgnitionDial } from '@/components/driver/cockpit/IgnitionDial';
+import { StatusText } from '@/components/driver/cockpit/StatusText';
+import { DriverKpis } from '@/components/driver/cockpit/DriverKpis';
+import { recap as R, driverHome as D } from '@/theme/recapTokens';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { useLocationStore } from '@/stores/location.store';
+import { getMyDriverStats, DriverStats } from '@/services/driver.service';
 import { LatLng } from '@/types';
+
+function formatDuration(ms: number): string {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "< 1 min";
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  return `${h} h ${String(min % 60).padStart(2, '0')}`;
+}
 
 export default function DriverHomeScreen() {
   const user = useAuthStore((s) => s.user);
   const isOnline = useDriverStore((s) => s.isOnline);
   const toggleOnline = useDriverStore((s) => s.toggleOnline);
   const currentLocation = useDriverStore((s) => s.currentLocation);
-  const activeDelivery = useDriverStore((s) => s.activeDelivery);
-  // Position GPS globale (récupérée au lancement de l'app, partagee avec le client)
   const userLocation = useLocationStore((s) => s.current);
   const refreshLocation = useLocationStore((s) => s.refresh);
   const getCenter = useLocationStore((s) => s.getCenterOrFallback);
 
-  const firstName = user?.firstName || user?.fullName.split(' ')[0] || 'Livreur';
+  const [stats, setStats] = useState<DriverStats | null>(null);
+  const [onlineSince, setOnlineSince] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+
+  const firstName = user?.firstName || user?.fullName?.split(' ')[0] || 'Livreur';
   const isActivated = !!user?.isActive;
-
-  // Demande/rafraichit la position GPS au mount si pas encore connue
-  useEffect(() => {
-    if (!userLocation) {
-      refreshLocation().catch(() => {});
-    }
-  }, [userLocation, refreshLocation]);
-
-  // Priorite : currentLocation (heartbeat en ligne) > userLocation (GPS global)
-  // > Ouagadougou (fallback ultime). Garantit qu'on n'affiche jamais Ouaga
-  // pour un livreur situe ailleurs des qu'on a une position GPS.
   const myPosition: LatLng = currentLocation ?? userLocation ?? getCenter();
 
-  // Cible de la phase courante : tant que le colis n'est pas récupéré, le
-  // livreur va vers la RÉCUP ; une fois récupéré, vers la LIVRAISON.
-  const currentTarget: LatLng | null = activeDelivery
-    ? activeDelivery.status === 'picked_up' || activeDelivery.status === 'delivering'
-      ? activeDelivery.deliveryLocation
-      : activeDelivery.pickupLocation
-    : null;
+  useEffect(() => {
+    if (!userLocation) refreshLocation().catch(() => {});
+  }, [userLocation, refreshLocation]);
 
-  // Markers a afficher :
-  //  - toujours : position du livreur (avatar moto), orienté vers sa cible
-  //  - si course active : pickup + delivery
-  const mapMarkers = useMemo(() => {
-    const list: Array<{
-      id: string;
-      coordinate: LatLng;
-      icon: 'driver' | 'pickup' | 'delivery';
-      target?: LatLng;
-    }> = [
-      { id: 'me', coordinate: myPosition, icon: 'driver', target: currentTarget ?? undefined },
-    ];
-    if (activeDelivery) {
-      list.push({
-        id: 'pickup',
-        coordinate: {
-          latitude: Number(activeDelivery.pickupLocation.latitude),
-          longitude: Number(activeDelivery.pickupLocation.longitude),
-        },
-        icon: 'pickup',
-      });
-      list.push({
-        id: 'delivery',
-        coordinate: {
-          latitude: Number(activeDelivery.deliveryLocation.latitude),
-          longitude: Number(activeDelivery.deliveryLocation.longitude),
-        },
-        icon: 'delivery',
-      });
+  // Durée "en ligne" (timer local — pas de champ backend).
+  useEffect(() => {
+    if (isOnline && !onlineSince) setOnlineSince(Date.now());
+    if (!isOnline) setOnlineSince(null);
+  }, [isOnline, onlineSince]);
+  useEffect(() => {
+    if (!isOnline) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [isOnline]);
+
+  // Stats du jour au focus.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getMyDriverStats().then((s) => { if (!cancelled && s) setStats(s); }).catch(() => {});
+      return () => { cancelled = true; };
+    }, []),
+  );
+
+  const handleToggle = async () => {
+    if (!isOnline) {
+      const pos = userLocation ?? (await refreshLocation());
+      if (!pos) {
+        Alert.alert(
+          'Localisation requise',
+          'Active la localisation pour passer en ligne et recevoir des courses.',
+        );
+        return;
+      }
     }
-    return list;
-  }, [myPosition, activeDelivery, currentTarget?.latitude, currentTarget?.longitude]);
+    toggleOnline().catch(() => {});
+  };
 
-  // Trajet : la ligne va du livreur vers la cible de la phase courante
-  // (récup tant que pas récupéré, puis livraison) — pas un trajet figé.
-  const routeCoords: [LatLng, LatLng] | undefined = currentTarget
-    ? [myPosition, currentTarget]
-    : undefined;
+  const onlineLabel = isOnline && onlineSince ? formatDuration(Date.now() - onlineSince) : '—';
 
   return (
     <View style={styles.container}>
-      <Map
-        center={myPosition}
-        zoom={14}
-        interactive
-        markers={mapMarkers}
-        routeCoordinates={routeCoords}
-        fitToContent={!!activeDelivery}
-      />
+      <Map center={myPosition} zoom={15} interactive theme="soft" />
+      <MapScrim />
 
-      {/* Overlay d'informations en haut */}
-      <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
-        <View style={styles.greetingCard}>
-          <Text style={styles.greeting}>Bonjour, {firstName}</Text>
-        </View>
+      <SafeAreaView style={styles.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
+        {/* Salutation (sans avatar) */}
+        <Text style={styles.greeting}>
+          Bonjour, {firstName} · <Text style={styles.greetingBrand}>Toolé Driver</Text>
+        </Text>
 
-        {!isActivated ? (
-          <View style={styles.pendingCard}>
-            <View style={styles.pendingIconWrap}>
-              <Ionicons name="time-outline" size={24} color={colors.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
+        {/* Cadran cockpit OU état "compte en validation" */}
+        <View style={styles.center} pointerEvents="box-none">
+          {isActivated ? (
+            <>
+              <IgnitionDial online={isOnline} onToggle={handleToggle} />
+              <StatusText online={isOnline} />
+            </>
+          ) : (
+            <View style={styles.pending}>
+              <MaterialIcons name="hourglass-top" size={28} color="#C2410C" />
               <Text style={styles.pendingTitle}>Compte en validation</Text>
-              <Text style={styles.pendingText} numberOfLines={2}>
-                Vous recevrez une notification dès que votre compte sera activé.
+              <Text style={styles.pendingSub}>
+                Tu pourras passer en ligne dès que ton compte sera activé.
               </Text>
             </View>
-          </View>
-        ) : (
-          <View style={styles.onlineWrap}>
-            <OnlineToggle isOnline={isOnline} onToggle={toggleOnline} />
-          </View>
-        )}
+          )}
+        </View>
+
+        {/* Gains + KPIs */}
+        <View style={styles.bottom}>
+          <DriverKpis
+            revenueToday={stats?.today.revenue}
+            courses={stats?.today.deliveredCount}
+            onlineLabel={onlineLabel}
+            rating={stats && stats.ratingCount > 0 ? stats.ratingAvg : null}
+          />
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  topOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    gap: spacing.sm,
-  },
-  greetingCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
+  container: { flex: 1, backgroundColor: D.canvas },
+  overlay: { ...StyleSheet.absoluteFillObject, paddingHorizontal: R.space.gut },
   greeting: {
-    ...typography.h3,
-    color: colors.textPrimary,
+    fontFamily: R.font.body,
+    fontSize: 14,
+    color: D.textSec,
+    textAlign: 'center',
+    marginTop: R.space.sm,
   },
-  onlineWrap: {
-    // OnlineToggle a déjà son propre style
-  },
-  pendingCard: {
-    flexDirection: 'row',
+  greetingBrand: { fontFamily: R.font.bodyBold, color: D.green },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  bottom: { paddingBottom: R.space.sm },
+  pending: {
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.warningLight,
+    gap: R.space.sm,
+    backgroundColor: D.surface,
     borderWidth: 1,
-    borderColor: colors.warning,
+    borderColor: '#F0D9B8',
+    borderRadius: D.radius.card,
+    padding: R.space.xl,
+    marginHorizontal: R.space.md,
   },
-  pendingIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pendingTitle: {
-    ...typography.bodyMedium,
-    color: '#a66908',
-    fontWeight: '700',
-  },
-  pendingText: {
-    ...typography.caption,
-    color: '#a66908',
-    marginTop: 2,
-  },
+  pendingTitle: { fontFamily: R.font.display, fontSize: 17, color: D.textPrim },
+  pendingSub: { fontFamily: R.font.body, fontSize: 13, color: D.textSec, textAlign: 'center' },
 });
