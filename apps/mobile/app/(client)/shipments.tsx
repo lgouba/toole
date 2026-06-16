@@ -1,99 +1,89 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { EmptyState, SkeletonList } from '@/components/ui';
-import { DeliveryCard } from '@/components/delivery';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { SkeletonList } from '@/components/ui';
+import { recap as R, shipments as S } from '@/theme/recapTokens';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { DeliveryStatus } from '@/types';
+import { toBucket } from '@/utils/relativeTime';
+import { StatusFilters, FilterValue } from '@/components/shipments/StatusFilters';
+import { ShipmentCard } from '@/components/shipments/ShipmentCard';
 
-const filters: { label: string; value: DeliveryStatus | 'all' }[] = [
-  { label: 'Tous', value: 'all' },
-  { label: 'En cours', value: 'delivering' },
-  { label: 'Livrées', value: 'delivered' },
-  { label: 'Annulées', value: 'cancelled' },
-];
+const EN_COURS = ['pending', 'accepted', 'picking_up', 'picked_up', 'delivering', 'scheduled'];
 
 export default function ShipmentsScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { deliveries, fetchDeliveries, isLoading, setActiveDelivery } = useDeliveryStore();
-  const [activeFilter, setActiveFilter] = useState<DeliveryStatus | 'all'>('all');
+  const [filter, setFilter] = useState<FilterValue>('all');
 
-  useEffect(() => {
-    if (user) {
-      fetchDeliveries(user.id, 'client');
+  const load = useCallback(() => {
+    if (user) fetchDeliveries(user.id, 'client');
+  }, [user, fetchDeliveries]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const filtered = useMemo(
+    () => (filter === 'all' ? deliveries : deliveries.filter((d) => toBucket(d.status) === filter)),
+    [deliveries, filter],
+  );
+
+  const open = (item: (typeof deliveries)[number]) => {
+    if (EN_COURS.includes(item.status)) {
+      setActiveDelivery(item);
+      router.push('/(client)/active-delivery');
+    } else {
+      router.push(`/delivery/${item.id}` as any);
     }
-  }, [user]);
+  };
 
-  const filtered = activeFilter === 'all'
-    ? deliveries
-    : deliveries.filter((d) => d.status === activeFilter);
+  const noneAtAll = !isLoading && deliveries.length === 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Mes envois</Text>
-
-      {/* Filters */}
-      <View style={styles.filters}>
-        {filters.map((f) => (
-          <TouchableOpacity
-            key={f.value}
-            style={[styles.filter, activeFilter === f.value && styles.filterActive]}
-            onPress={() => setActiveFilter(f.value)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === f.value && styles.filterTextActive,
-              ]}
-            >
-              {f.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <StatusFilters value={filter} onChange={setFilter} />
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isLoading && deliveries.length > 0} onRefresh={load} tintColor={S.green} />
+        }
         renderItem={({ item }) => (
-          <DeliveryCard
+          <ShipmentCard
             delivery={item}
-            onPress={() => {
-              // Si la livraison est en cours, on va sur le suivi live; sinon sur le détail.
-              const inProgress = [
-                'pending',
-                'accepted',
-                'picking_up',
-                'picked_up',
-                'delivering',
-              ].includes(item.status);
-              if (inProgress) {
-                setActiveDelivery(item);
-                router.push('/(client)/active-delivery');
-              } else {
-                router.push(`/delivery/${item.id}` as any);
-              }
+            onPress={() => open(item)}
+            onTrack={() => {
+              setActiveDelivery(item);
+              router.push('/(client)/active-delivery');
             }}
           />
         )}
         ListEmptyComponent={
           isLoading ? (
-            <SkeletonList count={4} />
+            <View style={{ paddingTop: R.space.lg }}>
+              <SkeletonList count={4} />
+            </View>
+          ) : noneAtAll ? (
+            <View style={styles.empty}>
+              <MaterialIcons name="inventory-2" size={44} color={S.textMuted} />
+              <Text style={styles.emptyTitle}>Aucun envoi pour l'instant</Text>
+              <Text style={styles.emptySub}>Tes livraisons apparaîtront ici.</Text>
+              <TouchableOpacity style={styles.cta} onPress={() => router.push('/(client)/new-delivery')}>
+                <MaterialIcons name="add" size={18} color="#FFFFFF" />
+                <Text style={styles.ctaText}>Envoyer un colis</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <EmptyState
-              icon="cube-outline"
-              title="Aucun envoi pour l'instant"
-              subtitle="Toutes vos livraisons (passées et en cours) apparaîtront ici. Lancez-en une en quelques secondes."
-              actionLabel="Envoyer un colis"
-              onAction={() => router.push('/(client)/new-delivery')}
-              tone="primary"
-            />
+            <View style={styles.empty}>
+              <MaterialIcons name="inventory-2" size={40} color={S.textMuted} />
+              <Text style={styles.emptySub}>Aucun envoi dans cette catégorie.</Text>
+            </View>
           )
         }
       />
@@ -102,50 +92,28 @@ export default function ShipmentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  container: { flex: 1, backgroundColor: S.canvas },
   title: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    fontFamily: R.font.displayXBold,
+    fontSize: 24,
+    color: S.textPrim,
+    paddingHorizontal: R.space.gut,
+    paddingTop: R.space.sm,
+    paddingBottom: R.space.md,
   },
-  filters: {
+  list: { paddingHorizontal: R.space.gut, paddingBottom: R.space.xxl, flexGrow: 1 },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: R.space.sm },
+  emptyTitle: { fontFamily: R.font.display, fontSize: 17, color: S.textPrim, marginTop: R.space.xs },
+  emptySub: { fontFamily: R.font.body, fontSize: 13.5, color: S.textMuted, textAlign: 'center' },
+  cta: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  filter: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.surface,
-  },
-  filterActive: {
-    backgroundColor: colors.primaryLight,
-  },
-  filterText: {
-    ...typography.captionMedium,
-    color: colors.textSecondary,
-  },
-  filterTextActive: {
-    color: colors.primaryDark,
-  },
-  list: {
-    padding: spacing.md,
-  },
-  empty: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: spacing.xxl * 2,
-    gap: spacing.sm,
+    gap: R.space.sm,
+    backgroundColor: S.green,
+    paddingHorizontal: R.space.gut,
+    paddingVertical: R.space.md,
+    borderRadius: R.radius.pill,
+    marginTop: R.space.md,
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
+  ctaText: { fontFamily: R.font.bodyBold, fontSize: 14, color: '#FFFFFF' },
 });

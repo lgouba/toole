@@ -173,6 +173,34 @@ export const profile = {
   radius: { card: 18, row: 11, avatar: 999 },
 } as const;
 
+/** Tokens dédiés à l'écran "Mes envois". */
+export const shipments = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  divider: '#F0EAD9',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#A59E8C',
+  green: '#15803D',
+  routeDot: '#15803D',
+  routeSquare: '#16132E',
+  dash: '#D8D1C0',
+  liveBg: '#F1F8EE',
+  liveBorder: '#DCEBD5',
+  chipBorder: '#E4DBC9',
+  radius: { card: 18, chip: 999, badge: 999 },
+} as const;
+
+/** Statut UI (bucket) → couleurs accent + badge. */
+export const shipmentStatus = {
+  en_cours: { accent: '#16A34A', badgeBg: '#E7F2E9', badgeFg: '#15803D', label: 'En cours' },
+  livree: { accent: '#C7D2C0', badgeBg: '#EEF2EB', badgeFg: '#5E7A52', label: 'Livrée' },
+  annulee: { accent: '#E7A39C', badgeBg: '#FBE9E7', badgeFg: '#D6453C', label: 'Annulée' },
+} as const;
+
+export type ShipmentBucket = keyof typeof shipmentStatus;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',
