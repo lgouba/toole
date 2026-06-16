@@ -82,9 +82,10 @@ export default function DriverHomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Carte décorative (derrière le voile + cadran) : non-interactive →
-          pas de boutons zoom +/-, pas de pan. Reste centrée sur le livreur. */}
-      <Map center={myPosition} zoom={15} interactive={false} theme="soft" />
+      {/* Carte interactive : boutons +/- (zoom sur les rues) + pan. Le voile est
+          pointerEvents="none" et l'overlay cockpit box-none → la carte reçoit les
+          taps là où il n'y a pas de contrôle (cadran/gains restent intacts). */}
+      <Map center={myPosition} zoom={15} interactive theme="soft" />
       <MapScrim />
 
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
