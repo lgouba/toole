@@ -44,9 +44,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: W.radius.card,
     padding: R.space.pad,
-    minHeight: 178,
+    // Fond vert plein en base (le dégradé SVG passe par-dessus) → garantit que
+    // tout le contenu reste sur du vert, même si la hauteur grandit.
+    backgroundColor: W.cardGradTo,
     overflow: 'hidden',
-    justifyContent: 'space-between',
     shadowColor: '#0E5E2A',
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -70,9 +71,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 1.5,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: R.space.xl,
+    marginTop: R.space.lg,
   },
-  balance: { fontFamily: R.font.displayXBold, fontSize: 38, color: '#FFFFFF', marginTop: 2 },
+  balance: { fontFamily: R.font.displayXBold, fontSize: 36, color: '#FFFFFF', marginTop: 2 },
   currency: { fontFamily: R.font.bodyBold, fontSize: 18, color: 'rgba(255,255,255,0.85)' },
   total: { fontFamily: R.font.mono, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
 });
