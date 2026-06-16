@@ -82,7 +82,9 @@ export default function DriverHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Map center={myPosition} zoom={15} interactive theme="soft" />
+      {/* Carte décorative (derrière le voile + cadran) : non-interactive →
+          pas de boutons zoom +/-, pas de pan. Reste centrée sur le livreur. */}
+      <Map center={myPosition} zoom={15} interactive={false} theme="soft" />
       <MapScrim />
 
       <SafeAreaView style={styles.overlay} edges={['top', 'bottom']} pointerEvents="box-none">
