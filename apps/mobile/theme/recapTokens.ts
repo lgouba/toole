@@ -159,8 +159,9 @@ export const profile = {
   textSec: '#6B6356',
   textMuted: '#8A8270',
   green: '#15803D',
-  avatarBg: '#D9EDDD',
+  avatarBg: '#E7F2E9',
   avatarFg: '#15803D',
+  star: '#E0A21C',
   danger: '#D6453C',
   dangerBorder: '#F0D9D6',
   tint: {
@@ -169,6 +170,11 @@ export const profile = {
     amber: '#FBEFD6',
     violet: '#EFE7FB',
     neutral: '#F1F0EA',
+  },
+  chip: {
+    ok: { bg: '#EEF2EB', fg: '#5E7A52' },
+    todo: { bg: '#FBF3DC', fg: '#B5710C' },
+    neutral: { bg: '#F1F0EA', fg: '#8A8270' },
   },
   radius: { card: 18, row: 11, avatar: 999 },
 } as const;

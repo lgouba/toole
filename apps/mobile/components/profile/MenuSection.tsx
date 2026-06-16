@@ -8,6 +8,10 @@ export interface MenuEntry {
   tint: keyof typeof P.tint;
   label: string;
   onPress: () => void;
+  /** Sous-libellé optionnel (ex. « Orange ···12 »). */
+  sub?: string;
+  /** Chip de statut optionnel à droite (ex. documents « À jour »). */
+  chip?: { label: string; tone: keyof typeof P.chip };
 }
 
 /** Section de menu : libellé caps + carte blanche de lignes (icône teintée + chevron). */
@@ -27,7 +31,17 @@ export function MenuSection({ title, items }: { title: string; items: MenuEntry[
             <View style={[styles.chip, { backgroundColor: P.tint[it.tint] }]}>
               <MaterialIcons name={it.icon} size={20} color={tintFg(it.tint)} />
             </View>
-            <Text style={styles.label}>{it.label}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>{it.label}</Text>
+              {it.sub ? <Text style={styles.sub}>{it.sub}</Text> : null}
+            </View>
+            {it.chip ? (
+              <View style={[styles.statusChip, { backgroundColor: P.chip[it.chip.tone].bg }]}>
+                <Text style={[styles.statusChipText, { color: P.chip[it.chip.tone].fg }]}>
+                  {it.chip.label}
+                </Text>
+              </View>
+            ) : null}
             <MaterialIcons name="chevron-right" size={22} color={P.textMuted} />
           </TouchableOpacity>
         ))}
@@ -78,5 +92,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { flex: 1, fontFamily: R.font.bodyBold, fontSize: 15, color: P.textPrim },
+  label: { fontFamily: R.font.bodyBold, fontSize: 15, color: P.textPrim },
+  sub: { fontFamily: R.font.body, fontSize: 12, color: P.textMuted, marginTop: 2 },
+  statusChip: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
+  statusChipText: { fontFamily: R.font.bodyBold, fontSize: 11 },
 });
