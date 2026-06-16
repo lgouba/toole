@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, OtpInput } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { OtpInput } from '@/components/ui';
+import { MethodCard } from '@/components/delivery/step4/MethodCard';
+import { recap as R, step4 as S } from '@/theme/recapTokens';
 import { formatCFA } from '@/utils/format';
 import { useAuthStore } from '@/stores/auth.store';
 import {
@@ -24,16 +26,27 @@ import {
   requestTopup,
 } from '@/services/wallet.service';
 
+/**
+ * Écran retrait / règlement de dette du livreur.
+ *
+ * Refonte visuelle alignée sur les écrans de paiement client
+ * (`components/delivery/step4/*`) : canvas crème, titres Archivo, montant en
+ * mono, choix opérateur via <MethodCard variant="orange|moov">, OTP via
+ * <OtpInput>, CTA vert plein. La LOGIQUE (machine à 3 états, modes
+ * withdraw/topup, params, appels service OTP/retrait/topup) est conservée
+ * telle quelle — seul le rendu change.
+ */
+
 type Mode = 'withdraw' | 'topup';
 type Step = 'amount' | 'phone' | 'otp';
 
 const OPERATORS: {
   key: 'orange_money' | 'moov_money';
   label: string;
-  color: string;
+  variant: 'orange' | 'moov';
 }[] = [
-  { key: 'orange_money', label: 'Orange Money', color: '#FF7900' },
-  { key: 'moov_money', label: 'Moov Money', color: '#0E56B5' },
+  { key: 'orange_money', label: 'Orange Money', variant: 'orange' },
+  { key: 'moov_money', label: 'Moov Money', variant: 'moov' },
 ];
 
 export default function WalletFlowScreen() {
@@ -172,11 +185,25 @@ export default function WalletFlowScreen() {
     router.back();
   };
 
+  // Largeur de la barre de progression selon l'étape.
+  const progress = amountLocked
+    ? step === 'phone'
+      ? '50%'
+      : '100%'
+    : step === 'amount'
+      ? '33%'
+      : step === 'phone'
+        ? '66%'
+        : '100%';
+
+  const operatorLabel = OPERATORS.find((o) => o.key === operator)?.label;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* En-tête : retour + titre + sous-titre */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <MaterialIcons name="arrow-back" size={24} color={S.textPrim} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.headerTitle}>{title}</Text>
@@ -186,22 +213,7 @@ export default function WalletFlowScreen() {
       </View>
 
       <View style={styles.progress}>
-        <View
-          style={[
-            styles.progressFill,
-            {
-              width: amountLocked
-                ? step === 'phone'
-                  ? '50%'
-                  : '100%'
-                : step === 'amount'
-                  ? '33%'
-                  : step === 'phone'
-                    ? '66%'
-                    : '100%',
-            },
-          ]}
-        />
+        <View style={[styles.progressFill, { width: progress }]} />
       </View>
 
       <KeyboardAvoidingView
@@ -211,8 +223,9 @@ export default function WalletFlowScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Étape 1 : montant */}
+          {/* ── Étape 1 : montant ── */}
           {step === 'amount' && (
             <>
               <Text style={styles.stepTitle}>
@@ -226,43 +239,46 @@ export default function WalletFlowScreen() {
                   : 'Entrez le montant en FCFA'}
               </Text>
 
-              <View style={styles.amountContainer}>
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="0"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="number-pad"
-                  value={amount}
-                  onChangeText={(t) => setAmount(t.replace(/\D/g, '').slice(0, 10))}
-                  autoFocus
-                  textAlign="center"
-                />
-                <Text style={styles.amountCurrency}>FCFA</Text>
+              {/* Saisie montant — carte blanche, chiffre en mono */}
+              <View style={styles.amountCard}>
+                <View style={styles.amountRow}>
+                  <TextInput
+                    style={styles.amountInput}
+                    placeholder="0"
+                    placeholderTextColor={S.textMuted}
+                    keyboardType="number-pad"
+                    value={amount}
+                    onChangeText={(t) => setAmount(t.replace(/\D/g, '').slice(0, 10))}
+                    autoFocus
+                    textAlign="center"
+                  />
+                  <Text style={styles.amountCurrency}>FCFA</Text>
+                </View>
               </View>
 
               {/* Suggestions de montants rapides. En mode withdraw, on filtre
                   les valeurs > maxAmount et on ajoute un bouton "Tout retirer". */}
-              <View style={styles.quickAmountsRow}>
+              <View style={styles.chipsRow}>
                 {(mode === 'withdraw' && maxAmount > 0
                   ? [1000, 2000, 5000, 10000].filter((v) => v <= maxAmount)
                   : [1000, 2000, 5000, 10000]
                 ).map((v) => (
                   <TouchableOpacity
                     key={v}
-                    style={styles.quickAmountChip}
+                    style={styles.chip}
                     onPress={() => setAmount(String(v))}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.quickAmountText}>
-                      {formatCFA(v)}
-                    </Text>
+                    <Text style={styles.chipText}>{formatCFA(v)}</Text>
                   </TouchableOpacity>
                 ))}
                 {mode === 'withdraw' && maxAmount > 0 && (
                   <TouchableOpacity
-                    style={[styles.quickAmountChip, { backgroundColor: colors.primary }]}
+                    style={[styles.chip, styles.chipAll]}
                     onPress={() => setAmount(String(maxAmount))}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[styles.quickAmountText, { color: colors.white, fontWeight: '700' }]}>
+                    <Text style={[styles.chipText, styles.chipAllText]}>
                       Tout ({formatCFA(maxAmount)})
                     </Text>
                   </TouchableOpacity>
@@ -273,72 +289,59 @@ export default function WalletFlowScreen() {
             </>
           )}
 
-          {/* Étape 2 : opérateur + numéro */}
+          {/* ── Étape 2 : opérateur + numéro ── */}
           {step === 'phone' && (
             <>
               {amountLocked ? (
-                <View style={styles.lockedAmountCard}>
-                  <Text style={styles.lockedAmountLabel}>
-                    Montant à régler
+                <View style={styles.lockedCard}>
+                  <Text style={styles.lockedLabel}>Montant à régler</Text>
+                  <Text style={styles.lockedValue}>
+                    {formatCFA(parseInt(amount || '0', 10))}
                   </Text>
-                  <Text style={styles.lockedAmountValue}>
-                    {formatCFA(parseInt(amount, 10))}
-                  </Text>
-                  <Text style={styles.lockedAmountHint}>
+                  <Text style={styles.lockedHint}>
                     Correspond à la totalité de votre dette commission. Vous ne
                     pouvez pas régler partiellement.
                   </Text>
                 </View>
-              ) : null}
+              ) : (
+                <View style={styles.amountRecap}>
+                  <Text style={styles.amountRecapLabel}>
+                    {mode === 'withdraw' ? 'Montant à retirer' : 'Montant'}
+                  </Text>
+                  <Text style={styles.amountRecapValue}>
+                    {formatCFA(parseInt(amount || '0', 10))}
+                  </Text>
+                </View>
+              )}
 
-              <Text style={styles.stepTitle}>Compte Mobile Money</Text>
-              <Text style={styles.stepHint}>
-                {mode === 'withdraw'
-                  ? "Numéro qui recevra l'argent"
-                  : "Numéro depuis lequel vous paierez"}
+              <Text style={styles.section}>
+                {mode === 'withdraw' ? 'OÙ RECEVOIR L’ARGENT ?' : 'COMMENT PAYER ?'}
               </Text>
 
-              {/* Opérateurs */}
-              <View style={styles.operatorsRow}>
+              {/* Opérateurs — mêmes cartes que le paiement client */}
+              <View style={{ gap: R.space.sm }}>
                 {OPERATORS.map((op) => (
-                  <TouchableOpacity
+                  <MethodCard
                     key={op.key}
-                    style={[
-                      styles.operatorCard,
-                      operator === op.key && {
-                        borderColor: op.color,
-                        backgroundColor: op.color + '15',
-                      },
-                    ]}
+                    variant={op.variant}
+                    title={op.label}
+                    subtitle={
+                      mode === 'withdraw'
+                        ? 'Vous recevrez l’argent sur ce compte'
+                        : 'Paiement mobile sécurisé'
+                    }
+                    selected={operator === op.key}
                     onPress={() => setOperator(op.key)}
-                    activeOpacity={0.8}
-                  >
-                    <View
-                      style={[
-                        styles.operatorBadge,
-                        { backgroundColor: op.color },
-                      ]}
-                    >
-                      <Text style={styles.operatorBadgeText}>
-                        {op.label.charAt(0)}
-                      </Text>
-                    </View>
-                    <Text style={styles.operatorLabel}>{op.label}</Text>
-                    {operator === op.key ? (
-                      <View style={[styles.checkmark, { backgroundColor: op.color }]}>
-                        <Ionicons
-                          name="checkmark"
-                          size={12}
-                          color={colors.white}
-                        />
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
+                  />
                 ))}
               </View>
 
-              {/* Numéro */}
-              <Text style={styles.fieldLabel}>Numéro</Text>
+              {/* Numéro Mobile Money */}
+              <Text style={styles.fieldLabel}>
+                {mode === 'withdraw'
+                  ? 'Numéro qui recevra l’argent'
+                  : 'Numéro depuis lequel vous paierez'}
+              </Text>
               <View style={styles.phoneRow}>
                 <View style={styles.phonePrefix}>
                   <Text style={styles.phonePrefixText}>+226</Text>
@@ -346,7 +349,7 @@ export default function WalletFlowScreen() {
                 <TextInput
                   style={styles.phoneInput}
                   placeholder="70 12 34 56"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={S.textMuted}
                   keyboardType="number-pad"
                   value={formattedPhoneForInput(phone)}
                   onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 8))}
@@ -358,18 +361,18 @@ export default function WalletFlowScreen() {
             </>
           )}
 
-          {/* Étape 3 : OTP */}
+          {/* ── Étape 3 : OTP ── */}
           {step === 'otp' && (
             <>
               <Text style={styles.stepTitle}>Code de confirmation</Text>
               <Text style={styles.stepHint}>
                 Saisissez le code à 4 chiffres envoyé au{'\n'}
-                <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                <Text style={styles.phoneStrong}>
                   +226 {formattedPhoneForInput(phone)}
                 </Text>
               </Text>
 
-              <View style={{ marginTop: spacing.lg }}>
+              <View style={{ marginTop: R.space.gut, marginBottom: R.space.md }}>
                 <OtpInput
                   length={4}
                   value={otp}
@@ -380,19 +383,20 @@ export default function WalletFlowScreen() {
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <View style={styles.summaryBox}>
+              {/* Récapitulatif de l'opération */}
+              <View style={styles.summaryCard}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Montant</Text>
                   <Text style={styles.summaryValue}>
-                    {formatCFA(parseInt(amount, 10))}
+                    {formatCFA(parseInt(amount || '0', 10))}
                   </Text>
                 </View>
+                <View style={styles.summaryDivider} />
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Opérateur</Text>
-                  <Text style={styles.summaryValue}>
-                    {OPERATORS.find((o) => o.key === operator)?.label}
-                  </Text>
+                  <Text style={styles.summaryValue}>{operatorLabel}</Text>
                 </View>
+                <View style={styles.summaryDivider} />
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Numéro</Text>
                   <Text style={styles.summaryValue}>
@@ -404,16 +408,13 @@ export default function WalletFlowScreen() {
           )}
         </ScrollView>
 
+        {/* CTA vert plein, posé en bas */}
         <View style={styles.footer}>
           {step === 'amount' && (
-            <Button
-              title="Continuer"
-              onPress={goToPhone}
-              disabled={!amountValid}
-            />
+            <CtaButton title="Continuer" onPress={goToPhone} disabled={!amountValid} />
           )}
           {step === 'phone' && (
-            <Button
+            <CtaButton
               title="Envoyer le code"
               onPress={sendOtp}
               loading={loading}
@@ -421,7 +422,7 @@ export default function WalletFlowScreen() {
             />
           )}
           {step === 'otp' && (
-            <Button
+            <CtaButton
               title={mode === 'withdraw' ? 'Confirmer le retrait' : 'Confirmer le paiement'}
               onPress={() => submitOtp(otp)}
               loading={loading}
@@ -434,213 +435,213 @@ export default function WalletFlowScreen() {
   );
 }
 
+/** CTA vert plein, aligné sur le bouton "Valider le paiement" du flux client. */
+function CtaButton({
+  title,
+  onPress,
+  disabled,
+  loading,
+}: {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  const off = disabled || loading;
+  return (
+    <TouchableOpacity
+      style={[styles.cta, off && styles.ctaOff]}
+      onPress={onPress}
+      disabled={off}
+      activeOpacity={0.9}
+    >
+      {loading ? (
+        <ActivityIndicator size="small" color="#FFFFFF" />
+      ) : (
+        <Text style={styles.ctaText}>{title}</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: S.canvas },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: R.space.gut,
+    paddingVertical: R.space.sm,
   },
   backBtn: { padding: 4 },
-  headerTitle: { ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' },
-  headerSub: { ...typography.caption, color: colors.textSecondary },
+  headerTitle: { fontFamily: R.font.display, fontSize: 18, color: S.textPrim },
+  headerSub: { fontFamily: R.font.body, fontSize: 12, color: S.textMuted, marginTop: 1 },
   progress: {
-    height: 3,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
+    height: 4,
+    backgroundColor: S.border,
+    marginHorizontal: R.space.gut,
     borderRadius: 2,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: colors.primary },
+  progressFill: { height: '100%', backgroundColor: S.green, borderRadius: 2 },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: R.space.gut,
+    paddingTop: R.space.gut,
+    paddingBottom: R.space.gut,
   },
-  stepTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.sm },
-  stepHint: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
-  devHint: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: spacing.xs,
-  },
-  amountContainer: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-  amountInput: {
-    fontSize: 64,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    paddingVertical: 4,
-    paddingHorizontal: 0,
-    // Largeur auto : l'input s'elargit selon la saisie
-    minWidth: 80,
-    maxWidth: '100%',
-    textAlign: 'center',
-    // Pas de border pour un effet "display" plutôt que input
-    borderWidth: 0,
-  },
-  amountCurrency: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    letterSpacing: 1,
+
+  stepTitle: { fontFamily: R.font.display, fontSize: 20, color: S.textPrim },
+  stepHint: {
+    fontFamily: R.font.body,
+    fontSize: 13,
+    color: S.textSec,
     marginTop: 4,
-  },
-  quickAmountsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  quickAmountChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickAmountText: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  lockedAmountCard: {
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.errorLight,
-    borderWidth: 1,
-    borderColor: colors.error,
-    alignItems: 'center',
-  },
-  lockedAmountLabel: {
-    ...typography.caption,
-    color: colors.error,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  lockedAmountValue: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: colors.error,
-    marginTop: spacing.xs,
-  },
-  lockedAmountHint: {
-    ...typography.caption,
-    color: '#8a3a1f',
-    textAlign: 'center',
-    marginTop: spacing.xs,
     lineHeight: 18,
   },
-  operatorsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  operatorCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    position: 'relative',
-  },
-  operatorBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  operatorBadgeText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  operatorLabel: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: '600',
-    flex: 1,
-  },
-  checkmark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  phonePrefix: {
-    height: 48,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
+  phoneStrong: { fontFamily: R.font.bodyBold, color: S.textPrim },
+
+  // Saisie montant
+  amountCard: {
+    backgroundColor: S.surface,
+    borderRadius: S.radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+    borderColor: S.border,
+    paddingVertical: R.space.xxl,
+    paddingHorizontal: R.space.gut,
+    marginTop: R.space.gut,
   },
-  phonePrefixText: { ...typography.body, color: colors.textPrimary },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
+  amountInput: {
+    fontFamily: R.font.mono,
+    fontSize: 40,
+    color: S.textPrim,
+    minWidth: 80,
+    padding: 0,
+  },
+  amountCurrency: { fontFamily: R.font.bodyBold, fontSize: 16, color: S.textMuted },
+
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: R.space.sm, marginTop: R.space.lg },
+  chip: {
+    paddingHorizontal: R.space.lg,
+    paddingVertical: R.space.sm,
+    borderRadius: S.radius.pill,
+    backgroundColor: S.surface,
+    borderWidth: 1,
+    borderColor: S.border,
+  },
+  chipText: { fontFamily: R.font.bodyBold, fontSize: 13, color: S.textPrim },
+  chipAll: { backgroundColor: S.green, borderColor: S.green },
+  chipAllText: { color: '#FFFFFF' },
+
+  // Récap montant (étape phone, mode déverrouillé)
+  amountRecap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: S.activeBg,
+    borderRadius: S.radius.method,
+    borderWidth: 1,
+    borderColor: S.border,
+    paddingVertical: R.space.md,
+    paddingHorizontal: R.space.lg,
+    marginBottom: R.space.lg,
+  },
+  amountRecapLabel: { fontFamily: R.font.body, fontSize: 13, color: S.textSec },
+  amountRecapValue: { fontFamily: R.font.mono, fontSize: 17, color: S.green },
+
+  // Montant verrouillé (règlement de dette)
+  lockedCard: {
+    backgroundColor: S.ussdBg,
+    borderRadius: S.radius.card,
+    borderWidth: 1,
+    borderColor: S.ussdBorder,
+    padding: R.space.gut,
+    marginBottom: R.space.lg,
+  },
+  lockedLabel: { fontFamily: R.font.body, fontSize: 12.5, color: S.textSec },
+  lockedValue: { fontFamily: R.font.mono, fontSize: 28, color: S.textPrim, marginTop: 2 },
+  lockedHint: { fontFamily: R.font.body, fontSize: 12, color: S.textMuted, marginTop: 6, lineHeight: 17 },
+
+  section: {
+    fontFamily: R.font.mono,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: S.textMuted,
+    marginBottom: R.space.sm,
+  },
+
+  fieldLabel: {
+    fontFamily: R.font.bodyBold,
+    fontSize: 13,
+    color: S.textSec,
+    marginTop: R.space.lg,
+    marginBottom: R.space.sm,
+  },
+  phoneRow: { flexDirection: 'row', gap: R.space.sm },
+  phonePrefix: {
+    justifyContent: 'center',
+    paddingHorizontal: R.space.lg,
+    borderRadius: S.radius.field,
+    backgroundColor: S.surface,
+    borderWidth: 1.5,
+    borderColor: S.border,
+  },
+  phonePrefixText: { fontFamily: R.font.bodyBold, fontSize: 15, color: S.textPrim },
   phoneInput: {
     flex: 1,
-    height: 48,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    ...typography.body,
-    color: colors.textPrimary,
+    height: 52,
+    borderRadius: S.radius.field,
+    backgroundColor: S.surface,
+    borderWidth: 1.5,
+    borderColor: S.border,
+    paddingHorizontal: R.space.lg,
+    fontFamily: R.font.bodyBold,
+    fontSize: 16,
+    color: S.textPrim,
   },
-  summaryBox: {
-    marginTop: spacing.xl,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    gap: spacing.xs,
+
+  // Récap OTP
+  summaryCard: {
+    backgroundColor: S.surface,
+    borderRadius: S.radius.card,
+    borderWidth: 1,
+    borderColor: S.border,
+    paddingHorizontal: R.space.gut,
+    marginTop: R.space.lg,
   },
   summaryRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: R.space.md,
   },
-  summaryLabel: { ...typography.bodySmall, color: colors.textSecondary },
-  summaryValue: { ...typography.bodySmall, color: colors.textPrimary, fontWeight: '600' },
+  summaryDivider: { height: 1, backgroundColor: S.border },
+  summaryLabel: { fontFamily: R.font.body, fontSize: 13, color: S.textSec },
+  summaryValue: { fontFamily: R.font.bodyBold, fontSize: 14, color: S.textPrim },
+
   error: {
-    ...typography.bodySmall,
-    color: colors.error,
-    marginTop: spacing.md,
+    fontFamily: R.font.body,
+    fontSize: 13,
+    color: '#B91C1C',
+    marginTop: R.space.md,
+    textAlign: 'center',
   },
+
   footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingHorizontal: R.space.gut,
+    paddingTop: R.space.sm,
+    paddingBottom: R.space.gut,
+    backgroundColor: S.canvas,
+    borderTopWidth: 1,
+    borderTopColor: S.border,
   },
+  cta: {
+    height: 54,
+    borderRadius: S.radius.method,
+    backgroundColor: S.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaOff: { backgroundColor: '#9CC9AE' },
+  ctaText: { fontFamily: R.font.bodyBold, fontSize: 16, color: '#FFFFFF' },
 });
