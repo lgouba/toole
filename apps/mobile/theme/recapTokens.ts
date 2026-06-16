@@ -219,6 +219,29 @@ export const driverHome = {
   radius: { dial: 999, card: 16 },
 } as const;
 
+/** Tokens dédiés à "Mes livraisons" (livreur). */
+export const deliveries = {
+  canvas: '#F5F2EC',
+  surface: '#FFFFFF',
+  border: '#EBE3D3',
+  divider: '#F0EAD9',
+  textPrim: '#1A1A17',
+  textSec: '#6B6356',
+  textMuted: '#A59E8C',
+  green: '#15803D',
+  dep: '#15803D',
+  arr: '#16132E',
+  liveBg: '#F1F8EE',
+  liveBorder: '#DCEBD5',
+  chipBorder: '#E4DBC9',
+  status: {
+    en_cours: { accent: '#15803D', badgeBg: '#EAF3EC', badgeFg: '#15803D', label: 'En cours' },
+    livree: { accent: '#5E7A52', badgeBg: '#EEF2EB', badgeFg: '#5E7A52', label: 'Terminée' },
+    annulee: { accent: '#D6453C', badgeBg: '#FBE9E7', badgeFg: '#D6453C', label: 'Annulée' },
+  },
+  radius: { card: 18, pill: 999, btn: 12 },
+} as const;
+
 /** Tokens dédiés à l'étape 4 (paiement). Même famille crème + vert. */
 export const step4 = {
   canvas: '#F5F2EC',
