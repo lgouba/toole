@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LatLng } from '@/types';
@@ -61,6 +67,17 @@ interface MapProps {
   contentInsetBottom?: number;
   /** Idem en haut (barre de statut/boutons superposés). Défaut 100. */
   contentInsetTop?: number;
+  /**
+   * Coupe les animations décoratives de la carte (halo/pulse des marqueurs)
+   * quand l'utilisateur a activé « réduire les animations ».
+   */
+  reducedMotion?: boolean;
+}
+
+/** API impérative exposée via ref (ex: bouton « recentrer »). */
+export interface MapHandle {
+  /** Recentre sur le livreur s'il est connu, sinon réajuste sur tout le parcours. */
+  recenter: () => void;
 }
 
 /** Serialise uniquement la structure d'un marker (pas sa position precise). */
@@ -101,6 +118,7 @@ function buildHtml(
   theme: 'light' | 'dark' | 'soft',
   contentInsetTop: number,
   contentInsetBottom: number,
+  reducedMotion: boolean,
   coverage?: { center: LatLng; radiusKm: number },
 ): string {
   const isDark = theme === 'dark';
@@ -129,7 +147,7 @@ function buildHtml(
             const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
               icon: L.divIcon({
                 className: 'courier-marker',
-                html: \`<div class="courier-pin">${online ? '<div class="courier-halo"></div>' : ''}<div class="courier-bubble">${moto}</div></div>\`,
+                html: \`<div class="courier-pin">${online && !reducedMotion ? '<div class="courier-halo"></div>' : ''}<div class="courier-bubble">${moto}</div></div>\`,
                 iconSize: [34, 34],
                 iconAnchor: [17, 17],
               }),
@@ -139,9 +157,9 @@ function buildHtml(
         `;
       }
       if (m.icon === 'driver') {
-        // Pin GPS style "Google Maps" avec cycliste SVG detaille a l'interieur.
-        // Forme : pin/goutte avec tete ronde + pointe vers le bas (GPS exact).
-        // Halo qui pulse pour signaler que le marker est vivant.
+        // Marqueur livreur de la maquette suivi : PIN VERT (pastille + pointe GPS)
+        // servant de contenant, avec le SCOOTER de l'app à l'intérieur (asset de
+        // marque, jamais l'icône vélo). Halo qui pulse (coupé si reducedMotion).
         return `
           {
             const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
@@ -149,16 +167,18 @@ function buildHtml(
                 className: 'driver-marker',
                 html: \`
                   <div class="driver-pin-outer">
-                    <div class="driver-pin-halo"></div>
-                    <div class="driver-pin-inner" data-id="${m.id}">
-                      <img src="${RIDER_MARKER_URI}" width="66" height="66" style="display:block;" alt="livreur" />
+                    ${reducedMotion ? '' : '<div class="driver-pin-halo"></div>'}
+                    <div class="driver-pin-bubble">
+                      <div class="driver-pin-inner" data-id="${m.id}">
+                        <img src="${RIDER_MARKER_URI}" width="46" height="46" style="display:block;" alt="livreur" />
+                      </div>
                     </div>
+                    <div class="driver-pin-tip"></div>
                   </div>
                 \`,
-                // Avatar seul, 68x68 carre. L'ancre est au centre du SVG
-                // (le centre du cycliste = position GPS exacte).
-                iconSize: [68, 68],
-                iconAnchor: [34, 34],
+                // Pin 56x68 ; l'ancre est sur la POINTE (bas-centre) = position GPS.
+                iconSize: [56, 68],
+                iconAnchor: [28, 66],
               }),
             }).addTo(map);
             ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
@@ -184,7 +204,7 @@ function buildHtml(
       const isDelivery = m.icon === 'delivery';
       const col =
         m.color || (isPickup ? '#C2410C' : isDelivery ? '#15803D' : colors.primary);
-      const emoji = isPickup ? '📦' : isDelivery ? '🏁' : '📍';
+      const emoji = isPickup ? '📦' : isDelivery ? '🏠' : '📍';
       return `
         {
           const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
@@ -305,40 +325,64 @@ function buildHtml(
       box-shadow: 0 0 0 2px rgba(21,128,61,0.3);
     }
 
-    /* Avatar livreur seul (pas de pin), 68x68 centre sur la position GPS */
+    /* Pin livreur (maquette suivi) : pastille verte 56px + pointe GPS, scooter dedans */
     .driver-pin-outer {
       position: relative;
-      width: 68px;
+      width: 56px;
       height: 68px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Halo qui pulse derrière la pastille (signale le marker vivant) */
+    .driver-pin-halo {
+      position: absolute;
+      top: 0;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #16A34A;
+      opacity: 0.22;
+      animation: driver-pulse-ring 2s ease-out infinite;
+    }
+    /* Pastille verte = contenant du scooter (anneau vert + fond clair) */
+    .driver-pin-bubble {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #FBFAF6;
+      border: 3px solid #15803D;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.28);
     }
-    /* Halo discret derriere l'avatar pour le distinguer du fond carte */
-    .driver-pin-halo {
-      position: absolute;
-      inset: 6px;
-      border-radius: 50%;
-      background: ${colors.primary};
-      opacity: 0.18;
-      animation: driver-pulse-ring 2s ease-out infinite;
+    /* Pointe GPS verte sous la pastille (la position exacte = bas de la pointe) */
+    .driver-pin-tip {
+      width: 0;
+      height: 0;
+      margin-top: -3px;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 12px solid #15803D;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
     }
     .driver-pin-inner {
       position: relative;
-      width: 68px;
-      height: 68px;
+      width: 46px;
+      height: 46px;
       display: flex;
       align-items: center;
       justify-content: center;
-      /* Drop-shadow autour du cycliste pour le detacher de la carte */
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 2px rgba(255,255,255,0.8));
     }
     /* Flip horizontal fluide quand le livreur change de sens de marche */
     .driver-pin-inner img { transition: transform 0.3s ease; }
-    /* Halo qui pulse autour de l'avatar */
+    /* Halo qui pulse autour de la pastille */
     @keyframes driver-pulse-ring {
-      0%   { transform: scale(0.9); opacity: 0.45; }
-      100% { transform: scale(1.8); opacity: 0; }
+      0%   { transform: scale(0.9); opacity: 0.5; }
+      100% { transform: scale(1.9); opacity: 0; }
     }
   </style>
 </head>
@@ -502,21 +546,25 @@ function buildHtml(
   `;
 }
 
-export function Map({
-  center,
-  zoom = 14,
-  markers = [],
-  onPress,
-  routeCoordinates,
-  routePath,
-  coverage,
-  style,
-  interactive = true,
-  fitToContent = false,
-  theme = 'light',
-  contentInsetTop = 100,
-  contentInsetBottom = 0,
-}: MapProps) {
+export const Map = forwardRef<MapHandle, MapProps>(function Map(
+  {
+    center,
+    zoom = 14,
+    markers = [],
+    onPress,
+    routeCoordinates,
+    routePath,
+    coverage,
+    style,
+    interactive = true,
+    fitToContent = false,
+    theme = 'light',
+    contentInsetTop = 100,
+    contentInsetBottom = 0,
+    reducedMotion = false,
+  }: MapProps,
+  ref,
+) {
   const webviewRef = useRef<WebView>(null);
   const prevMarkersRef = useRef<MapMarker[]>([]);
   const prevRouteRef = useRef<LatLng[] | null>(null);
@@ -557,6 +605,7 @@ export function Map({
         theme,
         contentInsetTop,
         contentInsetBottom,
+        reducedMotion,
         coverage,
       ),
     // NOTE: on ne met PAS center.latitude/longitude dans les deps pour éviter
@@ -571,9 +620,33 @@ export function Map({
       theme,
       contentInsetTop,
       contentInsetBottom,
+      reducedMotion,
       coverage ? `${coverage.center.latitude},${coverage.center.longitude},${coverage.radiusKm}` : '',
     ],
   );
+
+  // Recentrage impératif (bouton « locate ») : pan sur le livreur si connu,
+  // sinon réajuste la vue sur l'ensemble des marqueurs + le tracé.
+  useImperativeHandle(ref, () => ({
+    recenter: () => {
+      const js = `
+        try {
+          var d = window._markers && window._markers['driver'];
+          if (d) {
+            map.panTo(d.getLatLng(), { animate: true, duration: 0.4 });
+          } else if (window._markers) {
+            var pts = Object.keys(window._markers).map(function(k){
+              return window._markers[k].getLatLng();
+            });
+            if (pts.length >= 2) map.fitBounds(pts, { padding: [60, 60], maxZoom: 16 });
+            else if (pts.length === 1) map.panTo(pts[0], { animate: true });
+          }
+        } catch (e) {}
+        true;
+      `;
+      webviewRef.current?.injectJavaScript(js);
+    },
+  }));
 
   // Detecte un changement significatif du center (ex: GPS qui arrive après
   // un fallback Ouagadougou) et fait un setView via injection JS — sans
@@ -673,7 +746,7 @@ export function Map({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
