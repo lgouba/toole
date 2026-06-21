@@ -14,6 +14,11 @@ import {
   rateCtrl,
   estimateCtrl,
 } from '../controllers/deliveries.controller.js';
+import {
+  listMessagesCtrl,
+  sendMessageCtrl,
+  markReadCtrl,
+} from '../controllers/messages.controller.js';
 
 const router = Router();
 
@@ -34,5 +39,10 @@ router.put('/:id/validate-code', validateCtrl);
 router.put('/:id/cancel', cancelCtrl);
 router.put('/:id/relaunch', relaunchCtrl);
 router.post('/:id/rate', rateCtrl);
+
+// Messagerie in-app client <-> livreur (rattachee a la course)
+router.get('/:id/messages', listMessagesCtrl);
+router.post('/:id/messages', sendMessageCtrl);
+router.post('/:id/messages/read', markReadCtrl);
 
 export default router;

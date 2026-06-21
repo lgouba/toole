@@ -9,6 +9,7 @@ import { CancelReasonDialog } from '@/components/CancelReasonDialog';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useDriverStore } from '@/stores/driver.store';
 import { useLocationStore } from '@/stores/location.store';
+import { useMessageStore } from '@/stores/message.store';
 import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
 import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
 import { formatEta, formatDistance } from '@/utils/format';
@@ -20,6 +21,9 @@ export default function DeliveryNavigationScreen() {
   const router = useRouter();
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
   const driverPos = useLocationStore((s) => s.current);
+  const unreadMessages = useMessageStore(
+    (s) => s.unread[activeDelivery?.id ?? ''] ?? 0,
+  );
   const [showCancel, setShowCancel] = useState(false);
   // Itinéraire routier réel (livreur → livraison), calculé serveur via OSRM.
   const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
@@ -151,6 +155,26 @@ export default function DeliveryNavigationScreen() {
           >
             <Ionicons name="call" size={22} color={colors.primary} />
             <Text style={styles.actionLabel}>Appeler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() =>
+              router.push(
+                `/chat/${activeDelivery.id}?name=Client&reference=${encodeURIComponent(
+                  activeDelivery.reference,
+                )}` as any,
+              )
+            }
+          >
+            <Ionicons name="chatbubble-ellipses" size={22} color={colors.primary} />
+            <Text style={styles.actionLabel}>Message</Text>
+            {unreadMessages > 0 && (
+              <View style={styles.msgBadge}>
+                <Text style={styles.msgBadgeText}>
+                  {unreadMessages > 9 ? '9+' : unreadMessages}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
@@ -312,6 +336,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flexShrink: 1,
   },
+  msgBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  msgBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
   etaPill: {
     flexDirection: 'row',
     alignItems: 'center',

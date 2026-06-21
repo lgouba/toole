@@ -218,6 +218,7 @@ function RootLayout() {
         <Stack.Screen name="(driver)" />
         <Stack.Screen name="delivery/[id]" />
         <Stack.Screen name="track/[token]" />
+        <Stack.Screen name="chat/[deliveryId]" />
         <Stack.Screen name="profile-edit" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="about" />

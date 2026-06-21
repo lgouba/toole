@@ -129,6 +129,8 @@ model User {
   transactions     Transaction[]
   pushTokens       PushToken[]
   locationLogs     DriverLocationLog[]
+  sentMessages     Message[]           @relation("MessageSender")
+  receivedMessages Message[]           @relation("MessageRecipient")
 
   @@index([phone])
   @@index([userType])
@@ -256,12 +258,33 @@ model Delivery {
   ratings      Rating[]
   transactions Transaction[]
   locationLogs DriverLocationLog[]
+  messages     Message[]
 
   @@index([senderId])
   @@index([driverId])
   @@index([status])
   @@index([createdAt])
   @@index([scheduledFor])
+}
+
+/// Message de chat in-app entre le client (sender de la course) et le livreur
+/// assigne, rattache a une livraison. Remplace l'echange via WhatsApp.
+model Message {
+  id          String    @id @default(uuid()) @db.Uuid
+  deliveryId  String    @db.Uuid
+  senderId    String    @db.Uuid
+  recipientId String    @db.Uuid
+  body        String    @db.VarChar(2000)
+  /// Null tant que le destinataire n'a pas ouvert le fil / lu le message.
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  delivery  Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
+  recipient User     @relation("MessageRecipient", fields: [recipientId], references: [id])
+
+  @@index([deliveryId, createdAt])
+  @@index([recipientId, readAt])
 }
 
 model Rating {

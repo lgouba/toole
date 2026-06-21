@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { useConnectionStore } from '@/stores/connection.store';
+import { useMessageStore } from '@/stores/message.store';
 import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.client';
 import { syncPushTokenToBackend } from '@/services/push.service';
 import { getDeliveryById } from '@/services/delivery.service';
@@ -137,6 +138,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       const type = data.type as string | undefined;
       const deliveryId = data.deliveryId as string | undefined;
 
+      // Tap sur une notif de message -> ouvre directement le fil (les 2 roles).
+      if (type === 'message' && deliveryId) {
+        const reference = data.reference ? String(data.reference) : '';
+        const name = user!.userType === 'driver' ? 'Client' : 'Livreur';
+        routerRef.current.push(
+          `/chat/${deliveryId}?name=${name}&reference=${encodeURIComponent(reference)}` as any,
+        );
+        return;
+      }
+
       if (user!.userType === 'driver') {
         if (type === 'new_request' || type === 'pending_batch') {
           // Recharge la course dans le store driver pour que la
@@ -249,6 +260,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.off('delivery:accepted');
         socket.off('delivery:status_update');
         socket.off('delivery:driver_location');
+        socket.off('message:new');
         socket.off('delivery:cancelled');
         socket.off('delivery:new_request');
         socket.off('delivery:invalidated');
@@ -326,6 +338,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
               latitude: Number(payload.latitude),
               longitude: Number(payload.longitude),
             });
+          }
+        });
+
+        // Messagerie in-app : nouveau message reçu (client <-> livreur).
+        socket.on('message:new', (payload: any) => {
+          if (!payload?.id || !payload?.deliveryId) return;
+          const currentUserId = useAuthStore.getState().user?.id;
+          useMessageStore.getState().receive(payload, currentUserId);
+          if (payload.recipientId === currentUserId && !payload.readAt) {
+            haptic.light?.();
           }
         });
 
@@ -484,6 +506,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socket.off('delivery:accepted');
         socket.off('delivery:status_update');
         socket.off('delivery:driver_location');
+        socket.off('message:new');
         socket.off('delivery:cancelled');
         socket.off('delivery:driver_cancelled');
         socket.off('delivery:new_request');

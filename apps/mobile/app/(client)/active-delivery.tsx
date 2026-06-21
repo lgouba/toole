@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Map, MapHandle } from '@/components/map/Map';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
-import { openPhone, openWhatsApp } from '@/utils/linking';
+import { openPhone } from '@/utils/linking';
+import { useMessageStore } from '@/stores/message.store';
 import { formatEta, formatDistance } from '@/utils/format';
 import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
@@ -102,6 +103,9 @@ export default function ActiveDeliveryScreen() {
   const setActiveDelivery = useDeliveryStore((s) => s.setActiveDelivery);
   const setDriverLocation = useDeliveryStore((s) => s.setDriverLocation);
   const selectDriver = useDeliveryStore((s) => s.selectDriver);
+  const unreadMessages = useMessageStore(
+    (s) => s.unread[activeDelivery?.id ?? ''] ?? 0,
+  );
 
   const delivery = activeDelivery;
   const driver = activeDriver;
@@ -554,9 +558,10 @@ export default function ActiveDeliveryScreen() {
               <TouchableOpacity
                 style={styles.iconBtnOutline}
                 onPress={() =>
-                  openWhatsApp(
-                    driver.phone,
-                    `Bonjour, je suis le client de la livraison ${delivery.reference}.`,
+                  router.push(
+                    `/chat/${delivery.id}?name=${encodeURIComponent(
+                      driver.fullName,
+                    )}&reference=${encodeURIComponent(delivery.reference)}` as any,
                   )
                 }
                 accessibilityLabel="Envoyer un message au livreur"
@@ -564,6 +569,13 @@ export default function ActiveDeliveryScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={19} color={D.greenDeep} />
+                {unreadMessages > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>
+                      {unreadMessages > 9 ? '9+' : unreadMessages}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconBtnFilled}
@@ -893,6 +905,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: D.greenDeep,
   },
+  unreadBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: D.canvas,
+  },
+  unreadText: { color: '#fff', fontFamily: FONT.bold, fontSize: 10.5 },
 
   // ---- f) code ----
   codeRow: { flexDirection: 'row', alignItems: 'center' },
