@@ -32,6 +32,8 @@ export default function DeliveryNavigationScreen() {
   // côté backend. Si elle a été supprimée/annulée/expirée, on dégage.
   useEffect(() => {
     if (!activeDelivery?.id) return;
+    // Compteur de non-lus au montage (survit au redémarrage ; socket en live ensuite).
+    useMessageStore.getState().loadUnread(activeDelivery.id);
     let cancelled = false;
     const check = async () => {
       const fresh = await getDeliveryById(activeDelivery.id);
@@ -160,9 +162,9 @@ export default function DeliveryNavigationScreen() {
             style={styles.actionBtn}
             onPress={() =>
               router.push(
-                `/chat/${activeDelivery.id}?name=Client&reference=${encodeURIComponent(
-                  activeDelivery.reference,
-                )}` as any,
+                `/chat/${activeDelivery.id}?name=${encodeURIComponent(
+                  activeDelivery.senderName ?? 'Client',
+                )}&reference=${encodeURIComponent(activeDelivery.reference)}` as any,
               )
             }
           >

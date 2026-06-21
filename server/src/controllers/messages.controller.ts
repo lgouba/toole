@@ -6,7 +6,21 @@ import {
   listMessages,
   sendMessage,
   markRead,
+  countUnread,
 } from '../services/message.service.js';
+
+export async function unreadCountCtrl(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const count = await countUnread(req.params.id, req.user!.id);
+    return success(res, { count });
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function listMessagesCtrl(
   req: AuthedRequest,

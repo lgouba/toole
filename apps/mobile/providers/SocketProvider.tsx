@@ -26,6 +26,7 @@ function normalizeDelivery(raw: any): Delivery {
     trackingToken: raw.trackingToken ?? null,
     senderId: raw.senderId,
     driverId: raw.driverId ?? undefined,
+    senderName: raw.sender?.fullName ?? raw.senderName ?? undefined,
     packageType: raw.packageType,
     packageCategory: raw.packageCategory ?? null,
     packageSize: raw.packageSize ?? null,

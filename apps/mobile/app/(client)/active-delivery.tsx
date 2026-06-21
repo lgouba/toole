@@ -171,6 +171,10 @@ export default function ActiveDeliveryScreen() {
       const deliveryId = activeDelivery?.id;
       if (!deliveryId) return;
 
+      // Compteur de non-lus au (re)focus : survit au redémarrage de l'app,
+      // le socket prend ensuite le relais en live.
+      useMessageStore.getState().loadUnread(deliveryId);
+
       const refresh = async () => {
         try {
           const fresh = await getDeliveryById(deliveryId);

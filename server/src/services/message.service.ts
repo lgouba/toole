@@ -65,8 +65,22 @@ export async function listMessages(deliveryId: string, userId: string) {
   return messages;
 }
 
-/** Nombre de messages non lus pour `userId` sur une course. */
+/**
+ * Nombre de messages non lus pour `userId` sur une course (pour le badge au
+ * montage de l'écran de suivi). Ne marque RIEN comme lu. Tolère l'absence de
+ * livreur (renvoie 0) contrairement a l'envoi/lecture du fil.
+ */
 export async function countUnread(deliveryId: string, userId: string): Promise<number> {
+  const delivery = await prisma.delivery.findUnique({
+    where: { id: deliveryId },
+    select: { senderId: true, driverId: true },
+  });
+  if (!delivery) {
+    throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
+  }
+  if (delivery.senderId !== userId && delivery.driverId !== userId) {
+    throw new HttpError(403, 'FORBIDDEN', 'Access denied');
+  }
   return prisma.message.count({
     where: { deliveryId, recipientId: userId, readAt: null },
   });

@@ -20,3 +20,9 @@ export async function sendMessage(
 export async function markRead(deliveryId: string): Promise<void> {
   await api.post(`/deliveries/${deliveryId}/messages/read`, {});
 }
+
+/** Nombre de messages non lus (pour le badge au montage, sans marquer lu). */
+export async function getUnreadCount(deliveryId: string): Promise<number> {
+  const res = await api.get(`/deliveries/${deliveryId}/messages/unread`);
+  return unwrap<{ count: number }>(res).count;
+}

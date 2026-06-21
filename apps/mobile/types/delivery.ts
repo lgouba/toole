@@ -74,6 +74,8 @@ export interface Delivery {
   trackingToken?: string | null;
   senderId: string;
   driverId?: string;
+  /** Nom du client (expéditeur) — sert d'interlocuteur du chat côté livreur. */
+  senderName?: string;
 
   // Package
   packageType: PackageType;

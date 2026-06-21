@@ -18,6 +18,7 @@ import {
   listMessagesCtrl,
   sendMessageCtrl,
   markReadCtrl,
+  unreadCountCtrl,
 } from '../controllers/messages.controller.js';
 
 const router = Router();
@@ -42,6 +43,7 @@ router.post('/:id/rate', rateCtrl);
 
 // Messagerie in-app client <-> livreur (rattachee a la course)
 router.get('/:id/messages', listMessagesCtrl);
+router.get('/:id/messages/unread', unreadCountCtrl);
 router.post('/:id/messages', sendMessageCtrl);
 router.post('/:id/messages/read', markReadCtrl);
 

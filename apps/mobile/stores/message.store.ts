@@ -10,6 +10,8 @@ interface MessageState {
   loading: Record<string, boolean>;
 
   load: (deliveryId: string) => Promise<void>;
+  /** Récupère le compteur de non-lus (au montage d'un écran), sans marquer lu. */
+  loadUnread: (deliveryId: string) => Promise<void>;
   send: (deliveryId: string, body: string) => Promise<Message | null>;
   /** Insère un message reçu (socket) en évitant les doublons. */
   receive: (message: Message, currentUserId?: string) => void;
@@ -46,6 +48,16 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     } catch (err) {
       console.warn('[messages] load failed', err);
       set((s) => ({ loading: { ...s.loading, [deliveryId]: false } }));
+    }
+  },
+
+  loadUnread: async (deliveryId) => {
+    try {
+      const count = await messageService.getUnreadCount(deliveryId);
+      set((s) => ({ unread: { ...s.unread, [deliveryId]: count } }));
+    } catch (err) {
+      // Silencieux : le badge reste piloté par le socket en cas d'échec.
+      console.warn('[messages] loadUnread failed', err);
     }
   },
 
