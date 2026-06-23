@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { authRequired, AuthedRequest } from '../middleware/auth.js';
+import { kycUploadLimiter } from '../middleware/rateLimit.js';
 import { success } from '../utils/response.js';
 import { HttpError } from '../utils/response.js';
 
@@ -62,7 +63,8 @@ function conditionalAuth(
 }
 
 // POST /api/uploads/:category (avatars | packages | kyc)
-router.post('/:category', conditionalAuth, upload.single('file'), (req: AuthedRequest, res, next) => {
+// kycUploadLimiter ne s'active que pour la catégorie `kyc` (publique) — voir son `skip`.
+router.post('/:category', kycUploadLimiter, conditionalAuth, upload.single('file'), (req: AuthedRequest, res, next) => {
   try {
     if (!req.file) {
       throw new HttpError(400, 'NO_FILE', 'Aucun fichier recu (champ "file")');

@@ -805,13 +805,26 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
     where: { userId: driverId },
     select: { walletBalance: true },
   });
-  // walletBalance negatif = dette. On compare sa valeur absolue au plafond.
+  // walletBalance negatif = dette DEJA materialisee (debitee a la livraison).
   const currentDebt = Math.max(0, -(balanceCheck?.walletBalance ?? 0));
-  if (currentDebt >= settings.commissionDebtLimit) {
+  // Exposition des courses DEJA acceptees mais pas encore terminees : leur
+  // platformFee deviendra dette a la livraison. Sans ca, un livreur pouvait
+  // accepter N courses cash en parallele (chacune passant le check car le solde
+  // n'est pas encore debite) puis toutes les completer et dépasser largement le
+  // plafond. On projette donc la dette future.
+  const inFlight = await prisma.delivery.aggregate({
+    where: {
+      driverId,
+      status: { in: ['accepted', 'picking_up', 'picked_up', 'delivering'] },
+    },
+    _sum: { platformFee: true },
+  });
+  const projectedDebt = currentDebt + (inFlight._sum.platformFee ?? 0);
+  if (projectedDebt >= settings.commissionDebtLimit) {
     throw new HttpError(
       403,
       'DEBT_LIMIT_EXCEEDED',
-      `Votre dette plateforme (${currentDebt} ${settings.currency}) a atteint le plafond. Reglez via l'onglet Portefeuille pour accepter de nouvelles courses.`,
+      `Votre dette plateforme (${projectedDebt} ${settings.currency}, courses en cours incluses) a atteint le plafond. Reglez via l'onglet Portefeuille pour accepter de nouvelles courses.`,
     );
   }
 

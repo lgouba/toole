@@ -63,6 +63,33 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+// --- Garde-fous PRODUCTION ---
+// Empêche de démarrer la prod avec des secrets d'exemple, et alerte sur une
+// config CORS trop permissive. (Hard-exit uniquement sur les valeurs d'exemple
+// pour ne pas casser un boot prod légitime.)
+if (env.NODE_ENV === 'production') {
+  const isExample = (s: string) => /change-?me/i.test(s);
+  if (isExample(env.JWT_ACCESS_SECRET) || isExample(env.JWT_REFRESH_SECRET)) {
+    // eslint-disable-next-line no-console
+    console.error(
+      'FATAL: JWT secrets are still the example values ("change-me…") in production. Set strong random secrets (JWT_ACCESS_SECRET / JWT_REFRESH_SECRET).',
+    );
+    process.exit(1);
+  }
+  if (env.JWT_ACCESS_SECRET.length < 32 || env.JWT_REFRESH_SECRET.length < 32) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      'WARN: JWT secrets shorter than 32 chars in production — use longer random secrets.',
+    );
+  }
+  if (env.CORS_ORIGIN === '*') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      'WARN: CORS_ORIGIN="*" in production reflète n\'importe quelle origine avec credentials. Définir les origines explicites (ex. https://admin-tolle.qalitylabs.fr).',
+    );
+  }
+}
+
 // Validation croisee : si SMS_PROVIDER=africastalking, username + apiKey obligatoires
 if (env.SMS_PROVIDER === 'africastalking') {
   if (!env.AT_USERNAME || !env.AT_API_KEY) {

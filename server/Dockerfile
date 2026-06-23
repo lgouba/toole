@@ -30,4 +30,8 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
+# db push SANS --accept-data-loss : applique les changements additifs, mais
+# REFUSE (échoue au boot) tout changement destructif (DROP colonne/table) au
+# lieu de détruire des données en silence. Un changement destructif légitime se
+# fait alors manuellement, après backup.
+CMD ["sh", "-c", "npx prisma db push && node dist/index.js"]

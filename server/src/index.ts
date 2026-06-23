@@ -53,10 +53,15 @@ app.use(
     contentSecurityPolicy: false,
   }),
 );
+// CORS : si une liste d'origines explicite est fournie (CORS_ORIGIN), on
+// l'applique avec credentials. Si CORS_ORIGIN="*" (défaut), on REFLÈTE l'origine
+// mais SANS credentials — le combo `*`+credentials laisse n'importe quel site
+// faire des requêtes authentifiées. Restreindre via CORS_ORIGIN en prod.
+const corsAllowAll = env.CORS_ORIGIN === '*';
 app.use(
   cors({
-    origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
-    credentials: true,
+    origin: corsAllowAll ? true : env.CORS_ORIGIN.split(','),
+    credentials: !corsAllowAll,
   }),
 );
 app.use(express.json({ limit: '1mb' }));

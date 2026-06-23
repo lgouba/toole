@@ -70,6 +70,52 @@ export const otpByIpLimiter = rateLimit({
 });
 
 /**
+ * Anti-brute-force de l'OTP (verify-otp + register). Le code ne fait que 4
+ * chiffres (10 000 combinaisons) : sans limiter dédié, le globalLimiter (200/min)
+ * laisserait épuiser l'espace. Max 8 essais par identifiant (téléphone/email)
+ * par tranche de 15 min ; fallback IP si l'identifiant est absent.
+ */
+export const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const raw = (
+      req.body?.identifier ??
+      req.body?.phone ??
+      req.body?.email ??
+      ''
+    )
+      .toString()
+      .trim()
+      .toLowerCase();
+    if (raw) return `otp:${raw.replace(/\s+/g, '')}`;
+    return ipKeyGenerator(req.ip ?? 'unknown');
+  },
+  handler: tooManyResponse(
+    'Trop de tentatives de code. Réessayez dans 15 minutes.',
+  ),
+});
+
+/**
+ * Limit de l'upload KYC PUBLIC (sans auth, utilisé pendant l'inscription
+ * livreur). Sans ça, un attaquant peut saturer le disque. Max 15 envois par IP
+ * par heure ; ne s'applique qu'à la catégorie `kyc` (les autres sont protégées
+ * par l'auth).
+ */
+export const kycUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req: Request) => (req.params as { category?: string }).category !== 'kyc',
+  handler: tooManyResponse(
+    "Trop d'envois de documents. Réessayez dans une heure.",
+  ),
+});
+
+/**
  * Limit pour brute-force du login admin (mot de passe).
  * Max 10 tentatives par IP par 15 min.
  */

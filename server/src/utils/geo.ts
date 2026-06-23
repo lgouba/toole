@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 /**
  * Haversine distance (in kilometers) between two lat/lng points.
  */
@@ -21,9 +23,9 @@ export function haversineKm(
   return R * c;
 }
 
-/** Generate a 4 digit validation code (string, zero padded). */
+/** Generate a 4 digit validation code (string). CSPRNG (crypto), pas Math.random. */
 export function generateValidationCode(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return crypto.randomInt(1000, 10000).toString();
 }
 
 /** Generate a delivery reference like TOL-YYYYMMDD-XXXX. */
@@ -32,7 +34,7 @@ export function generateReference(): string {
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
-  const rand = Math.floor(1000 + Math.random() * 9000);
+  const rand = crypto.randomInt(1000, 10000);
   return `TOL-${yyyy}${mm}${dd}-${rand}`;
 }
 
@@ -45,7 +47,8 @@ export function generateTrackingToken(): string {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let token = '';
   for (let i = 0; i < 12; i++) {
-    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+    // crypto.randomInt = CSPRNG : token imprévisible (vs Math.random prévisible).
+    token += alphabet[crypto.randomInt(alphabet.length)];
   }
   return token;
 }

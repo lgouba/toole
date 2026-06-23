@@ -151,6 +151,11 @@ export async function verifyOtpCode(identifier: string, code: string): Promise<v
   if (otp.expiresAt < new Date()) {
     throw new HttpError(400, 'EXPIRED_OTP', 'Verification code has expired');
   }
+  // USAGE UNIQUE : on consomme le code dès la 1re vérification réussie, sinon il
+  // resterait rejouable pendant toute sa fenêtre de validité (plusieurs sessions
+  // générées avec un seul code). On purge tous les codes en attente de cet
+  // identifiant d'un coup.
+  await prisma.otpCode.deleteMany({ where: { identifier: normalized } });
 }
 
 export async function issueTokens(
