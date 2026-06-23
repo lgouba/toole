@@ -76,6 +76,8 @@ export interface Delivery {
   driverId?: string;
   /** Nom du client (expéditeur) — sert d'interlocuteur du chat côté livreur. */
   senderName?: string;
+  /** Téléphone du client (expéditeur) — appelé à la récupération si aucun contact tiers. */
+  senderPhone?: string;
 
   // Package
   packageType: PackageType;
@@ -128,6 +130,9 @@ export interface Delivery {
    * (l'expéditeur) pour qu'il le transmette a l'expéditeur tiers si besoin.
    */
   pickupValidationCode?: string | null;
+
+  /** Mode de paiement choisi par le client (cash = à encaisser ; OM/Moov = déjà payé). */
+  paymentMethod?: 'cash' | 'orange_money' | 'moov_money';
 
   // Status
   status: DeliveryStatus;

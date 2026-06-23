@@ -27,6 +27,7 @@ function normalizeDelivery(raw: any): Delivery {
     senderId: raw.senderId,
     driverId: raw.driverId ?? undefined,
     senderName: raw.sender?.fullName ?? raw.senderName ?? undefined,
+    senderPhone: raw.sender?.phone ?? raw.senderPhone ?? undefined,
     packageType: raw.packageType,
     packageCategory: raw.packageCategory ?? null,
     packageSize: raw.packageSize ?? null,
@@ -54,6 +55,7 @@ function normalizeDelivery(raw: any): Delivery {
     estimatedDistanceKm:
       raw.estimatedDistanceKm != null ? Number(raw.estimatedDistanceKm) : undefined,
     price: Number(raw.price),
+    paymentMethod: raw.paymentMethod ?? undefined,
     driverCommission: raw.driverCommission != null ? Number(raw.driverCommission) : undefined,
     platformFee: raw.platformFee != null ? Number(raw.platformFee) : undefined,
     tip: Number(raw.tip ?? 0),

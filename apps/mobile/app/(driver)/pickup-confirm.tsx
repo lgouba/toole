@@ -8,39 +8,17 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  FadeInDown,
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
-import { Button, OtpInput } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { DriverHood } from '@/components/driver/flow/DriverHood';
+import { C, F } from '@/components/driver/flow/tokens';
+import { OtpInput } from '@/components/ui';
 import { useDriverStore } from '@/stores/driver.store';
 import { uploadImage } from '@/services/upload.service';
 import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
 
-/**
- * Ecran de confirmation de récupération du colis.
- *
- * Flow progressif et visuel :
- *   1. Encart "Expéditeur sur place" (info récupération)
- *   2. Capture photo du colis
- *   3. Saisie code de récupération a 4 chiffres
- *   4. Bouton "Confirmer la récupération"
- *
- * Chaque étape s'anime a l'apparition. L'étape en cours est mise en avant
- * par une bordure accentuee et une pastille verte de "validé" apparait au
- * fur et a mesure.
- */
 export default function PickupConfirmScreen() {
   const router = useRouter();
   const { confirmPickup, activeDelivery } = useDriverStore();
@@ -48,18 +26,23 @@ export default function PickupConfirmScreen() {
   const [uploading, setUploading] = useState(false);
   const [pickupCode, setPickupCode] = useState('');
 
-  // Cet écran est gardé monté en mémoire par le Tabs navigator même quand on
-  // navigue ailleurs. On reset donc l'état local à chaque nouvelle course
-  // pour éviter de réutiliser la photo/code de la précédente.
+  // Reset à chaque nouvelle course (l'écran est gardé monté par le Tabs navigator).
   useEffect(() => {
     setPhoto(null);
     setPickupCode('');
     setUploading(false);
   }, [activeDelivery?.id]);
 
-  const hasThirdParty = !!activeDelivery?.senderContactName;
   const photoDone = !!photo;
   const codeDone = pickupCode.length === 4;
+  const senderName =
+    activeDelivery?.senderContactName ?? activeDelivery?.senderName ?? 'Expéditeur';
+  // Récupération : on appelle la personne qui détient le colis — contact tiers
+  // s'il existe, sinon le client (expéditeur) lui-même.
+  const pickupPhone =
+    activeDelivery?.senderContactPhone ||
+    activeDelivery?.senderPhone ||
+    activeDelivery?.recipientPhone;
 
   const takePhoto = async () => {
     try {
@@ -80,10 +63,7 @@ export default function PickupConfirmScreen() {
       }
     } catch (err: any) {
       console.warn('[pickup-confirm] camera error', err);
-      Alert.alert(
-        'Erreur caméra',
-        err?.message ?? "Impossible d'ouvrir l'appareil photo.",
-      );
+      Alert.alert('Erreur caméra', err?.message ?? "Impossible d'ouvrir l'appareil photo.");
     }
   };
 
@@ -131,331 +111,166 @@ export default function PickupConfirmScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Récupération du colis</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <DriverHood height={196} step={2} onBack={() => router.back()}>
+        <View style={styles.who}>
+          <View style={styles.avatar}>
+            <Ionicons name="person-outline" size={26} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.role}>EXPÉDITEUR</Text>
+            <Text style={styles.name} numberOfLines={1}>
+              {senderName}
+            </Text>
+          </View>
+          {pickupPhone ? (
+            <TouchableOpacity
+              style={styles.callBig}
+              onPress={() => openPhone(pickupPhone)}
+              accessibilityLabel="Appeler l'expéditeur"
+            >
+              <Ionicons name="call" size={20} color={C.gDark} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </DriverHood>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Encart expéditeur */}
-        {hasThirdParty && (
-          <Animated.View
-            entering={FadeInDown.duration(350).delay(50)}
-            style={styles.senderCard}
-          >
-            <View style={styles.senderAvatar}>
-              <Ionicons name="person" size={24} color={colors.primaryDark} />
+        <Text style={styles.h}>Photo du colis</Text>
+        <Text style={styles.hint}>Preuve de prise en charge.</Text>
+        {photo ? (
+          <View style={styles.photoBox}>
+            <Image source={{ uri: photo }} style={styles.photoImg} />
+            <TouchableOpacity style={styles.retake} onPress={takePhoto}>
+              <Ionicons name="camera" size={16} color="#fff" />
+              <Text style={styles.retakeText}>Reprendre</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.photo} onPress={takePhoto} activeOpacity={0.85}>
+            <View style={styles.photoCircle}>
+              <Ionicons name="camera-outline" size={26} color={C.gDark} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.senderLabel}>Expéditeur du colis</Text>
-              <Text style={styles.senderName}>
-                {activeDelivery?.senderContactName}
-              </Text>
-            </View>
-            {activeDelivery?.senderContactPhone && (
-              <TouchableOpacity
-                style={styles.senderCallBtn}
-                onPress={() => openPhone(activeDelivery.senderContactPhone!)}
-              >
-                <Ionicons name="call" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </Animated.View>
+            <Text style={styles.photoText}>Prendre la photo</Text>
+          </TouchableOpacity>
         )}
 
-        {/* Étape 1 — Photo */}
-        <Animated.View
-          entering={FadeInDown.duration(350).delay(120)}
-          style={[
-            styles.stepCard,
-            photoDone && styles.stepCardDone,
-            !photoDone && styles.stepCardCurrent,
-          ]}
-        >
-          <View style={styles.stepHeader}>
-            <StepBadge index={1} done={photoDone} />
-            <Text style={styles.stepTitle}>Photo du colis</Text>
-            {photoDone && <CheckPulse />}
-          </View>
-          <Text style={styles.stepHint}>
-            Prenez une photo nette du colis avant de partir.
-          </Text>
-
-          {photo ? (
-            <View style={styles.photoContainer}>
-              <Image source={{ uri: photo }} style={styles.photo} />
-              <TouchableOpacity
-                style={styles.retakeButton}
-                onPress={takePhoto}
-              >
-                <Ionicons name="camera" size={18} color={colors.white} />
-                <Text style={styles.retakeText}>Reprendre</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.cameraPlaceholder}
-              onPress={takePhoto}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="camera-outline"
-                size={48}
-                color={colors.primary}
-              />
-              <Text style={styles.cameraText}>
-                Appuyez pour prendre la photo
-              </Text>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-
-        {/* Étape 2 — Code */}
-        <Animated.View
-          entering={FadeInDown.duration(350).delay(200)}
-          style={[
-            styles.stepCard,
-            codeDone && styles.stepCardDone,
-            photoDone && !codeDone && styles.stepCardCurrent,
-          ]}
-        >
-          <View style={styles.stepHeader}>
-            <StepBadge index={2} done={codeDone} />
-            <Text style={styles.stepTitle}>Code de récupération</Text>
-            {codeDone && <CheckPulse />}
-          </View>
-          <Text style={styles.stepHint}>
-            {hasThirdParty
-              ? `Demandez à ${activeDelivery?.senderContactName} son code à 4 chiffres.`
-              : "Demandez à l'expéditeur son code à 4 chiffres."}
-          </Text>
-          <View style={styles.otpWrap}>
-            <OtpInput
-              length={4}
-              value={pickupCode}
-              onChange={setPickupCode}
-            />
-          </View>
-        </Animated.View>
+        <Text style={[styles.h, { fontSize: 18, marginTop: 22 }]}>
+          Code de l'expéditeur
+        </Text>
+        <Text style={styles.hint}>
+          {`Demandez à ${senderName} son code à 4 chiffres.`}
+        </Text>
+        <View style={styles.codeWrap}>
+          <OtpInput length={4} value={pickupCode} onChange={setPickupCode} variant="driver" />
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          title="Confirmer la récupération"
+        <TouchableOpacity
+          style={[styles.cta, (!photoDone || !codeDone || uploading) && styles.ctaOff]}
+          activeOpacity={0.9}
+          disabled={!photoDone || !codeDone || uploading}
           onPress={handleConfirm}
-          disabled={!photoDone || !codeDone}
-          loading={uploading}
-        />
+        >
+          <Text style={styles.ctaText}>
+            {uploading ? 'Confirmation…' : 'Confirmer la récupération'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
-  );
-}
-
-function StepBadge({ index, done }: { index: number; done: boolean }) {
-  return (
-    <View style={[styles.badge, done && styles.badgeDone]}>
-      {done ? (
-        <Ionicons name="checkmark" size={16} color={colors.white} />
-      ) : (
-        <Text style={styles.badgeText}>{index}</Text>
-      )}
     </View>
   );
 }
 
-/** Petit effet de pulsation verte quand une étape passe à "fait". */
-function CheckPulse() {
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.15, {
-        duration: 900,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
-  }, []);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View
-      entering={FadeIn.duration(300)}
-      style={[styles.checkPulse, style]}
-    >
-      <Ionicons name="checkmark-circle" size={22} color={colors.success} />
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  headerTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  senderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primaryLight,
-  },
-  senderAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
+  container: { flex: 1, backgroundColor: C.paper },
+
+  who: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  senderLabel: {
-    ...typography.caption,
-    color: colors.primaryDark,
+  role: { color: C.lime, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 0.6 },
+  name: { color: '#fff', fontFamily: F.uiBold, fontSize: 24, marginTop: 2 },
+  callBig: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  senderName: {
-    ...typography.bodyMedium,
-    color: colors.primaryDark,
-    fontWeight: '700',
-  },
-  senderCallBtn: {
-    width: 40,
-    height: 40,
+
+  content: { padding: 20, paddingBottom: 28 },
+  h: { fontFamily: F.display, fontSize: 20, color: C.ink },
+  hint: { fontFamily: F.ui, fontSize: 13, color: C.muted, marginTop: 6, marginBottom: 14 },
+
+  photo: {
     borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCard: {
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  stepCardCurrent: {
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  stepCardDone: {
-    borderColor: colors.successLight,
-    backgroundColor: '#F4FBF5',
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  badge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  badgeDone: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  badgeText: {
-    ...typography.captionMedium,
-    color: colors.textSecondary,
-  },
-  stepTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  checkPulse: {},
-  stepHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  cameraPlaceholder: {
-    height: 180,
-    borderRadius: borderRadius.md,
+    backgroundColor: '#F1FAF4',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.primary,
+    borderColor: '#A6DBB8',
+    height: 150,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primaryLight,
+    gap: 10,
   },
-  cameraText: {
-    ...typography.bodySmall,
-    color: colors.primaryDark,
-    fontWeight: '600',
+  photoCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: C.gDark,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
-  photoContainer: {
-    height: 200,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-  },
-  photo: {
-    flex: 1,
-  },
-  retakeButton: {
+  photoText: { color: C.gDark, fontFamily: F.uiBold, fontSize: 14 },
+  photoBox: { height: 170, borderRadius: 20, overflow: 'hidden' },
+  photoImg: { flex: 1 },
+  retake: {
     position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
+    bottom: 10,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 6,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
   },
-  retakeText: {
-    ...typography.caption,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  otpWrap: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
+  retakeText: { color: '#fff', fontFamily: F.uiSemi, fontSize: 12 },
+
+  codeWrap: { alignItems: 'center', paddingVertical: 4 },
+
   footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
-    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: C.hair,
+    backgroundColor: C.paper,
   },
+  cta: {
+    backgroundColor: C.gDark,
+    borderRadius: 18,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaOff: { opacity: 0.4 },
+  ctaText: { color: '#fff', fontFamily: F.uiBold, fontSize: 16 },
 });

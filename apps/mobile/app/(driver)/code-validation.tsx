@@ -1,37 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  FadeInDown,
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
-import { Button, OtpInput } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { DriverHood } from '@/components/driver/flow/DriverHood';
+import { C, F } from '@/components/driver/flow/tokens';
+import { OtpInput } from '@/components/ui';
 import { useDriverStore } from '@/stores/driver.store';
 import { haptic } from '@/utils/haptics';
 import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
+import { formatCFA } from '@/utils/format';
 
-/**
- * Ecran de saisie du code de livraison.
- *
- * Même charte visuelle que pickup-confirm : header, encart destinataire,
- * step-card avec OtpInput. Le code est validé côté serveur, et après succès
- * on redirige vers delivery-confirm pour la photo + confirmation finale.
- */
 export default function CodeValidationScreen() {
   const router = useRouter();
   const { validateCode, activeDelivery } = useDriverStore();
@@ -40,7 +19,6 @@ export default function CodeValidationScreen() {
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset à chaque nouvelle course (l'écran est gardé monté par le Tabs navigator).
   useEffect(() => {
     setCode('');
     setError('');
@@ -48,10 +26,14 @@ export default function CodeValidationScreen() {
     setSubmitting(false);
   }, [activeDelivery?.id]);
 
-  const recipientName = activeDelivery?.recipientName;
+  const recipientName = activeDelivery?.recipientName ?? 'Destinataire';
   const recipientPhone = activeDelivery?.recipientPhone;
   const codeDone = code.length === 4;
   const blocked = attempts >= 3;
+
+  const prepaid =
+    activeDelivery?.paymentMethod === 'orange_money' ||
+    activeDelivery?.paymentMethod === 'moov_money';
 
   const handleSubmit = async () => {
     if (!codeDone || submitting || blocked) return;
@@ -67,292 +49,181 @@ export default function CodeValidationScreen() {
         setCode('');
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        if (newAttempts >= 3) {
-          setError('Trop de tentatives. Contactez le support.');
-        } else {
-          setError(
-            `Code incorrect (${3 - newAttempts} tentative(s) restante(s))`,
-          );
-        }
+        setError(
+          newAttempts >= 3
+            ? 'Trop de tentatives. Contactez le support.'
+            : `Code incorrect (${3 - newAttempts} tentative(s) restante(s))`,
+        );
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Validation automatique dès que les 4 chiffres sont saisis
+  // Validation automatique dès que les 4 chiffres sont saisis.
   useEffect(() => {
-    if (codeDone && !submitting && !blocked) {
-      handleSubmit();
-    }
+    if (codeDone && !submitting && !blocked) handleSubmit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Livraison du colis</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <DriverHood height={252} step={4} onBack={() => router.back()}>
+        <View style={styles.who}>
+          <View style={styles.avatar}>
+            <Ionicons name="person-outline" size={26} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.role}>DESTINATAIRE</Text>
+            <Text style={styles.name} numberOfLines={1}>
+              {recipientName}
+            </Text>
+          </View>
+          {recipientPhone ? (
+            <TouchableOpacity
+              style={styles.callBig}
+              onPress={() => openPhone(recipientPhone)}
+              accessibilityLabel="Appeler le destinataire"
+            >
+              <Ionicons name="call" size={20} color={C.gDark} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* Bloc paiement adaptatif */}
+        <View style={styles.payChip}>
+          {prepaid ? (
+            <>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.payLbl}>Déjà payé</Text>
+                <Text style={styles.paySub}>Rien à encaisser</Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={26} color={C.lime} />
+            </>
+          ) : (
+            <>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.payLbl}>À ENCAISSER</Text>
+                <Text style={styles.paySub}>Paiement à la livraison</Text>
+              </View>
+              <Text style={styles.payAmt}>{formatCFA(activeDelivery?.price ?? 0)}</Text>
+            </>
+          )}
+        </View>
+      </DriverHood>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Encart destinataire */}
-        {recipientName && (
-          <Animated.View
-            entering={FadeInDown.duration(350).delay(50)}
-            style={styles.recipientCard}
-          >
-            <View style={styles.recipientAvatar}>
-              <Ionicons name="person" size={24} color={colors.primaryDark} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.recipientLabel}>Destinataire du colis</Text>
-              <Text style={styles.recipientName}>{recipientName}</Text>
-            </View>
-            {recipientPhone && (
-              <TouchableOpacity
-                style={styles.callBtn}
-                onPress={() => openPhone(recipientPhone)}
-              >
-                <Ionicons name="call" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-        )}
-
-        {/* Étape unique - Code de livraison */}
-        <Animated.View
-          entering={FadeInDown.duration(350).delay(120)}
-          style={[
-            styles.stepCard,
-            codeDone && !error && styles.stepCardDone,
-            !codeDone && styles.stepCardCurrent,
-          ]}
-        >
-          <View style={styles.stepHeader}>
-            <StepBadge done={codeDone && !error} />
-            <Text style={styles.stepTitle}>Code de livraison</Text>
-            {codeDone && !error && <CheckPulse />}
+        <Text style={styles.h}>Code du destinataire</Text>
+        <Text style={styles.hint}>{`Demandez à ${recipientName} son code à 4 chiffres.`}</Text>
+        <View style={styles.codeWrap}>
+          <OtpInput
+            length={4}
+            value={code}
+            onChange={(v) => {
+              setError('');
+              setCode(v);
+            }}
+            variant="driver"
+          />
+        </View>
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={18} color="#DC2626" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-          <Text style={styles.stepHint}>
-            {recipientName
-              ? `Demandez a ${recipientName} le code a 4 chiffres reçu lors de la création de la commande.`
-              : 'Demandez au destinataire le code a 4 chiffres reçu lors de la création de la commande.'}
-          </Text>
-          <View style={styles.otpWrap}>
-            <OtpInput
-              length={4}
-              value={code}
-              onChange={(v) => {
-                setError('');
-                setCode(v);
-              }}
-            />
-          </View>
-
-          {error ? (
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={styles.errorBox}
-            >
-              <Ionicons
-                name="alert-circle"
-                size={18}
-                color={colors.error}
-              />
-              <Text style={styles.errorText}>{error}</Text>
-            </Animated.View>
-          ) : null}
-        </Animated.View>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          title={blocked ? 'Bloque' : 'Valider le code'}
+        <TouchableOpacity
+          style={[styles.cta, (!codeDone || blocked || submitting) && styles.ctaOff]}
+          activeOpacity={0.9}
+          disabled={!codeDone || blocked || submitting}
           onPress={handleSubmit}
-          disabled={!codeDone || blocked}
-          loading={submitting}
-        />
+        >
+          <Text style={styles.ctaText}>
+            {blocked ? 'Bloqué' : submitting ? 'Validation…' : 'Confirmer la livraison'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </SafeAreaView>
-  );
-}
-
-function StepBadge({ done }: { done: boolean }) {
-  return (
-    <View style={[styles.badge, done && styles.badgeDone]}>
-      {done ? (
-        <Ionicons name="checkmark" size={16} color={colors.white} />
-      ) : (
-        <Ionicons name="lock-closed" size={14} color={colors.textSecondary} />
-      )}
     </View>
   );
 }
 
-function CheckPulse() {
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.15, {
-        duration: 900,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  return (
-    <Animated.View
-      entering={FadeIn.duration(300)}
-      style={[styles.checkPulse, style]}
-    >
-      <Ionicons name="checkmark-circle" size={22} color={colors.success} />
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  headerTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  recipientCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.primaryLight,
-  },
-  recipientAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
+  container: { flex: 1, backgroundColor: C.paper },
+
+  who: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recipientLabel: {
-    ...typography.caption,
-    color: colors.primaryDark,
-  },
-  recipientName: {
-    ...typography.bodyMedium,
-    color: colors.primaryDark,
-    fontWeight: '700',
-  },
-  callBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
+  role: { color: C.lime, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 0.6 },
+  name: { color: '#fff', fontFamily: F.uiBold, fontSize: 24, marginTop: 2 },
+  callBig: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepCard: {
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    gap: spacing.sm,
-  },
-  stepCardCurrent: {
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  stepCardDone: {
-    borderColor: colors.successLight,
-    backgroundColor: '#F4FBF5',
-  },
-  stepHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  badge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  payChip: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  badgeDone: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  stepTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  checkPulse: {},
-  stepHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  otpWrap: {
+    borderColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
   },
+  payLbl: { color: C.amberSoft, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 0.5 },
+  paySub: { color: 'rgba(255,255,255,0.8)', fontFamily: F.ui, fontSize: 11, marginTop: 2 },
+  payAmt: { color: '#fff', fontFamily: F.display, fontSize: 22 },
+
+  content: { padding: 20, paddingBottom: 28 },
+  h: { fontFamily: F.display, fontSize: 20, color: C.ink },
+  hint: { fontFamily: F.ui, fontSize: 13, color: C.muted, marginTop: 6, marginBottom: 16 },
+  codeWrap: { alignItems: 'center', paddingVertical: 4 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
+    gap: 8,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
     backgroundColor: '#FEF2F2',
-    borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: '#FECACA',
   },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    flex: 1,
-  },
+  errorText: { color: '#DC2626', fontFamily: F.uiMed, fontSize: 13, flex: 1 },
+
   footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
-    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: C.hair,
+    backgroundColor: C.paper,
   },
+  cta: {
+    backgroundColor: C.gDark,
+    borderRadius: 18,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaOff: { opacity: 0.4 },
+  ctaText: { color: '#fff', fontFamily: F.uiBold, fontSize: 16 },
 });

@@ -7,10 +7,23 @@ interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   onComplete?: (value: string) => void;
+  /**
+   * Variante visuelle. 'default' = cases terra cotta (auth OTP). 'driver' =
+   * cases vertes plus grandes + chiffres Space Grotesk (parcours livreur,
+   * modèle C). Optionnel → rétro-compatible.
+   */
+  variant?: 'default' | 'driver';
 }
 
-export function OtpInput({ length = 6, value, onChange, onComplete }: OtpInputProps) {
+export function OtpInput({
+  length = 6,
+  value,
+  onChange,
+  onComplete,
+  variant = 'default',
+}: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
+  const driver = variant === 'driver';
 
   const handleChange = (text: string) => {
     const cleaned = text.replace(/\D/g, '').slice(0, length);
@@ -29,11 +42,14 @@ export function OtpInput({ length = 6, value, onChange, onComplete }: OtpInputPr
             key={i}
             style={[
               styles.cell,
-              i < value.length && styles.cellFilled,
-              i === value.length && styles.cellActive,
+              driver && styles.cellDriver,
+              i < value.length && (driver ? styles.cellFilledDriver : styles.cellFilled),
+              i === value.length && (driver ? styles.cellActiveDriver : styles.cellActive),
             ]}
           >
-            <Text style={styles.cellText}>{value[i] || ''}</Text>
+            <Text style={[styles.cellText, driver && styles.cellTextDriver]}>
+              {value[i] || ''}
+            </Text>
           </View>
         ))}
       </View>
@@ -96,6 +112,27 @@ const styles = StyleSheet.create({
   cellText: {
     ...typography.h2,
     color: colors.textPrimary,
+  },
+  // --- Variante livreur (modèle C) : vert + cases plus grandes + Bricolage ---
+  cellDriver: {
+    width: 58,
+    height: 68,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#ECE8DF',
+  },
+  cellFilledDriver: {
+    borderColor: '#15803D',
+    backgroundColor: '#fff',
+  },
+  cellActiveDriver: {
+    borderColor: '#15803D',
+    backgroundColor: '#fff',
+  },
+  cellTextDriver: {
+    fontFamily: 'BricolageGrotesque_700Bold',
+    fontSize: 26,
+    color: '#16140F',
   },
   // Recouvre exactement la rangée de cases : focusable, mais invisible.
   overlayInput: {

@@ -1,37 +1,47 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  AccessibilityInfo,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui';
-import { Map } from '@/components/map/Map';
 import { CancelReasonDialog } from '@/components/CancelReasonDialog';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { DriverHood } from '@/components/driver/flow/DriverHood';
+import { DriverQuickBar } from '@/components/driver/flow/DriverQuickBar';
+import { CancelCountdown } from '@/components/driver/flow/CancelCountdown';
+import { C, F } from '@/components/driver/flow/tokens';
 import { useDriverStore } from '@/stores/driver.store';
 import { useSettingsStore } from '@/stores/settings.store';
-import { useLocationStore } from '@/stores/location.store';
-import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
-import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
+import { useMessageStore } from '@/stores/message.store';
+import { openPhone, openNavigation } from '@/utils/linking';
+import { getDeliveryById } from '@/services/delivery.service';
 import { formatEta, formatDistance } from '@/utils/format';
-import { LatLng } from '@/types';
-
-const SHEET_INSET = Dimensions.get('window').height * 0.5;
 
 export default function PickupNavigationScreen() {
   const router = useRouter();
   const { activeDelivery, cancelActiveDelivery } = useDriverStore();
-  const driverPos = useLocationStore((s) => s.current);
   const cooldownSec = useSettingsStore(
     (s) => s.settings.operations.driverCancelCooldownSeconds,
   );
+  const unread = useMessageStore((s) => s.unread[activeDelivery?.id ?? ''] ?? 0);
   const [showCancel, setShowCancel] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  // Itinéraire routier réel (livreur → récupération), calculé serveur via OSRM.
-  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
-  // Au mount + toutes les 10s, on vérifie que la livraison existe encore
-  // côté backend. Si elle a été annulée/supprimée/expirée, on dégage le
-  // livreur de cet écran (sinon il reste bloque sur une course fantome).
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
+
+  // Compteur de non-lus au montage (badge Message).
+  useEffect(() => {
+    if (activeDelivery?.id) useMessageStore.getState().loadUnread(activeDelivery.id);
+  }, [activeDelivery?.id]);
+
+  // Au mount + toutes les 10s : vérifie que la livraison existe encore côté
+  // backend (sinon on dégage le livreur d'une course fantôme).
   useEffect(() => {
     if (!activeDelivery?.id) return;
     let cancelled = false;
@@ -39,7 +49,6 @@ export default function PickupNavigationScreen() {
       const fresh = await getDeliveryById(activeDelivery.id);
       if (cancelled) return;
       if (!fresh) {
-        // 404 -> livraison disparue
         useDriverStore.setState({ activeDelivery: null, currentRequest: null });
         router.replace('/(driver)');
         return;
@@ -49,11 +58,7 @@ export default function PickupNavigationScreen() {
         useDriverStore.setState({ activeDelivery: null, currentRequest: null });
         router.replace('/(driver)');
       } else {
-        // Synchronise avec le backend (au cas ou une autre étape a avance)
         useDriverStore.setState({ activeDelivery: fresh });
-        // Itinéraire routier réel (suit les rues) vers la récupération.
-        const r = await getDeliveryRoute(activeDelivery.id);
-        if (!cancelled && r) setRoutePath(r.path);
       }
     };
     check();
@@ -64,7 +69,7 @@ export default function PickupNavigationScreen() {
     };
   }, [activeDelivery?.id, router]);
 
-  // Calcule et decremente le cooldown d'annulation base sur `acceptedAt`
+  // Cooldown d'annulation basé sur `acceptedAt`.
   useEffect(() => {
     if (!activeDelivery?.acceptedAt) {
       setCooldownRemaining(0);
@@ -73,8 +78,7 @@ export default function PickupNavigationScreen() {
     const update = () => {
       const acceptedAt = new Date(activeDelivery.acceptedAt!).getTime();
       const elapsed = (Date.now() - acceptedAt) / 1000;
-      const left = Math.max(0, Math.ceil(cooldownSec - elapsed));
-      setCooldownRemaining(left);
+      setCooldownRemaining(Math.max(0, Math.ceil(cooldownSec - elapsed)));
     };
     update();
     const id = setInterval(update, 1000);
@@ -87,146 +91,86 @@ export default function PickupNavigationScreen() {
     if (ok) router.replace('/(driver)');
   };
 
-  // Marqueurs : point de récup (cible) + position du livreur (avatar) si connue.
-  const markers = useMemo(() => {
-    if (!activeDelivery) return [];
-    const list: any[] = [
-      { id: 'pickup', coordinate: activeDelivery.pickupLocation, icon: 'pickup' },
-    ];
-    if (driverPos) {
-      // Le livreur regarde/va vers le point de RÉCUPÉRATION.
-      list.push({
-        id: 'driver',
-        coordinate: driverPos,
-        icon: 'driver',
-        target: activeDelivery.pickupLocation,
-      });
-    }
-    return list;
-  }, [activeDelivery?.pickupLocation, driverPos]);
-
-  const route = useMemo<[LatLng, LatLng] | undefined>(
-    () =>
-      activeDelivery && driverPos
-        ? [driverPos, activeDelivery.pickupLocation]
-        : undefined,
-    [driverPos, activeDelivery?.pickupLocation],
-  );
-
   if (!activeDelivery) return null;
+  const d = activeDelivery;
 
   return (
     <View style={styles.container}>
-      <Map
-        center={driverPos ?? activeDelivery.pickupLocation}
-        zoom={14}
-        markers={markers}
-        routeCoordinates={route}
-        routePath={routePath ?? undefined}
-        fitToContent
-        contentInsetTop={120}
-        contentInsetBottom={SHEET_INSET}
-      />
-
-      <SafeAreaView edges={['top']} style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.statusPill}>
-          <View style={styles.pillDot} />
-          <Text style={styles.pillText}>Vers la récupération</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </SafeAreaView>
-
-      <View style={styles.bottomSheet}>
-        <View style={styles.handle} />
-        <Text style={styles.title}>Récupération du colis</Text>
-        <Text style={styles.address}>{activeDelivery.pickupAddress}</Text>
-        {activeDelivery.pickupDetails && (
-          <Text style={styles.details}>{activeDelivery.pickupDetails}</Text>
-        )}
-
-        {activeDelivery.eta && (
-          <View style={styles.etaPill}>
-            <Ionicons name="time-outline" size={16} color={colors.primaryDark} />
-            <Text style={styles.etaPillText}>
-              ~{formatEta(activeDelivery.eta.durationSeconds)} ·{' '}
-              {formatDistance(activeDelivery.eta.distanceMeters / 1000)}
-            </Text>
-          </View>
-        )}
-
-        {activeDelivery.senderContactName && (
-          <View style={styles.senderBanner}>
-            <Ionicons name="person" size={18} color={colors.primaryDark} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.senderBannerLabel}>Expéditeur sur place</Text>
-              <Text style={styles.senderBannerValue}>
-                {activeDelivery.senderContactName}
+      <DriverHood height={330} step={1} onBack={() => router.back()}>
+        <Text style={styles.eyebrow}>▸ RÉCUPÉRATION</Text>
+        <Text style={styles.big} numberOfLines={2}>
+          {d.pickupAddress}
+        </Text>
+        {d.pickupDetails ? (
+          <Text style={styles.sub} numberOfLines={1}>
+            {d.pickupDetails}
+          </Text>
+        ) : null}
+        {d.eta ? (
+          <View style={styles.etaRow}>
+            <View>
+              <Text style={styles.etaK}>ARRIVÉE</Text>
+              <Text style={styles.etaV}>{formatEta(d.eta.durationSeconds)}</Text>
+            </View>
+            <View>
+              <Text style={styles.etaK}>DISTANCE</Text>
+              <Text style={styles.etaV}>
+                {formatDistance(d.eta.distanceMeters / 1000)}
               </Text>
             </View>
           </View>
-        )}
+        ) : null}
+      </DriverHood>
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              openNavigation(
-                activeDelivery.pickupLocation.latitude,
-                activeDelivery.pickupLocation.longitude,
-                activeDelivery.pickupAddress,
-              )
-            }
-          >
-            <Ionicons name="navigate" size={22} color={colors.primary} />
-            <Text style={styles.actionLabel}>Itinéraire</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              openPhone(
-                activeDelivery.senderContactPhone ||
-                  activeDelivery.recipientPhone,
-              )
-            }
-          >
-            <Ionicons name="call" size={22} color={colors.primary} />
-            <Text style={styles.actionLabel}>Appeler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              shareLocationWhatsApp(
-                activeDelivery.senderContactPhone ||
-                  activeDelivery.recipientPhone,
-                activeDelivery.reference,
-                activeDelivery.pickupLocation.latitude,
-                activeDelivery.pickupLocation.longitude,
-              )
-            }
-          >
-            <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-            <Text style={styles.actionLabel}>WhatsApp</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Button
-          title="Je suis arrive"
-          onPress={() => router.replace('/(driver)/pickup-confirm')}
-        />
-        <View style={{ height: 8 }} />
-        <Button
-          title={
-            cooldownRemaining > 0
-              ? `Annuler la course (${cooldownRemaining}s)`
-              : 'Délai d\'annulation écoulé'
+      <View style={styles.quickWrap}>
+        <DriverQuickBar
+          unread={unread}
+          onRoute={() =>
+            openNavigation(
+              d.pickupLocation.latitude,
+              d.pickupLocation.longitude,
+              d.pickupAddress,
+            )
           }
-          variant="outline"
-          onPress={() => setShowCancel(true)}
-          disabled={cooldownRemaining === 0}
+          onCall={() =>
+            openPhone(d.senderContactPhone || d.senderPhone || d.recipientPhone)
+          }
+          onMessage={() =>
+            router.push(
+              `/chat/${d.id}?name=${encodeURIComponent(
+                d.senderName ?? 'Client',
+              )}&reference=${encodeURIComponent(d.reference)}` as any,
+            )
+          }
         />
+      </View>
+
+      <View style={{ flex: 1 }} />
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.cta}
+          activeOpacity={0.9}
+          onPress={() => router.replace('/(driver)/pickup-confirm')}
+        >
+          <Ionicons name="checkmark" size={22} color="#fff" />
+          <Text style={styles.ctaText}>Je suis arrivé</Text>
+        </TouchableOpacity>
+
+        {cooldownRemaining > 0 ? (
+          <View style={{ marginTop: 11 }}>
+            <CancelCountdown
+              secondsLeft={cooldownRemaining}
+              reduceMotion={reduceMotion}
+              onPress={() => setShowCancel(true)}
+            />
+          </View>
+        ) : (
+          <View style={styles.locked}>
+            <Ionicons name="lock-closed" size={14} color={C.muted} />
+            <Text style={styles.lockedText}>Délai d'annulation écoulé</Text>
+          </View>
+        )}
       </View>
 
       <CancelReasonDialog
@@ -241,148 +185,50 @@ export default function PickupNavigationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
-  pickupMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
+  container: { flex: 1, backgroundColor: '#fff' },
+
+  eyebrow: { color: C.lime, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1.5 },
+  big: {
+    color: '#fff',
+    fontFamily: F.display,
+    fontSize: 28,
+    lineHeight: 32,
+    marginTop: 8,
   },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  sub: { color: 'rgba(255,255,255,0.7)', fontFamily: F.ui, fontSize: 13, marginTop: 6 },
+  etaRow: { flexDirection: 'row', gap: 26, marginTop: 18 },
+  etaK: {
+    color: 'rgba(255,255,255,0.6)',
+    fontFamily: F.uiBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+  },
+  etaV: { color: '#fff', fontFamily: F.display, fontSize: 22, marginTop: 3 },
+
+  quickWrap: { paddingHorizontal: 18, marginTop: -40, zIndex: 5 },
+
+  footer: { paddingHorizontal: 20, paddingBottom: 14, paddingTop: 6 },
+  cta: {
+    backgroundColor: C.gDark,
+    borderRadius: 18,
+    paddingVertical: 17,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  backCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  pillText: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    gap: 9,
+    shadowColor: C.gMid,
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  address: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  details: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginVertical: spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
+  ctaText: { color: '#fff', fontFamily: F.uiBold, fontSize: 16 },
+  locked: {
+    marginTop: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    gap: 7,
   },
-  actionLabel: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  senderBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryLight,
-    marginTop: spacing.sm,
-  },
-  senderBannerLabel: {
-    ...typography.caption,
-    color: colors.primaryDark,
-  },
-  senderBannerValue: {
-    ...typography.bodyMedium,
-    color: colors.primaryDark,
-  },
-  etaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryLight,
-    marginTop: spacing.sm,
-  },
-  etaPillText: {
-    ...typography.bodySmall,
-    color: colors.primaryDark,
-    fontWeight: '700',
-  },
+  lockedText: { color: C.muted, fontFamily: F.uiSemi, fontSize: 12.5 },
 });

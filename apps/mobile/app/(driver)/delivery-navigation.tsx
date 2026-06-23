@@ -1,39 +1,29 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui';
-import { Map } from '@/components/map/Map';
-import { CancelReasonDialog } from '@/components/CancelReasonDialog';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { DriverHood } from '@/components/driver/flow/DriverHood';
+import { DriverQuickBar } from '@/components/driver/flow/DriverQuickBar';
+import { C, F } from '@/components/driver/flow/tokens';
 import { useDriverStore } from '@/stores/driver.store';
-import { useLocationStore } from '@/stores/location.store';
 import { useMessageStore } from '@/stores/message.store';
-import { openPhone, shareLocationWhatsApp, openNavigation } from '@/utils/linking';
-import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
+import { openPhone, openNavigation } from '@/utils/linking';
+import { getDeliveryById } from '@/services/delivery.service';
 import { formatEta, formatDistance } from '@/utils/format';
-import { LatLng } from '@/types';
-
-const SHEET_INSET = Dimensions.get('window').height * 0.5;
 
 export default function DeliveryNavigationScreen() {
   const router = useRouter();
-  const { activeDelivery, cancelActiveDelivery } = useDriverStore();
-  const driverPos = useLocationStore((s) => s.current);
-  const unreadMessages = useMessageStore(
-    (s) => s.unread[activeDelivery?.id ?? ''] ?? 0,
-  );
-  const [showCancel, setShowCancel] = useState(false);
-  // Itinéraire routier réel (livreur → livraison), calculé serveur via OSRM.
-  const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
+  const { activeDelivery } = useDriverStore();
+  const unread = useMessageStore((s) => s.unread[activeDelivery?.id ?? ''] ?? 0);
 
-  // Verifie au mount et toutes les 10s que la livraison existe toujours
-  // côté backend. Si elle a été supprimée/annulée/expirée, on dégage.
+  // Compteur de non-lus au montage (badge Message).
+  useEffect(() => {
+    if (activeDelivery?.id) useMessageStore.getState().loadUnread(activeDelivery.id);
+  }, [activeDelivery?.id]);
+
+  // Vérifie au mount + toutes les 10s que la livraison est toujours valide.
   useEffect(() => {
     if (!activeDelivery?.id) return;
-    // Compteur de non-lus au montage (survit au redémarrage ; socket en live ensuite).
-    useMessageStore.getState().loadUnread(activeDelivery.id);
     let cancelled = false;
     const check = async () => {
       const fresh = await getDeliveryById(activeDelivery.id);
@@ -48,9 +38,6 @@ export default function DeliveryNavigationScreen() {
         router.replace('/(driver)');
       } else {
         useDriverStore.setState({ activeDelivery: fresh });
-        // Itinéraire routier réel (suit les rues) vers la livraison.
-        const r = await getDeliveryRoute(activeDelivery.id);
-        if (!cancelled && r) setRoutePath(r.path);
       }
     };
     check();
@@ -61,310 +48,122 @@ export default function DeliveryNavigationScreen() {
     };
   }, [activeDelivery?.id, router]);
 
-  const handleCancelConfirm = async (reason: string, comment: string) => {
-    const ok = await cancelActiveDelivery(reason, comment || undefined);
-    setShowCancel(false);
-    if (ok) router.replace('/(driver)');
-  };
-
-  const markers = useMemo(() => {
-    if (!activeDelivery) return [];
-    const list: any[] = [
-      { id: 'delivery', coordinate: activeDelivery.deliveryLocation, icon: 'delivery' },
-    ];
-    if (driverPos) {
-      // Le livreur regarde/va vers le point de LIVRAISON.
-      list.push({
-        id: 'driver',
-        coordinate: driverPos,
-        icon: 'driver',
-        target: activeDelivery.deliveryLocation,
-      });
-    }
-    return list;
-  }, [activeDelivery?.deliveryLocation, driverPos]);
-
-  const route = useMemo<[LatLng, LatLng] | undefined>(
-    () =>
-      activeDelivery && driverPos
-        ? [driverPos, activeDelivery.deliveryLocation]
-        : undefined,
-    [driverPos, activeDelivery?.deliveryLocation],
-  );
-
   if (!activeDelivery) return null;
+  const d = activeDelivery;
 
   return (
     <View style={styles.container}>
-      <Map
-        center={driverPos ?? activeDelivery.deliveryLocation}
-        zoom={14}
-        markers={markers}
-        routeCoordinates={route}
-        routePath={routePath ?? undefined}
-        fitToContent
-        contentInsetTop={120}
-        contentInsetBottom={SHEET_INSET}
-      />
-
-      <SafeAreaView edges={['top']} style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backCircle}>
-          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.statusPill}>
-          <View style={styles.pillDot} />
-          <Text style={styles.pillText}>Vers la livraison</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </SafeAreaView>
-
-      <View style={styles.bottomSheet}>
-        <View style={styles.handle} />
-        <Text style={styles.title}>Livraison du colis</Text>
-        <Text style={styles.recipient}>{activeDelivery.recipientName}</Text>
-        <Text style={styles.address}>{activeDelivery.deliveryAddress}</Text>
-        {activeDelivery.deliveryDetails && (
-          <Text style={styles.details}>{activeDelivery.deliveryDetails}</Text>
-        )}
-
-        {activeDelivery.eta && (
-          <View style={styles.etaPill}>
-            <Ionicons name="time-outline" size={16} color={colors.primaryDark} />
-            <Text style={styles.etaPillText}>
-              ~{formatEta(activeDelivery.eta.durationSeconds)} ·{' '}
-              {formatDistance(activeDelivery.eta.distanceMeters / 1000)}
-            </Text>
+      <DriverHood height={330} step={3} onBack={() => router.back()}>
+        <Text style={styles.eyebrow}>✓ COLIS À BORD · LIVRAISON</Text>
+        <Text style={styles.big} numberOfLines={1}>
+          {d.recipientName}
+        </Text>
+        <Text style={styles.sub} numberOfLines={1}>
+          {d.deliveryAddress}
+        </Text>
+        {d.eta ? (
+          <View style={styles.etaRow}>
+            <View>
+              <Text style={styles.etaK}>ARRIVÉE</Text>
+              <Text style={styles.etaV}>{formatEta(d.eta.durationSeconds)}</Text>
+            </View>
+            <View>
+              <Text style={styles.etaK}>DISTANCE</Text>
+              <Text style={styles.etaV}>
+                {formatDistance(d.eta.distanceMeters / 1000)}
+              </Text>
+            </View>
           </View>
-        )}
+        ) : null}
+      </DriverHood>
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              openNavigation(
-                activeDelivery.deliveryLocation.latitude,
-                activeDelivery.deliveryLocation.longitude,
-                activeDelivery.deliveryAddress,
-              )
-            }
-          >
-            <Ionicons name="navigate" size={22} color={colors.primary} />
-            <Text style={styles.actionLabel}>Itinéraire</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => openPhone(activeDelivery.recipientPhone)}
-          >
-            <Ionicons name="call" size={22} color={colors.primary} />
-            <Text style={styles.actionLabel}>Appeler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              router.push(
-                `/chat/${activeDelivery.id}?name=${encodeURIComponent(
-                  activeDelivery.senderName ?? 'Client',
-                )}&reference=${encodeURIComponent(activeDelivery.reference)}` as any,
-              )
-            }
-          >
-            <Ionicons name="chatbubble-ellipses" size={22} color={colors.primary} />
-            <Text style={styles.actionLabel}>Message</Text>
-            {unreadMessages > 0 && (
-              <View style={styles.msgBadge}>
-                <Text style={styles.msgBadgeText}>
-                  {unreadMessages > 9 ? '9+' : unreadMessages}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              shareLocationWhatsApp(
-                activeDelivery.recipientPhone,
-                activeDelivery.reference,
-                activeDelivery.deliveryLocation.latitude,
-                activeDelivery.deliveryLocation.longitude,
-              )
-            }
-          >
-            <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-            <Text style={styles.actionLabel}>WhatsApp</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Button
-          title="Je suis arrivé - Entrer le code"
-          onPress={() => router.replace('/(driver)/code-validation')}
-        />
-        <View style={{ height: 8 }} />
-        {/* Une fois le colis récupère (status >= picked_up), l'annulation
-            n'est plus possible librement: le livreur s'est engage en validant
-            la photo + le code de récupération. Pour annuler il doit passer
-            par le support. Le bouton est grise pour le signaler clairement. */}
-        <Button
-          title="Annulation impossible (colis récupéré)"
-          variant="outline"
-          onPress={() => {}}
-          disabled
+      <View style={styles.quickWrap}>
+        <DriverQuickBar
+          unread={unread}
+          onRoute={() =>
+            openNavigation(
+              d.deliveryLocation.latitude,
+              d.deliveryLocation.longitude,
+              d.deliveryAddress,
+            )
+          }
+          onCall={() => openPhone(d.recipientPhone)}
+          onMessage={() =>
+            router.push(
+              `/chat/${d.id}?name=${encodeURIComponent(
+                d.senderName ?? 'Client',
+              )}&reference=${encodeURIComponent(d.reference)}` as any,
+            )
+          }
         />
       </View>
 
-      <CancelReasonDialog
-        visible={showCancel}
-        title="Annuler la course"
-        subtitle="Si vous n'avez pas encore récupéré le colis, la course sera remise en file."
-        onClose={() => setShowCancel(false)}
-        onConfirm={handleCancelConfirm}
-      />
+      <View style={{ flex: 1 }} />
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.cta}
+          activeOpacity={0.9}
+          onPress={() => router.replace('/(driver)/code-validation')}
+        >
+          <Ionicons name="checkmark" size={22} color="#fff" />
+          <Text style={styles.ctaText}>Je suis arrivé</Text>
+        </TouchableOpacity>
+
+        <View style={styles.locked}>
+          <Ionicons name="lock-closed" size={14} color={C.muted} />
+          <Text style={styles.lockedText}>Colis à bord · annulation impossible</Text>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
-  deliveryMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
+  container: { flex: 1, backgroundColor: '#fff' },
+
+  eyebrow: { color: C.lime, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 1.5 },
+  big: {
+    color: '#fff',
+    fontFamily: F.display,
+    fontSize: 28,
+    lineHeight: 32,
+    marginTop: 8,
   },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  sub: { color: 'rgba(255,255,255,0.7)', fontFamily: F.ui, fontSize: 13, marginTop: 6 },
+  etaRow: { flexDirection: 'row', gap: 26, marginTop: 18 },
+  etaK: {
+    color: 'rgba(255,255,255,0.6)',
+    fontFamily: F.uiBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+  },
+  etaV: { color: '#fff', fontFamily: F.display, fontSize: 22, marginTop: 3 },
+
+  quickWrap: { paddingHorizontal: 18, marginTop: -40, zIndex: 5 },
+
+  footer: { paddingHorizontal: 20, paddingBottom: 14, paddingTop: 6 },
+  cta: {
+    backgroundColor: C.gDark,
+    borderRadius: 18,
+    paddingVertical: 17,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  backCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  pillText: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    gap: 9,
+    shadowColor: C.gMid,
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 8,
   },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  recipient: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  address: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  details: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginVertical: spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
+  ctaText: { color: '#fff', fontFamily: F.uiBold, fontSize: 16 },
+  locked: {
+    marginTop: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    gap: 7,
   },
-  actionLabel: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  msgBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 6,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  msgBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
-  etaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryLight,
-    marginTop: spacing.sm,
-  },
-  etaPillText: {
-    ...typography.bodySmall,
-    color: colors.primaryDark,
-    fontWeight: '700',
-  },
+  lockedText: { color: C.muted, fontFamily: F.uiSemi, fontSize: 12.5 },
 });
