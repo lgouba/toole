@@ -45,7 +45,10 @@ export default function ChatScreen() {
     reference?: string;
   }>();
   const deliveryId = String(params.deliveryId);
-  const interlocutor = params.name ? String(params.name) : 'Conversation';
+  // Prénom uniquement (pas le nom de famille) : « Léon GOUBA » → « Léon ».
+  const interlocutor = params.name
+    ? String(params.name).trim().split(/\s+/)[0]
+    : 'Conversation';
   const reference = params.reference ? String(params.reference) : null;
 
   const currentUserId = useAuthStore((s) => s.user?.id);
@@ -131,7 +134,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           style={styles.backBtn}
           accessibilityLabel="Retour"
           accessibilityRole="button"

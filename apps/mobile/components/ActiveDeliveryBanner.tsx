@@ -37,6 +37,9 @@ const DELIVERY_FLOW_SCREENS = [
   'code-validation',
   'new-request',
   'new-delivery',
+  // Messagerie : on est venu depuis la course (la flèche retour y ramène),
+  // le bandeau ferait doublon et gênerait la saisie.
+  'chat',
 ];
 
 export function ActiveDeliveryBanner() {
