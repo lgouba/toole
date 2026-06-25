@@ -100,18 +100,24 @@ export const otpVerifyLimiter = rateLimit({
 
 /**
  * Limit de l'upload KYC PUBLIC (sans auth, utilisé pendant l'inscription
- * livreur). Sans ça, un attaquant peut saturer le disque. Max 15 envois par IP
- * par heure ; ne s'applique qu'à la catégorie `kyc` (les autres sont protégées
- * par l'auth).
+ * livreur). Ne s'applique qu'à la catégorie `kyc` ; les autres sont protégées
+ * par l'auth.
+ *
+ * ⚠️ Une inscription = plusieurs pièces (CNIB recto/verso, permis, véhicule),
+ * × réessais sur réseau BF instable, × plusieurs livreurs derrière une même IP
+ * NATée (4G/wifi partagé). Une limite trop basse bloque les vrais livreurs.
+ * On vise donc large (60 / 15 min) : ça absorbe une inscription complète avec
+ * réessais et de l'IP-sharing, tout en coupant un flood (la taille fichier est
+ * déjà plafonnée à 8 Mo, vraie protection anti-saturation disque).
  */
 export const kycUploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 15,
+  windowMs: 15 * 60 * 1000,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req: Request) => (req.params as { category?: string }).category !== 'kyc',
   handler: tooManyResponse(
-    "Trop d'envois de documents. Réessayez dans une heure.",
+    "Trop d'envois de documents. Patientez quelques minutes puis réessayez.",
   ),
 });
 
