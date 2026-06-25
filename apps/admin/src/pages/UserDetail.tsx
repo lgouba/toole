@@ -433,13 +433,26 @@ export default function UserDetail() {
             </label>
 
             <div className="row">
-              <button className="btn" onClick={() => setKyc('verified')} disabled={busy}>
+              {/* Le bouton du statut courant est désactivé (inutile de ré-appliquer). */}
+              <button
+                className="btn"
+                onClick={() => setKyc('verified')}
+                disabled={busy || user.driverProfile.verificationStatus === 'verified'}
+              >
                 Valider
               </button>
-              <button className="btn btn-danger" onClick={() => setKyc('rejected')} disabled={busy}>
+              <button
+                className="btn btn-danger"
+                onClick={() => setKyc('rejected')}
+                disabled={busy || user.driverProfile.verificationStatus === 'rejected'}
+              >
                 Refuser
               </button>
-              <button className="btn btn-ghost" onClick={() => setKyc('pending')} disabled={busy}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setKyc('pending')}
+                disabled={busy || user.driverProfile.verificationStatus === 'pending'}
+              >
                 Remettre en attente
               </button>
             </div>
