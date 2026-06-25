@@ -230,6 +230,29 @@ export default function UserDetail() {
     try {
       await api.post(`/admin/drivers/${id}/verify`, { status, note: kycNote || undefined });
       await load();
+      await dialog.alert({
+        title:
+          status === 'verified'
+            ? 'Documents validés'
+            : status === 'rejected'
+              ? 'Documents refusés'
+              : 'Remis en attente',
+        message:
+          status === 'verified'
+            ? 'Le livreur peut désormais recevoir des courses.'
+            : status === 'rejected'
+              ? 'Le dossier a été refusé.'
+              : 'Le dossier repasse en attente de vérification.',
+        type: 'success',
+      });
+    } catch (err: any) {
+      await dialog.alert({
+        title: 'Action impossible',
+        message:
+          err?.response?.data?.error?.message ??
+          'Vérifiez votre connexion puis réessayez.',
+        type: 'error',
+      });
     } finally {
       setBusy(false);
     }
