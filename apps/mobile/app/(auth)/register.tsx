@@ -1,123 +1,89 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
+  Image,
+  ActivityIndicator,
+  AccessibilityInfo,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Input } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { UserRole } from '@/types';
-import * as ImagePicker from 'expo-image-picker';
 import { uploadImage } from '@/services/upload.service';
-import { api } from '@/services/api.client';
+import {
+  RC,
+  RF,
+  RegHero,
+  Cascade,
+  PressScale,
+  Field,
+  Animated,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from '@/components/auth/registerAtoms';
 
 type VehicleType = 'moto' | 'velo' | 'voiture' | 'tricycle';
+type Step = 'role' | 'identity' | 'vehicle' | 'kyc';
+type DocStatus = 'empty' | 'uploading' | 'done' | 'error';
+interface Doc {
+  uri?: string;
+  url?: string;
+  status: DocStatus;
+}
 
-const roles: {
+const ROLES: {
   type: UserRole;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: keyof typeof MaterialIcons.glyphMap;
   title: string;
-  subtitle: string;
-  description: string;
+  desc: string;
 }[] = [
   {
     type: 'client',
-    icon: 'cube-outline',
+    icon: 'inventory-2',
     title: 'Client',
-    subtitle: "J'envoie des colis",
-    description: 'Faites livrer un colis partout en ville en quelques minutes.',
+    desc: "J'envoie des colis partout en ville en quelques minutes.",
   },
   {
     type: 'driver',
-    icon: 'bicycle-outline',
+    icon: 'two-wheeler',
     title: 'Livreur',
-    subtitle: 'Je livré des colis',
-    description:
-      "Inscrivez-vous comme livreur indépendant, fixez vos horaires et gagnez de l'argent.",
+    desc: "Je livre des colis. Fixez vos horaires et gagnez de l'argent.",
   },
 ];
 
-// Icones: on utilise MaterialCommunityIcons pour avoir une vraie moto et un
-// vrai rickshaw (tricycle), que Ionicons ne fournit pas.
-const vehicles: {
+const VEHICLES: {
   type: VehicleType;
-  iconSet: 'ionicons' | 'material';
-  icon: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
   label: string;
 }[] = [
-  { type: 'moto', iconSet: 'material', icon: 'motorbike', label: 'Moto' },
-  { type: 'velo', iconSet: 'ionicons', icon: 'bicycle-outline', label: 'Velo' },
-  { type: 'tricycle', iconSet: 'material', icon: 'rickshaw', label: 'Tricycle' },
-  { type: 'voiture', iconSet: 'ionicons', icon: 'car-outline', label: 'Voiture' },
+  { type: 'moto', icon: 'two-wheeler', label: 'Moto' },
+  { type: 'velo', icon: 'pedal-bike', label: 'Vélo' },
+  { type: 'tricycle', icon: 'electric-rickshaw', label: 'Tricycle' },
+  { type: 'voiture', icon: 'directions-car', label: 'Voiture' },
 ];
 
-function VehicleIcon({
-  iconSet,
-  name,
-  size,
-  color,
-}: {
-  iconSet: 'ionicons' | 'material';
-  name: string;
-  size: number;
-  color: string;
-}) {
-  if (iconSet === 'material') {
-    return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
-  }
-  return <Ionicons name={name as any} size={size} color={color} />;
-}
-
-type Step = 'role' | 'identity' | 'vehicle' | 'kyc';
-
-import { Image } from 'react-native';
-
-function KycPhotoButton({
-  label,
-  uri,
-  onPress,
-}: {
-  label: string;
-  uri: string | null;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.kycPhotoBtn,
-        uri ? styles.kycPhotoBtnFilled : undefined,
-      ]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      {uri ? (
-        <>
-          <Image source={{ uri }} style={styles.kycPhotoThumb} />
-          <View style={styles.kycPhotoOverlay}>
-            <Ionicons name="camera" size={18} color={colors.white} />
-          </View>
-        </>
-      ) : (
-        <>
-          <Ionicons name="camera-outline" size={26} color={colors.primary} />
-          <Text style={styles.kycPhotoBtnLabel}>{label}</Text>
-        </>
-      )}
-    </TouchableOpacity>
-  );
-}
+// Libellés d'étape volontairement en deux sous-flux (compte 1/2-2/2, dossier
+// livreur 3/4-4/4), conformément aux maquettes.
+const STEP_META: Record<Step, { idx: number; total: number }> = {
+  role: { idx: 1, total: 2 },
+  identity: { idx: 2, total: 2 },
+  vehicle: { idx: 3, total: 4 },
+  kyc: { idx: 4, total: 4 },
+};
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -125,27 +91,51 @@ function validateDate(d: string, m: string, y: string): string | null {
   const day = parseInt(d, 10);
   const month = parseInt(m, 10);
   const year = parseInt(y, 10);
-  if (!day || !month || !year) return 'Date incomplete';
+  if (!day || !month || !year) return 'Date incomplète';
   if (day < 1 || day > 31) return 'Jour invalide';
   if (month < 1 || month > 12) return 'Mois invalide';
-  if (year < 1920 || year > CURRENT_YEAR - 16) {
-    return `Vous devez avoir au moins 16 ans`;
-  }
+  if (year < 1920 || year > CURRENT_YEAR - 16) return 'Vous devez avoir au moins 16 ans';
   const dt = new Date(year, month - 1, day);
-  if (
-    dt.getFullYear() !== year ||
-    dt.getMonth() !== month - 1 ||
-    dt.getDate() !== day
-  ) {
+  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) {
     return 'Date invalide';
   }
   return null;
 }
 
+/** Icône qui « spring » (scale + légère rotation) quand sa carte est sélectionnée. */
+function SpringIcon({
+  selected,
+  reduceMotion,
+  children,
+}: {
+  selected: boolean;
+  reduceMotion: boolean;
+  children: React.ReactNode;
+}) {
+  const s = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    s.value = reduceMotion
+      ? selected
+        ? 1
+        : 0
+      : withSpring(selected ? 1 : 0, { damping: 9, stiffness: 150 });
+  }, [selected, reduceMotion]);
+  const st = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + s.value * 0.14 }, { rotate: `${s.value * -8}deg` }],
+  }));
+  return <Animated.View style={st}>{children}</Animated.View>;
+}
+
 export default function RegisterScreen() {
   const router = useRouter();
-  const { isLoading, logout } = useAuthStore();
+  const { logout } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
+
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
+
   const [step, setStep] = useState<Step>('role');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
@@ -157,41 +147,28 @@ export default function RegisterScreen() {
   const [year, setYear] = useState('');
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
-  // Telephone (obligatoire pour TOUS) : c'est le seul contact requis. La
-  // communication (OTP, notifications) se fait par SMS. Pas d'email.
   const [phone, setPhone] = useState('');
-  // Canal d'envoi de l'OTP : toujours SMS (WhatsApp retire — non fiable).
   const otpChannel = 'sms' as const;
 
   // Driver only
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
   const [vehiclePlate, setVehiclePlate] = useState('');
 
-  // Driver KYC : photos piece d'identite (recto + verso)
-  const [cnibFrontUri, setCnibFrontUri] = useState<string | null>(null);
-  const [cnibBackUri, setCnibBackUri] = useState<string | null>(null);
-  const [submittingKyc, setSubmittingKyc] = useState(false);
+  // Driver KYC : photos pièce d'identité (recto + verso), upload par photo.
+  const [front, setFront] = useState<Doc>({ status: 'empty' });
+  const [back, setBack] = useState<Doc>({ status: 'empty' });
+  const [submitting, setSubmitting] = useState(false);
 
-  // Code de parrainage (optionnel) — actuellement stocke seulement, la logique
-  // de bonus (parrain X FCFA / parraine Y FCFA) sera activee plus tard.
   const [referralCode, setReferralCode] = useState('');
-
   const [error, setError] = useState('');
 
-  const totalSteps = selectedRole === 'driver' ? 4 : 2;
-  const currentStepIndex = useMemo(() => {
-    if (step === 'role') return 1;
-    if (step === 'identity') return 2;
-    if (step === 'vehicle') return 3;
-    return 4; // kyc
-  }, [step]);
+  const meta = STEP_META[step];
 
   const handleBack = () => {
     setError('');
     if (step === 'identity') return setStep('role');
     if (step === 'vehicle') return setStep('identity');
     if (step === 'kyc') return setStep('vehicle');
-    // Step 'role' : back to login
     logout();
     router.replace('/(auth)/login');
   };
@@ -206,9 +183,11 @@ export default function RegisterScreen() {
     if (lastName.trim().length < 2) return 'Entrez votre nom (2 caractères min)';
     const dateErr = validateDate(day, month, year);
     if (dateErr) return dateErr;
-    // Phone obligatoire (8 chiffres ou 11 chiffres si commence par 226)
     const cleanedPhone = phone.replace(/\D/g, '');
-    if (cleanedPhone.length !== 8 && !(cleanedPhone.length === 11 && cleanedPhone.startsWith('226'))) {
+    if (
+      cleanedPhone.length !== 8 &&
+      !(cleanedPhone.length === 11 && cleanedPhone.startsWith('226'))
+    ) {
       return 'Entrez un numéro de téléphone à 8 chiffres';
     }
     return null;
@@ -217,34 +196,23 @@ export default function RegisterScreen() {
   const handleIdentityNext = async () => {
     setError('');
     const err = validateIdentityFields();
-    if (err) {
-      setError(err);
-      return;
-    }
-
-    if (selectedRole === 'driver') {
-      setStep('vehicle');
-      return;
-    }
-
-    // Client : envoie l'OTP + stocke les donnees + navigue vers OTP screen
+    if (err) return setError(err);
+    if (selectedRole === 'driver') return setStep('vehicle');
     await sendOtpAndProceed();
   };
 
   const handleVehicleConfirm = () => {
     if (!vehicleType) return;
-    // Pour les drivers, on enchaine sur le step KYC (2 photos d'identite).
-    // Le register lui-meme se fait apres soumission du KYC, pour que le compte
-    // soit cree avec les justificatifs deja attaches (etat 'pending').
     setStep('kyc');
   };
 
+  // Prend une photo PUIS l'envoie immédiatement (statut uploading -> done/error).
+  // Permet l'état par-photo de la maquette et le réessai ciblé.
   const pickPhoto = async (which: 'front' | 'back') => {
+    setError('');
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (perm.status !== 'granted') {
-      setError(
-        "Permission appareil photo refusee. Activez-la dans les reglages.",
-      );
+      setError('Permission appareil photo refusée. Activez-la dans les réglages.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -252,37 +220,32 @@ export default function RegisterScreen() {
       allowsEditing: false,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]?.uri) {
-      if (which === 'front') setCnibFrontUri(result.assets[0].uri);
-      else setCnibBackUri(result.assets[0].uri);
+    if (result.canceled || !result.assets[0]?.uri) return;
+    const uri = result.assets[0].uri;
+    const setDoc = which === 'front' ? setFront : setBack;
+    setDoc({ uri, status: 'uploading' });
+    try {
+      const up = await uploadImage(uri, 'kyc');
+      if (up?.url) setDoc({ uri, url: up.url, status: 'done' });
+      else setDoc({ uri, status: 'error' });
+    } catch {
+      setDoc({ uri, status: 'error' });
     }
   };
 
+  const docsReady = front.status === 'done' && back.status === 'done';
+  const hasUploadError = front.status === 'error' || back.status === 'error';
+
   const handleKycSubmit = async () => {
     setError('');
-    if (!cnibFrontUri) {
-      setError("Ajoutez la photo recto de votre pièce d'identité.");
+    if (!docsReady) {
+      // Réessaie uniquement les photos en échec / manquantes.
+      if (front.status !== 'done') await pickPhoto('front');
+      if (back.status !== 'done') await pickPhoto('back');
       return;
     }
-    if (!cnibBackUri) {
-      setError("Ajoutez la photo verso de votre pièce d'identité.");
-      return;
-    }
-
-    setSubmittingKyc(true);
+    setSubmitting(true);
     try {
-      // Upload des photos AVANT envoi OTP. L'endpoint /uploads/kyc est public
-      // (pas d'auth requise) car ce flow tourne avant la creation du compte.
-      const [front, back] = await Promise.all([
-        uploadImage(cnibFrontUri, 'kyc'),
-        uploadImage(cnibBackUri, 'kyc'),
-      ]);
-      if (!front || !back) {
-        setError(
-          "Une des photos n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
-        );
-        return;
-      }
       await sendOtpAndProceed({
         cnibPhotoUrl: front.url,
         cnibPhotoBackUrl: back.url,
@@ -290,34 +253,23 @@ export default function RegisterScreen() {
     } catch (err: any) {
       setError(
         err?.response?.data?.error?.message ??
-          "Impossible d'envoyer le code de vérification. Reessayez.",
+          "Impossible d'envoyer le code de vérification. Réessayez.",
       );
     } finally {
-      setSubmittingKyc(false);
+      setSubmitting(false);
     }
   };
 
-  /**
-   * Envoie un OTP au phone ou email choisi par l'utilisateur, stocke les
-   * donnees d'inscription dans le store, et navigue vers l'ecran OTP.
-   * L'ecran OTP detecte le pendingRegistration et finalise l'inscription
-   * en appelant /auth/register avec ces donnees + le code OTP saisi.
-   */
-  const sendOtpAndProceed = async (kycExtras: {
-    cnibPhotoUrl?: string;
-    cnibPhotoBackUrl?: string;
-  } = {}): Promise<void> => {
+  const sendOtpAndProceed = async (
+    kycExtras: { cnibPhotoUrl?: string; cnibPhotoBackUrl?: string } = {},
+  ): Promise<void> => {
     if (!selectedRole) return;
     setError('');
     const dob = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     const cleanedPhone = phone.replace(/\D/g, '');
-    const fullPhone =
-      cleanedPhone.length === 8 ? `226${cleanedPhone}` : cleanedPhone;
-
-    // L'OTP part toujours sur le numero de telephone (SMS ou WhatsApp).
+    const fullPhone = cleanedPhone.length === 8 ? `226${cleanedPhone}` : cleanedPhone;
     const otpIdentifier = fullPhone;
 
-    // Stocke d'abord dans le store pour que OTP screen puisse finaliser.
     useAuthStore.getState().setPendingRegistration({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -332,50 +284,55 @@ export default function RegisterScreen() {
       otpIdentifier,
     });
 
-    // Envoie OTP via le canal choisi. purpose='register' : echoue si
-    // l'identifier (phone ou email) existe deja en DB.
-    const result = await useAuthStore.getState().sendOtp(
-      otpIdentifier,
-      otpChannel,
-      'register',
-    );
+    const result = await useAuthStore.getState().sendOtp(otpIdentifier, otpChannel, 'register');
     if (!result.success) {
       useAuthStore.getState().setPendingRegistration(null);
-      // Message generique pour eviter de reveler si l'identifier existe deja.
       setError(
         result.error ??
           "Impossible d'envoyer le code de vérification. Vérifiez vos informations.",
       );
       return;
     }
-
     router.push('/(auth)/otp');
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.headerBar}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.stepIndicator}>
-          Étape {currentStepIndex}/{totalSteps}
-        </Text>
-        <View style={{ width: 24 }} />
-      </View>
+  // ----- titre / sous-titre par étape -----
+  const heroText: Record<Step, { title: string; sub: string }> = {
+    role: {
+      title: `Bienvenue sur ${appName}`,
+      sub: 'Choisissez votre profil pour commencer.',
+    },
+    identity: {
+      title: 'Vos informations',
+      sub: 'Ces informations seront visibles par les autres utilisateurs.',
+    },
+    vehicle: {
+      title: 'Votre véhicule',
+      sub: 'Avec quoi effectuez-vous vos livraisons ?',
+    },
+    kyc: {
+      title: "Justificatifs d'identité",
+      sub: 'Notre équipe a besoin de vérifier ces documents avant d\'activer votre compte (24-48h).',
+    },
+  };
 
-      <View style={styles.progressTrack}>
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${(currentStepIndex / totalSteps) * 100}%` },
-          ]}
-        />
-      </View>
+  const identityComplete = !!validateIdentityFields() === false;
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      <RegHero
+        stepIndex={meta.idx}
+        stepTotal={meta.total}
+        title={heroText[step].title}
+        subtitle={heroText[step].sub}
+        onBack={handleBack}
+        reduceMotion={reduceMotion}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.content}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -383,594 +340,541 @@ export default function RegisterScreen() {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-        {/* Tap n'importe ou hors d'un Input ferme le clavier numerique
-            (qui n'a pas de bouton "Retour" natif). */}
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View>
-          {step === 'role' && (
-            <>
-              <View style={styles.header}>
-                <Text style={styles.title}>Bienvenue sur {appName}</Text>
-                <Text style={styles.subtitle}>
-                  Choisissez votre profil pour commencer
-                </Text>
-              </View>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View key={step}>
+              {/* ---------- ÉTAPE 1 · profil ---------- */}
+              {step === 'role' && (
+                <>
+                  {ROLES.map((role, i) => {
+                    const sel = selectedRole === role.type;
+                    return (
+                      <Cascade key={role.type} index={i} reduceMotion={reduceMotion}>
+                        <PressScale
+                          reduceMotion={reduceMotion}
+                          onPress={() => setSelectedRole(role.type)}
+                          style={[styles.roleCard, sel && styles.cardSelected]}
+                        >
+                          <View style={[styles.roleIcon, sel && styles.roleIconSel]}>
+                            <SpringIcon selected={sel} reduceMotion={reduceMotion}>
+                              <MaterialIcons
+                                name={role.icon}
+                                size={26}
+                                color={sel ? '#fff' : RC.gDark}
+                              />
+                            </SpringIcon>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.roleTitle}>{role.title}</Text>
+                            <Text style={styles.roleDesc}>{role.desc}</Text>
+                          </View>
+                          <View style={[styles.radio, sel && styles.radioSel]}>
+                            {sel && <View style={styles.radioDot} />}
+                          </View>
+                        </PressScale>
+                      </Cascade>
+                    );
+                  })}
+                  <Cascade index={ROLES.length} reduceMotion={reduceMotion}>
+                    <Text style={styles.note}>
+                      Vous pourrez modifier ces choix plus tard dans votre profil.
+                    </Text>
+                  </Cascade>
+                </>
+              )}
 
-              <View style={styles.cardsGrid}>
-                {roles.map((role) => {
-                  const isSelected = selectedRole === role.type;
-                  return (
-                    <TouchableOpacity
-                      key={role.type}
-                      style={[
-                        styles.roleCard,
-                        isSelected && styles.roleCardSelected,
-                      ]}
-                      onPress={() => setSelectedRole(role.type)}
-                      activeOpacity={0.8}
-                    >
-                      <View
-                        style={[
-                          styles.roleIconBox,
-                          isSelected && styles.roleIconBoxSelected,
-                        ]}
-                      >
-                        <Ionicons
-                          name={role.icon}
-                          size={28}
-                          color={isSelected ? colors.white : colors.primary}
+              {/* ---------- ÉTAPE 2 · informations ---------- */}
+              {step === 'identity' && (
+                <>
+                  <Cascade index={0} reduceMotion={reduceMotion}>
+                    <Field
+                      label="Prénom"
+                      required
+                      placeholder="Aminata"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      containerStyle={styles.fieldGap}
+                    />
+                  </Cascade>
+                  <Cascade index={1} reduceMotion={reduceMotion}>
+                    <Field
+                      label="Nom"
+                      required
+                      placeholder="Ouedraogo"
+                      value={lastName}
+                      onChangeText={setLastName}
+                      containerStyle={styles.fieldGap}
+                    />
+                  </Cascade>
+                  <Cascade index={2} reduceMotion={reduceMotion}>
+                    <View style={styles.fieldGap}>
+                      <Text style={styles.dobLabel}>
+                        Date de naissance <Text style={{ color: RC.gDark }}>*</Text>
+                      </Text>
+                      <View style={styles.dobRow}>
+                        <TextInput
+                          style={[styles.dobInput, styles.dobBox]}
+                          placeholder="JJ"
+                          placeholderTextColor={RC.muted}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          value={day}
+                          onChangeText={(t) => {
+                            const v = t.replace(/\D/g, '');
+                            setDay(v);
+                            if (v.length === 2) monthRef.current?.focus();
+                          }}
+                        />
+                        <Text style={styles.dobSep}>/</Text>
+                        <TextInput
+                          ref={monthRef}
+                          style={[styles.dobInput, styles.dobBox]}
+                          placeholder="MM"
+                          placeholderTextColor={RC.muted}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          value={month}
+                          onChangeText={(t) => {
+                            const v = t.replace(/\D/g, '');
+                            setMonth(v);
+                            if (v.length === 2) yearRef.current?.focus();
+                          }}
+                        />
+                        <Text style={styles.dobSep}>/</Text>
+                        <TextInput
+                          ref={yearRef}
+                          style={[styles.dobInput, styles.dobYear]}
+                          placeholder="AAAA"
+                          placeholderTextColor={RC.muted}
+                          keyboardType="number-pad"
+                          maxLength={4}
+                          value={year}
+                          onChangeText={(t) => setYear(t.replace(/\D/g, ''))}
                         />
                       </View>
-                      <View style={styles.roleTextWrap}>
-                        <Text
-                          style={[
-                            styles.roleTitle,
-                            isSelected && styles.roleTitleSelected,
-                          ]}
-                        >
-                          {role.title}
-                        </Text>
-                        <Text style={styles.roleSubtitle}>{role.subtitle}</Text>
-                        <Text style={styles.roleDescription}>
-                          {role.description}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.roleRadio,
-                          isSelected && styles.roleRadioSelected,
-                        ]}
-                      >
-                        {isSelected ? (
-                          <Ionicons name="checkmark" size={14} color={colors.white} />
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <Text style={styles.roleHelp}>
-                Vous pourrez modifier ces choix plus tard dans votre profil.
-              </Text>
-            </>
-          )}
-
-          {step === 'identity' && (
-            <>
-              <View style={styles.header}>
-                <Text style={styles.title}>Vos informations</Text>
-                <Text style={styles.subtitle}>
-                  Ces informations seront visibles par les autres utilisateurs
-                </Text>
-              </View>
-
-              <View style={styles.form}>
-                <Input
-                  label="Prénom *"
-                  placeholder="Aminata"
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                  autoFocus
-                />
-
-                <Input
-                  label="Nom *"
-                  placeholder="Ouedraogo"
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"
-                />
-
-                <View>
-                  <Text style={styles.dobLabel}>Date de naissance *</Text>
-                  <View style={styles.dobRow}>
-                    <TextInput
-                      style={styles.dobInput}
-                      placeholder="JJ"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                      value={day}
-                      onChangeText={(t) => {
-                        const v = t.replace(/\D/g, '');
-                        setDay(v);
-                        if (v.length === 2) monthRef.current?.focus();
-                      }}
-                    />
-                    <Text style={styles.dobSeparator}>/</Text>
-                    <TextInput
-                      ref={monthRef}
-                      style={styles.dobInput}
-                      placeholder="MM"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="number-pad"
-                      maxLength={2}
-                      value={month}
-                      onChangeText={(t) => {
-                        const v = t.replace(/\D/g, '');
-                        setMonth(v);
-                        if (v.length === 2) yearRef.current?.focus();
-                      }}
-                    />
-                    <Text style={styles.dobSeparator}>/</Text>
-                    <TextInput
-                      ref={yearRef}
-                      style={[styles.dobInput, styles.dobInputYear]}
-                      placeholder="AAAA"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      value={year}
-                      onChangeText={(t) => setYear(t.replace(/\D/g, ''))}
-                    />
-                  </View>
-                  <Text style={styles.dobHint}>Format : JJ / MM / AAAA</Text>
-                </View>
-
-                <Input
-                  label="Téléphone *"
-                  placeholder="70 12 34 56"
-                  value={phone}
-                  onChangeText={(t) => setPhone(t.replace(/\D/g, ''))}
-                  keyboardType="phone-pad"
-                  maxLength={12}
-                />
-
-                <Input
-                  label="Code de parrainage (optionnel)"
-                  placeholder="Ex : AMINA22"
-                  value={referralCode}
-                  onChangeText={(t) => setReferralCode(t.toUpperCase())}
-                  autoCapitalize="characters"
-                  maxLength={20}
-                />
-
-                {error ? <Text style={styles.error}>{error}</Text> : null}
-              </View>
-            </>
-          )}
-
-          {step === 'vehicle' && (
-            <>
-              <View style={styles.header}>
-                <Text style={styles.title}>Votre vehicule</Text>
-                <Text style={styles.subtitle}>
-                  Avec quoi effectuez-vous vos livraisons ?
-                </Text>
-              </View>
-
-              <View style={styles.vehicleGrid}>
-                {vehicles.map((v) => (
-                  <TouchableOpacity
-                    key={v.type}
-                    style={[
-                      styles.vehicleCard,
-                      vehicleType === v.type && styles.vehicleCardSelected,
-                    ]}
-                    onPress={() => setVehicleType(v.type)}
-                    activeOpacity={0.8}
-                  >
-                    <View
-                      style={[
-                        styles.vehicleIcon,
-                        vehicleType === v.type && styles.vehicleIconSelected,
-                      ]}
-                    >
-                      <VehicleIcon
-                        iconSet={v.iconSet}
-                        name={v.icon}
-                        size={26}
-                        color={
-                          vehicleType === v.type ? colors.white : colors.primary
-                        }
-                      />
+                      <Text style={styles.hint}>Format : JJ / MM / AAAA</Text>
                     </View>
-                    <Text
-                      style={[
-                        styles.vehicleCardLabel,
-                        vehicleType === v.type && styles.vehicleCardLabelSelected,
-                      ]}
-                    >
-                      {v.label}
+                  </Cascade>
+                  <Cascade index={3} reduceMotion={reduceMotion}>
+                    <Field
+                      label="Téléphone"
+                      required
+                      placeholder="70 12 34 56"
+                      keyboardType="phone-pad"
+                      value={phone}
+                      onChangeText={setPhone}
+                      containerStyle={styles.fieldGap}
+                    />
+                  </Cascade>
+                  <Cascade index={4} reduceMotion={reduceMotion}>
+                    <Field
+                      label="Code de parrainage (optionnel)"
+                      placeholder="Ex : AMINA22"
+                      autoCapitalize="characters"
+                      value={referralCode}
+                      onChangeText={setReferralCode}
+                      containerStyle={styles.fieldGap}
+                    />
+                  </Cascade>
+                </>
+              )}
+
+              {/* ---------- ÉTAPE 3 · véhicule ---------- */}
+              {step === 'vehicle' && (
+                <>
+                  <Cascade index={0} reduceMotion={reduceMotion}>
+                    <View style={styles.vehicleGrid}>
+                      {VEHICLES.map((v) => {
+                        const sel = vehicleType === v.type;
+                        return (
+                          <PressScale
+                            key={v.type}
+                            reduceMotion={reduceMotion}
+                            onPress={() => setVehicleType(v.type)}
+                            style={[styles.vehicleCard, sel && styles.cardSelected]}
+                          >
+                            <SpringIcon selected={sel} reduceMotion={reduceMotion}>
+                              <MaterialIcons
+                                name={v.icon}
+                                size={34}
+                                color={sel ? RC.gDark : RC.ink}
+                              />
+                            </SpringIcon>
+                            <Text style={[styles.vehicleLabel, sel && { color: RC.gDark }]}>
+                              {v.label}
+                            </Text>
+                            {sel && (
+                              <View style={styles.vehicleCheck}>
+                                <MaterialIcons name="check" size={13} color="#fff" />
+                              </View>
+                            )}
+                          </PressScale>
+                        );
+                      })}
+                    </View>
+                  </Cascade>
+                  <Cascade index={1} reduceMotion={reduceMotion}>
+                    <Field
+                      label="Plaque d'immatriculation (optionnel)"
+                      placeholder="Ex : 11 BF 1234"
+                      autoCapitalize="characters"
+                      value={vehiclePlate}
+                      onChangeText={setVehiclePlate}
+                      hint="Laissez vide si vous avez plusieurs véhicules ou n'avez pas encore la plaque."
+                      containerStyle={styles.fieldGap}
+                    />
+                  </Cascade>
+                  <Cascade index={2} reduceMotion={reduceMotion}>
+                    <View style={styles.infoCard}>
+                      <MaterialIcons name="info" size={20} color={RC.gDark} />
+                      <Text style={styles.infoText}>
+                        Votre compte sera validé par notre équipe avant que vous puissiez
+                        recevoir des courses.
+                      </Text>
+                    </View>
+                  </Cascade>
+                </>
+              )}
+
+              {/* ---------- ÉTAPE 4 · justificatifs ---------- */}
+              {step === 'kyc' && (
+                <>
+                  <Cascade index={0} reduceMotion={reduceMotion}>
+                    <Text style={styles.sectionLabel}>
+                      PIÈCE D'IDENTITÉ (CNIB, PASSEPORT, PERMIS)
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    <View style={styles.docRow}>
+                      <DocZone doc={front} label="Recto" onPress={() => pickPhoto('front')} />
+                      <DocZone doc={back} label="Verso" onPress={() => pickPhoto('back')} />
+                    </View>
+                    {hasUploadError && (
+                      <View style={styles.errorRow}>
+                        <MaterialIcons name="error" size={16} color={RC.error} />
+                        <Text style={styles.errorTextRed}>
+                          Une des photos n'a pas pu être envoyée. Vérifiez votre connexion
+                          et réessayez.
+                        </Text>
+                      </View>
+                    )}
+                  </Cascade>
+                  <Cascade index={1} reduceMotion={reduceMotion}>
+                    <View style={styles.privacyCard}>
+                      <MaterialIcons name="verified-user" size={20} color={RC.gDark} />
+                      <Text style={styles.privacyText}>
+                        Vos documents sont chiffrés et utilisés uniquement pour vérifier
+                        votre identité, conformément à notre politique de confidentialité.
+                      </Text>
+                    </View>
+                  </Cascade>
+                </>
+              )}
 
-              <View style={{ marginTop: spacing.md }}>
-                <Input
-                  label="Plaque d'immatriculation (optionnel)"
-                  placeholder="Ex : 11 BF 1234"
-                  value={vehiclePlate}
-                  onChangeText={setVehiclePlate}
-                  autoCapitalize="characters"
-                />
-                <Text style={styles.plateHint}>
-                  Laissez vide si vous avez plusieurs vehicules ou n'avez pas encore
-                  la plaque.
-                </Text>
-              </View>
-
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-
-              <View style={styles.infoBox}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={styles.infoText}>
-                  Votre compte sera validé par notre équipe avant que vous ne puissiez
-                  recevoir des courses.
-                </Text>
-              </View>
-            </>
-          )}
-
-          {step === 'kyc' && (
-            <>
-              <View style={styles.header}>
-                <Text style={styles.title}>Justificatifs d'identité</Text>
-                <Text style={styles.subtitle}>
-                  Notre équipe a besoin de vérifier ces documents avant
-                  d'activer votre compte (24-48h).
-                </Text>
-              </View>
-
-              <Text style={styles.kycSectionLabel}>
-                Pièce d'identité (CNIB, passeport, permis)
-              </Text>
-              <View style={styles.kycPhotoRow}>
-                <KycPhotoButton
-                  label="Recto"
-                  uri={cnibFrontUri}
-                  onPress={() => pickPhoto('front')}
-                />
-                <KycPhotoButton
-                  label="Verso"
-                  uri={cnibBackUri}
-                  onPress={() => pickPhoto('back')}
-                />
-              </View>
-
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-
-              <View style={styles.infoBox}>
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={styles.infoText}>
-                  Vos documents sont chiffrés et utilisés uniquement pour
-                  vérifier votre identité. Conformément à notre politique de
-                  confidentialité.
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-        </TouchableWithoutFeedback>
+              {error ? (
+                <View style={styles.bannerError}>
+                  <MaterialIcons name="error" size={16} color={RC.error} />
+                  <Text style={styles.errorTextRed}>{error}</Text>
+                </View>
+              ) : null}
+            </View>
+          </TouchableWithoutFeedback>
         </ScrollView>
 
-        <View style={styles.footer}>
+        {/* ---------- Footer CTA ---------- */}
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
           {step === 'role' && (
-            <Button
-              title="Continuer"
-              onPress={handleRoleNext}
-              disabled={!selectedRole}
-            />
+            <Cta label="Continuer" disabled={!selectedRole} onPress={handleRoleNext} reduceMotion={reduceMotion} />
           )}
           {step === 'identity' && (
-            <Button
-              title={selectedRole === 'driver' ? 'Continuer' : 'Créer mon compte'}
+            <Cta
+              label={selectedRole === 'driver' ? 'Continuer' : 'Créer mon compte'}
+              disabled={!identityComplete}
               onPress={handleIdentityNext}
-              loading={isLoading}
+              reduceMotion={reduceMotion}
             />
           )}
           {step === 'vehicle' && (
-            <Button
-              title="Continuer"
-              onPress={handleVehicleConfirm}
-              loading={isLoading}
-              disabled={!vehicleType}
-            />
+            <Cta label="Continuer" disabled={!vehicleType} onPress={handleVehicleConfirm} reduceMotion={reduceMotion} />
           )}
           {step === 'kyc' && (
-            <Button
-              title="Soumettre mes documents"
+            <Cta
+              label={hasUploadError ? "Réessayer l'envoi" : 'Soumettre mes documents'}
+              disabled={(!docsReady && !hasUploadError) || submitting}
+              loading={submitting}
               onPress={handleKycSubmit}
-              loading={submittingKyc || isLoading}
-              disabled={!cnibFrontUri || !cnibBackUri}
+              reduceMotion={reduceMotion}
             />
           )}
-        </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+/** Zone d'upload d'une pièce (vide / uploading / done / error). */
+function DocZone({ doc, label, onPress }: { doc: Doc; label: string; onPress: () => void }) {
+  const isError = doc.status === 'error';
+  const isDone = doc.status === 'done';
+  const isUploading = doc.status === 'uploading';
+  return (
+    <Pressable
+      style={[styles.docZone, isDone && styles.docZoneDone, isError && styles.docZoneError]}
+      onPress={onPress}
+      disabled={isUploading}
+    >
+      {doc.uri ? (
+        <>
+          <Image source={{ uri: doc.uri }} style={styles.docThumb} />
+          <View style={styles.docCamBtn}>
+            <MaterialIcons name="photo-camera" size={16} color="#fff" />
+          </View>
+          {isUploading && (
+            <View style={styles.docOverlay}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          )}
+          {isDone && (
+            <View style={[styles.docBadge, { backgroundColor: RC.gDark }]}>
+              <MaterialIcons name="check" size={13} color="#fff" />
+            </View>
+          )}
+          {isError && (
+            <View style={[styles.docBadge, { backgroundColor: RC.error }]}>
+              <MaterialIcons name="priority-high" size={13} color="#fff" />
+            </View>
+          )}
+        </>
+      ) : (
+        <>
+          <MaterialIcons name="photo-camera" size={26} color={RC.gDark} />
+          <Text style={styles.docLabel}>{label}</Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+function Cta({
+  label,
+  onPress,
+  disabled,
+  loading,
+  reduceMotion,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  reduceMotion?: boolean;
+}) {
+  return (
+    <PressScale onPress={onPress} disabled={disabled || loading} reduceMotion={reduceMotion}>
+      <View style={[styles.cta, (disabled || loading) && styles.ctaDisabled]}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.ctaText}>{label}</Text>
+        )}
+      </View>
+    </PressScale>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backBtn: { padding: 4 },
-  stepIndicator: {
-    ...typography.captionMedium,
-    color: colors.textSecondary,
-  },
-  progressTrack: {
-    height: 3,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  content: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  header: { marginBottom: spacing.xl },
-  title: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  cardsGrid: { gap: spacing.md },
+  container: { flex: 1, backgroundColor: RC.bg },
+  scroll: { padding: 22, paddingBottom: 28 },
+
+  // --- cartes profil ---
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 14,
+    backgroundColor: RC.surface,
+    borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.md,
-    backgroundColor: colors.surface,
+    borderColor: RC.hair,
+    padding: 16,
+    marginBottom: 14,
   },
-  roleCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
+  cardSelected: {
+    borderColor: RC.gDark,
+    backgroundColor: RC.tender,
+    shadowColor: RC.gMid,
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
-  roleIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primaryLight,
+  roleIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: RC.tender,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleIconBoxSelected: { backgroundColor: colors.primary },
-  roleTextWrap: { flex: 1, gap: 2 },
-  roleTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  roleTitleSelected: { color: colors.primaryDark },
-  roleSubtitle: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  roleDescription: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  roleRadio: {
+  roleIconSel: { backgroundColor: RC.gDark },
+  roleTitle: { fontFamily: RF.uiBold, fontSize: 16, color: RC.ink },
+  roleDesc: { fontFamily: RF.ui, fontSize: 12.5, color: RC.muted, marginTop: 3, lineHeight: 17 },
+  radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleRadioSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  roleHelp: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    fontStyle: 'italic',
-  },
-  form: { gap: spacing.md },
-  dobLabel: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  dobRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  dobInput: {
-    flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  dobInputYear: { flex: 1.5 },
-  dobSeparator: {
-    fontSize: 20,
-    color: colors.textTertiary,
-    fontWeight: '600',
-  },
-  dobHint: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
-  error: {
-    ...typography.bodySmall,
-    color: colors.error,
-    marginTop: spacing.sm,
-  },
-  vehicleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  vehicleCard: {
-    flexBasis: '48%',
-    flexGrow: 1,
-    padding: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  vehicleCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  vehicleIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vehicleIconSelected: { backgroundColor: colors.primary },
-  vehicleCardLabel: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  vehicleCardLabelSelected: { color: colors.primaryDark },
-  plateHint: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
-  // ============ Step KYC ============
-  kycSectionLabel: {
-    ...typography.captionMedium,
-    color: colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  kycPhotoRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  kycPhotoBtn: {
-    flex: 1,
-    aspectRatio: 1.4,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
+    borderColor: RC.hair,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
+  },
+  radioSel: { borderColor: RC.gDark },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: RC.gDark },
+  note: { fontFamily: RF.ui, fontSize: 12.5, color: RC.muted, marginTop: 4, textAlign: 'center' },
+
+  // --- champs ---
+  fieldGap: { marginBottom: 16 },
+  dobLabel: { color: RC.ink, fontFamily: RF.uiSemi, fontSize: 13.5, marginBottom: 7 },
+  dobRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dobInput: {
+    backgroundColor: RC.surface,
+    borderWidth: 1.5,
+    borderColor: RC.hair,
+    borderRadius: 14,
+    paddingVertical: 13,
+    fontFamily: RF.num,
+    fontSize: 17,
+    color: RC.ink,
+    textAlign: 'center',
+  },
+  dobBox: { width: 60 },
+  dobYear: { flex: 1 },
+  dobSep: { color: RC.muted, fontFamily: RF.uiSemi, fontSize: 18 },
+  hint: { color: RC.muted, fontFamily: RF.ui, fontSize: 12, marginTop: 6 },
+
+  // --- véhicule ---
+  vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 4 },
+  vehicleCard: {
+    width: '47%',
+    flexGrow: 1,
+    aspectRatio: 1.5,
+    backgroundColor: RC.surface,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: RC.hair,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  vehicleLabel: { fontFamily: RF.uiSemi, fontSize: 14.5, color: RC.ink },
+  vehicleCheck: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: RC.gDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  infoCard: {
+    flexDirection: 'row',
+    gap: 11,
+    backgroundColor: RC.tender,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 4,
+  },
+  infoText: { flex: 1, color: '#14532d', fontFamily: RF.uiMed, fontSize: 13, lineHeight: 18 },
+
+  // --- KYC ---
+  sectionLabel: {
+    fontFamily: RF.uiBold,
+    fontSize: 11.5,
+    letterSpacing: 1,
+    color: RC.muted,
+    marginBottom: 12,
+  },
+  docRow: { flexDirection: 'row', gap: 12 },
+  docZone: {
+    flex: 1,
+    aspectRatio: 1.45,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#A6DBB8',
+    backgroundColor: '#F1FAF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     overflow: 'hidden',
   },
-  kycPhotoBtnFilled: {
-    borderStyle: 'solid',
-    borderColor: colors.primary,
-  },
-  kycPhotoBtnLabel: {
-    ...typography.bodyMedium,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  kycPhotoThumb: {
-    ...StyleSheet.absoluteFillObject,
-    resizeMode: 'cover',
-  },
-  kycPhotoOverlay: {
+  docZoneDone: { borderStyle: 'solid', borderColor: RC.gDark },
+  docZoneError: { borderStyle: 'solid', borderColor: RC.error },
+  docLabel: { fontFamily: RF.uiSemi, fontSize: 13.5, color: RC.gDark },
+  docThumb: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  docCamBtn: {
     position: 'absolute',
     bottom: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inputMargin: {
-    marginTop: spacing.md,
+  docOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  infoBox: {
+  docBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 },
+  errorTextRed: { flex: 1, color: RC.error, fontFamily: RF.uiMed, fontSize: 13, lineHeight: 18 },
+
+  privacyCard: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.primaryLight,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.lg,
+    gap: 11,
+    backgroundColor: RC.tender,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 18,
   },
-  infoText: {
-    ...typography.bodySmall,
-    color: colors.primaryDark,
-    flex: 1,
-    lineHeight: 19,
+  privacyText: { flex: 1, color: '#14532d', fontFamily: RF.ui, fontSize: 12.5, lineHeight: 18 },
+
+  bannerError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#FDECEA',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
   },
+
+  // --- footer ---
   footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: RC.hair,
+    backgroundColor: RC.bg,
   },
+  cta: {
+    backgroundColor: RC.gDark,
+    borderRadius: 16,
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaDisabled: { backgroundColor: '#B9D8C4' },
+  ctaText: { color: '#fff', fontFamily: RF.uiBold, fontSize: 16 },
 });
