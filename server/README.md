@@ -1,6 +1,6 @@
-# Tolle API Server
+# Toole API Server
 
-Node.js + TypeScript + Express + Prisma + Socket.IO backend for the Tolle delivery app (Burkina Faso).
+Node.js + TypeScript + Express + Prisma + Socket.IO backend for the Toole delivery app (Burkina Faso).
 
 ## Stack
 
@@ -34,7 +34,7 @@ Node.js + TypeScript + Express + Prisma + Socket.IO backend for the Tolle delive
 3. Create the database (example with `psql`):
 
    ```bash
-   createdb tolle
+   createdb toole
    ```
 
 4. Generate the Prisma client and run the first migration:

@@ -2,7 +2,7 @@
 
 App de livraison Burkina Faso. Mobile RN/Expo, backend Node/Express/Prisma/Postgres, admin React/Vite.
 
-**⚠️ Nom officiel : `Toolé` (avec accent aigu sur le É), JAMAIS `Tolle` sans accent.** S'applique partout : SMS, emails, UI mobile/admin/landing, app.json (`name: "Toolé"`), titres push, OG metadata. Le user râle si on perd l'accent.
+**⚠️ Nom officiel : `Toolé` (avec accent aigu sur le É), JAMAIS `Toole` sans accent.** S'applique partout : SMS, emails, UI mobile/admin/landing, app.json (`name: "Toolé"`), titres push, OG metadata. Le user râle si on perd l'accent.
 
 ---
 
@@ -11,31 +11,31 @@ App de livraison Burkina Faso. Mobile RN/Expo, backend Node/Express/Prisma/Postg
 ### Serveur (VPS)
 
 ```bash
-cd /opt/toole/server && docker compose up -d --build tolle-api
+cd /opt/toole/server && docker compose up -d --build toole-api
 ```
 
 Logs :
 
 ```bash
-cd /opt/toole/server && docker compose logs -f tolle-api --tail=50
+cd /opt/toole/server && docker compose logs -f toole-api --tail=50
 ```
 
-Le service docker s'appelle **`tolle-api`** (pas `server`, pas `api`). Le path sur le VPS est **`/opt/toole/server`** (pas `/opt/tolle`, pas `~/tolle`).
+Le service docker s'appelle **`toole-api`** (pas `server`, pas `api`). Le path sur le VPS est **`/opt/toole/server`** (pas `/opt/toole`, pas `~/toole`).
 
 ### Admin (VPS)
 
 ```bash
-cd /opt/toole/apps/admin && docker compose up -d --build tolle-admin
+cd /opt/toole/apps/admin && docker compose up -d --build toole-admin
 ```
 
-Service Docker : **`tolle-admin`** · path VPS : **`/opt/toole/apps/admin`** · domaine : `admin-tolle.qalitylabs.fr` (via nginx-proxy externe).
+Service Docker : **`toole-admin`** · path VPS : **`/opt/toole/apps/admin`** · domaine : `admin-toole.qalitylabs.fr` (via nginx-proxy externe).
 
 ⚠️ Le path est `/opt/toole/apps/admin` (PAS `/opt/toole/admin`, PAS `/opt/apps/admin`). Le serveur est `/opt/toole/server` mais l'admin/landing sont sous `/opt/toole/apps/`.
 
 ### Landing (VPS)
 
 ```bash
-cd /opt/toole/apps/landing && docker compose up -d --build tolle-landing
+cd /opt/toole/apps/landing && docker compose up -d --build toole-landing
 ```
 
 ### Mobile (EAS OTA — iOS + Android en un seul update)

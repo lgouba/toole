@@ -93,7 +93,7 @@ export const useAddressFavoritesStore = create<State>()(
       getWork: () => get().favorites.find((f) => f.kind === 'work'),
     }),
     {
-      name: 'tolle:address-favorites',
+      name: 'toole:address-favorites',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ favorites: s.favorites }),
     },

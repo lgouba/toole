@@ -16,7 +16,7 @@ export function DownloadQR({ baseUrl }: DownloadQRProps) {
     baseUrl ??
     (typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://lancement-tolle.qalitylabs.fr');
+      : 'https://lancement-toole.qalitylabs.fr');
 
   const iosUrl = `${origin}/bientot-disponible?platform=ios`;
   const androidUrl = `${origin}/bientot-disponible?platform=android`;

@@ -45,7 +45,7 @@ async function detectCityContext(loc: LatLng): Promise<{
     url.searchParams.set('limit', '1');
     url.searchParams.set('accept-language', 'fr');
     const res = await fetch(url.toString(), {
-      headers: { 'User-Agent': 'Tolle/1.0 (contact@tolle.bf)' },
+      headers: { 'User-Agent': 'Toole/1.0 (contact@toole.bf)' },
     });
     if (!res.ok) return { countryCode, cityName, cityBbox: null };
     const data = (await res.json()) as Array<{

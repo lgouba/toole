@@ -19,7 +19,7 @@ interface NotifState {
   clear: () => void;
 }
 
-const STORAGE_KEY = 'tolle-admin:notifications';
+const STORAGE_KEY = 'toole-admin:notifications';
 const MAX_ITEMS = 30;
 
 function load(): AdminNotification[] {

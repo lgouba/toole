@@ -20,7 +20,7 @@
  *   - ServiceZone (config admin)
  *
  * Usage :
- *   docker compose exec tolle-api npm run reset:users
+ *   docker compose exec toole-api npm run reset:users
  *   ou en local : npm run reset:users:dev
  */
 import 'dotenv/config';

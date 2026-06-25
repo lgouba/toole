@@ -22,7 +22,7 @@ cd /apps && docker compose up -d --force-recreate nginx-proxy acme-companion
 ## Infrastructure
 
 - **VPS** : `/opt/toole/`
-- **Backend** : conteneur Docker `tolle-api` (Express + Prisma + Postgres)
+- **Backend** : conteneur Docker `toole-api` (Express + Prisma + Postgres)
 - **Admin** : conteneur Docker (Vite/React)
 - **Base de données** : Postgres dans un conteneur, variables injectées via `docker-compose.yml`
 - **Mobile** : Expo — **pas sur le VPS**, tourne en local (Expo Go ou build APK)
@@ -50,7 +50,7 @@ cd /opt/toole/server
 git pull origin main
 
 # Si le schéma Prisma a changé :
-docker exec tolle-api npx prisma db push
+docker exec toole-api npx prisma db push
 # (db push applique les changements sans créer de migration)
 
 # Rebuild + relance :
@@ -79,10 +79,10 @@ docker compose up -d
 
 | ❌ À ne JAMAIS faire sur le VPS   | ✅ À faire à la place                       |
 | --------------------------------- | -------------------------------------------- |
-| `npx prisma db push`              | `docker exec tolle-api npx prisma db push`   |
-| `npx prisma generate`             | `docker exec tolle-api npx prisma generate`  |
-| `npx prisma migrate deploy`       | `docker exec tolle-api npx prisma migrate deploy` |
-| `npx prisma studio`               | `docker exec -it tolle-api npx prisma studio` |
+| `npx prisma db push`              | `docker exec toole-api npx prisma db push`   |
+| `npx prisma generate`             | `docker exec toole-api npx prisma generate`  |
+| `npx prisma migrate deploy`       | `docker exec toole-api npx prisma migrate deploy` |
+| `npx prisma studio`               | `docker exec -it toole-api npx prisma studio` |
 
 **Pourquoi** : `DATABASE_URL` n'existe que dans le conteneur. Un `npx prisma` direct sur l'hôte échoue avec `Environment variable not found: DATABASE_URL` — même si Prisma dit "loaded from .env", ça veut dire qu'il a trouvé un fichier mais pas la variable dedans.
 
@@ -94,7 +94,7 @@ Aucune de ces commandes n'est adaptée à ce setup :
 
 - ❌ `npm run dev`, `npm start`, `npm run build` (directement sur l'hôte)
 - ❌ `pm2 restart ...`
-- ❌ `systemctl restart tolle-*`
+- ❌ `systemctl restart toole-*`
 - ❌ `cp .env.example .env` (casserait la config si un `.env` existait)
 - ❌ Toucher à un `.env` sur l'hôte
 
@@ -107,16 +107,16 @@ Aucune de ces commandes n'est adaptée à ce setup :
 docker ps
 
 # Logs temps réel du backend
-docker logs -f tolle-api
+docker logs -f toole-api
 
 # Logs admin
 docker compose -f /opt/toole/apps/admin/docker-compose.yml logs -f
 
 # Se connecter au shell du conteneur backend
-docker exec -it tolle-api sh
+docker exec -it toole-api sh
 
 # Vérifier que DATABASE_URL est bien injectée
-docker exec tolle-api printenv DATABASE_URL
+docker exec toole-api printenv DATABASE_URL
 ```
 
 ---
@@ -127,9 +127,9 @@ docker exec tolle-api printenv DATABASE_URL
 2. [ ] `npx tsc --noEmit` passe en local (mobile + server + admin)
 3. [ ] Commit + push
 4. [ ] Sur VPS : `git pull`
-5. [ ] `docker exec tolle-api npx prisma db push`
+5. [ ] `docker exec toole-api npx prisma db push`
 6. [ ] `docker compose build --no-cache && docker compose up -d`
-7. [ ] `docker logs -f tolle-api` — vérifier pas d'erreur au démarrage
+7. [ ] `docker logs -f toole-api` — vérifier pas d'erreur au démarrage
 8. [ ] Test rapide depuis le mobile
 
 ---

@@ -40,7 +40,7 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="username"
-              placeholder="admin@tolle.bf"
+              placeholder="admin@toole.bf"
             />
           </label>
           <label>

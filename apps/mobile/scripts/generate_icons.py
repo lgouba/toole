@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Tolle app icons and splash screens."""
+"""Generate Toole app icons and splash screens."""
 
 from PIL import Image, ImageDraw, ImageFont
 import os

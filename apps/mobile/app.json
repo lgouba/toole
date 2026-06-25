@@ -31,7 +31,7 @@
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
-      "associatedDomains": ["applinks:admin-tolle.qalitylabs.fr"]
+      "associatedDomains": ["applinks:admin-toole.qalitylabs.fr"]
     },
     "android": {
       "package": "com.qalitylabs.tolle",
@@ -58,7 +58,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "admin-tolle.qalitylabs.fr",
+              "host": "admin-toole.qalitylabs.fr",
               "pathPrefix": "/track"
             }
           ],

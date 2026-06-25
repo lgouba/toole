@@ -47,10 +47,10 @@ export function initSentry() {
   Sentry.init({
     dsn: DSN,
 
-    // Format du release : "tolle-mobile@1.0.0+OTA_ID"
-    // -> tu peux filtrer dans Sentry par "release:tolle-mobile@1.0.0+abc123"
+    // Format du release : "toole-mobile@1.0.0+OTA_ID"
+    // -> tu peux filtrer dans Sentry par "release:toole-mobile@1.0.0+abc123"
     //    pour ne voir QUE les crashs apres une OTA precise.
-    release: `tolle-mobile@${appVersion}+${updateId.slice(0, 8)}`,
+    release: `toole-mobile@${appVersion}+${updateId.slice(0, 8)}`,
 
     // Environnement : preview / production / dev
     environment: channel,
@@ -108,7 +108,7 @@ export function initSentry() {
 
   console.log(
     '[Sentry] initialized',
-    `release=tolle-mobile@${appVersion}+${updateId.slice(0, 8)}`,
+    `release=toole-mobile@${appVersion}+${updateId.slice(0, 8)}`,
     `env=${channel}`,
   );
 }

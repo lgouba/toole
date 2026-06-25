@@ -99,7 +99,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
     }),
     {
-      name: 'tolle-settings',
+      name: 'toole-settings',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ settings: state.settings }),
     },

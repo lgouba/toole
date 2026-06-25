@@ -83,10 +83,10 @@ export function DriverCTA() {
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
           </a>
           <a
-            href="mailto:contact@tolle.bf"
+            href="mailto:contact@toole.bf"
             className="link-editorial text-base font-medium text-paper"
           >
-            Une question ? contact@tolle.bf
+            Une question ? contact@toole.bf
           </a>
         </motion.div>
       </div>

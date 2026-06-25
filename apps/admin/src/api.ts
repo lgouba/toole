@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from './config';
 
-const TOKEN_KEY = 'tolle-admin:token';
+const TOKEN_KEY = 'toole-admin:token';
 
 export const tokenStorage = {
   get: () => localStorage.getItem(TOKEN_KEY),

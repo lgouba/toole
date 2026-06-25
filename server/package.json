@@ -1,7 +1,7 @@
 {
-  "name": "tolle-server",
+  "name": "toole-server",
   "version": "1.0.0",
-  "description": "Tolle delivery backend - Burkina Faso",
+  "description": "Toole delivery backend - Burkina Faso",
   "main": "dist/index.js",
   "type": "commonjs",
   "engines": {

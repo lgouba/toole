@@ -1,4 +1,4 @@
-// Prisma schema for Tolle delivery backend
+// Prisma schema for Toole delivery backend
 generator client {
   provider = "prisma-client-js"
 }

@@ -17,7 +17,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 // En attendant, on pointe vers une page web ou affiche un message.
 const PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.android.tolle';
-const APP_STORE_URL = 'https://apps.apple.com/app/tolle/id000000000';
+const APP_STORE_URL = 'https://apps.apple.com/app/toole/id000000000';
 
 /**
  * Compare deux versions semver. Retourne true si `installed` < `min`.

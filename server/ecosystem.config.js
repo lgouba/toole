@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'tolle-api',
+      name: 'toole-api',
       script: 'dist/index.js',
       instances: 1,
       autorestart: true,

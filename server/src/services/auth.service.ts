@@ -386,7 +386,7 @@ export async function registerUser(args: {
             <div style="margin-top: 20px; padding: 12px 14px; background: #fef3c7; border-radius: 8px; font-size: 13px; color: #92400e;">
               Ce livreur est <strong>inactif</strong> par défaut. Connectez-vous au panneau d'administration pour l'activer.
             </div>
-            <a href="https://admin-tolle.qalitylabs.fr/users/${user.id}" style="display: inline-block; margin-top: 16px; padding: 10px 18px; background: #1d9e75; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Ouvrir la fiche livreur</a>
+            <a href="https://admin-toole.qalitylabs.fr/users/${user.id}" style="display: inline-block; margin-top: 16px; padding: 10px 18px; background: #1d9e75; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Ouvrir la fiche livreur</a>
           </div>
         </div>
       `;
@@ -398,7 +398,7 @@ Date naissance: ${dob}
 Véhicule: ${user.driverProfile?.vehicleType ?? '—'}${user.driverProfile?.vehiclePlate ? ` (${user.driverProfile.vehiclePlate})` : ''}
 Email: ${user.email ?? '—'}
 
-Ouvrir: https://admin-tolle.qalitylabs.fr/users/${user.id}`;
+Ouvrir: https://admin-toole.qalitylabs.fr/users/${user.id}`;
 
       await sendAdminAlert(
         `[${appName}] Nouveau livreur: ${user.fullName}`,

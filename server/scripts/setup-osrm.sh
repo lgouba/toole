@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 #
-# Prepare les donnees OSRM (Burkina Faso) pour le service `tolle-osrm`.
+# Prepare les donnees OSRM (Burkina Faso) pour le service `toole-osrm`.
 # A lancer UNE FOIS sur le VPS (et a re-lancer si tu veux rafraichir la carte).
 #
 # Usage (sur le VPS) :
 #   cd /opt/toole/server
 #   bash scripts/setup-osrm.sh
-#   docker compose up -d tolle-osrm
-#   docker compose up -d --build tolle-api   # pour prendre OSRM_BASE_URL
+#   docker compose up -d toole-osrm
+#   docker compose up -d --build toole-api   # pour prendre OSRM_BASE_URL
 #
 # Pre-requis : docker. ~1-2 Go RAM le temps du traitement (la carte BF est
 # petite). Les fichiers prepares sont ecrits dans ./osrm-data (monte par le
-# service tolle-osrm).
+# service toole-osrm).
 #
 set -euo pipefail
 
@@ -44,5 +44,5 @@ docker run --rm -t -v "$DATA_DIR:/data" "$OSRM_IMAGE" \
 
 echo ""
 echo "OK. Donnees OSRM pretes dans $DATA_DIR"
-echo "Demarre le moteur :   docker compose up -d tolle-osrm"
-echo "Puis rebuild l'API :  docker compose up -d --build tolle-api"
+echo "Demarre le moteur :   docker compose up -d toole-osrm"
+echo "Puis rebuild l'API :  docker compose up -d --build toole-api"

@@ -1,15 +1,15 @@
 # Landing page Toolé · déployable sur le VPS via nginx-proxy + acme-companion.
 # Sur le VPS : /opt/toole/apps/landing/
-#   docker compose up -d --build tolle-landing
+#   docker compose up -d --build toole-landing
 
 services:
-  tolle-landing:
+  toole-landing:
     build:
       context: .
       args:
         # Date de lancement embarquee au build (Next inline les NEXT_PUBLIC_*)
         NEXT_PUBLIC_LAUNCH_DATE: ${NEXT_PUBLIC_LAUNCH_DATE:-2026-06-09T12:00:00+00:00}
-    container_name: tolle-landing
+    container_name: toole-landing
     restart: unless-stopped
     expose:
       - "3001"
@@ -17,10 +17,10 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_LAUNCH_DATE: ${NEXT_PUBLIC_LAUNCH_DATE:-2026-06-09T12:00:00+00:00}
       # nginx-proxy auto-config (HTTPS via Let's Encrypt)
-      VIRTUAL_HOST: lancement-tolle.qalitylabs.fr
+      VIRTUAL_HOST: lancement-toole.qalitylabs.fr
       VIRTUAL_PORT: "3001"
       VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-apps_web}
-      LETSENCRYPT_HOST: lancement-tolle.qalitylabs.fr
+      LETSENCRYPT_HOST: lancement-toole.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     networks:
       - nginx-proxy

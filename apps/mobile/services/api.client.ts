@@ -2,8 +2,8 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'ax
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@/config/api';
 
-const ACCESS_TOKEN_KEY = 'tolle:access_token';
-const REFRESH_TOKEN_KEY = 'tolle:refresh_token';
+const ACCESS_TOKEN_KEY = 'toole:access_token';
+const REFRESH_TOKEN_KEY = 'toole:refresh_token';
 
 export const tokenStorage = {
   async setTokens(accessToken: string, refreshToken: string) {

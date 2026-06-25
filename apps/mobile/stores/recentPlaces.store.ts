@@ -42,7 +42,7 @@ export const useRecentPlacesStore = create<State>()(
       clear: () => set({ recents: [] }),
     }),
     {
-      name: 'tolle-recent-places',
+      name: 'toole-recent-places',
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),

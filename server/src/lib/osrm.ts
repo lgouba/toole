@@ -5,7 +5,7 @@ import { logger } from './logger.js';
  * (geometrie complete qui suit les rues + duree + distance).
  *
  * En prod on pointe sur une instance OSRM auto-hebergee (gratuite, illimitee)
- * via OSRM_BASE_URL (cf. docker-compose : service `tolle-osrm`). A defaut, on
+ * via OSRM_BASE_URL (cf. docker-compose : service `toole-osrm`). A defaut, on
  * retombe sur l'instance publique de demo (rate-limitee, NE PAS utiliser en
  * prod serieuse).
  *

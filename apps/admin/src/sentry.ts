@@ -22,7 +22,7 @@ export function initSentry() {
   Sentry.init({
     dsn: DSN,
     environment: import.meta.env.MODE,
-    release: import.meta.env.VITE_RELEASE ?? 'tolle-admin@dev',
+    release: import.meta.env.VITE_RELEASE ?? 'toole-admin@dev',
 
     // 100% des erreurs en prod (volume bas).
     sampleRate: 1.0,

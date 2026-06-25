@@ -1,35 +1,35 @@
 services:
-  tolle-db:
+  toole-db:
     image: postgres:16-alpine
-    container_name: tolle-db
+    container_name: toole-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tolle
+      POSTGRES_USER: toole
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: tolle
+      POSTGRES_DB: toole
     volumes:
-      - tolle-db-data:/var/lib/postgresql/data
+      - toole-db-data:/var/lib/postgresql/data
     networks:
-      - tolle-internal
+      - toole-internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tolle -d tolle"]
+      test: ["CMD-SHELL", "pg_isready -U toole -d toole"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  tolle-api:
+  toole-api:
     build: .
-    container_name: tolle-api
+    container_name: toole-api
     restart: unless-stopped
     depends_on:
-      tolle-db:
+      toole-db:
         condition: service_healthy
     expose:
       - "3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://tolle:${DB_PASSWORD}@tolle-db:5432/tolle
+      DATABASE_URL: postgresql://toole:${DB_PASSWORD}@toole-db:5432/toole
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
@@ -53,57 +53,57 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL:-}
       # URL publique utilisee dans le SMS destinataire pour le lien de suivi.
-      # Ex: https://admin.tolle.qalitylabs.fr -> .../track/<token>
+      # Ex: https://admin.toole.qalitylabs.fr -> .../track/<token>
       PUBLIC_TRACKING_BASE_URL: ${PUBLIC_TRACKING_BASE_URL:-}
       # OSRM (routing reel : ETA + geometrie du trajet). Pointe sur notre
-      # instance auto-hebergee `tolle-osrm` (gratuite, illimitee). Fallback
+      # instance auto-hebergee `toole-osrm` (gratuite, illimitee). Fallback
       # possible sur l'instance publique en surchargeant OSRM_BASE_URL.
-      OSRM_BASE_URL: ${OSRM_BASE_URL:-http://tolle-osrm:5000}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-http://toole-osrm:5000}
       # Sentry crash reporting (optionnel - laisser vide pour desactiver)
       SENTRY_DSN: ${SENTRY_DSN:-}
       # SHA du commit deploye, expose comme release Sentry (optionnel)
       GIT_SHA: ${GIT_SHA:-}
 
       # nginx-proxy + acme-companion (auto HTTPS)
-      VIRTUAL_HOST: api.tolle.qalitylabs.fr
+      VIRTUAL_HOST: api.toole.qalitylabs.fr
       VIRTUAL_PORT: "3000"
       VIRTUAL_NETWORK: ${NGINX_PROXY_NETWORK:-nginx-proxy}
       # Nginx-proxy lit cette env var pour configurer client_max_body_size
       # sur le vhost genere. Necessaire pour accepter les uploads photo.
       CLIENT_MAX_BODY_SIZE: 10m
-      LETSENCRYPT_HOST: api.tolle.qalitylabs.fr
+      LETSENCRYPT_HOST: api.toole.qalitylabs.fr
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
       UPLOAD_DIR: /app/uploads
     volumes:
-      - tolle-uploads:/app/uploads
+      - toole-uploads:/app/uploads
     networks:
       nginx-proxy:
-      tolle-internal:
+      toole-internal:
 
   # Moteur de routing auto-heberge (gratuit, illimite). Sert l'itineraire
   # routier reel (geometrie + ETA) a l'API via le reseau interne.
   # /!\ Les donnees doivent etre preparees AVANT le 1er demarrage :
   #     bash scripts/setup-osrm.sh   (cf. ce script)
   # Le service ne fait que SERVIR les fichiers .osrm deja prepares.
-  tolle-osrm:
+  toole-osrm:
     image: ghcr.io/project-osrm/osrm-backend:latest
-    container_name: tolle-osrm
+    container_name: toole-osrm
     restart: unless-stopped
     command: osrm-routed --algorithm mld /data/burkina-faso-latest.osrm
     volumes:
       - ./osrm-data:/data
     networks:
-      - tolle-internal
+      - toole-internal
     expose:
       - "5000"
 
 volumes:
-  tolle-db-data:
-  tolle-uploads:
+  toole-db-data:
+  toole-uploads:
 
 networks:
   nginx-proxy:
     external: true
     name: ${NGINX_PROXY_NETWORK:-apps_web}
-  tolle-internal:
+  toole-internal:
     driver: bridge

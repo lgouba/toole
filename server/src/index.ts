@@ -127,7 +127,7 @@ async function start() {
     await prisma.$connect();
     logger.info('Connected to PostgreSQL via Prisma');
     server.listen(env.PORT, () => {
-      logger.info(`Tolle API listening on :${env.PORT} (${env.NODE_ENV})`);
+      logger.info(`Toole API listening on :${env.PORT} (${env.NODE_ENV})`);
     });
 
     // Scan toutes les 30s pour expirer les demandes pending qui ont depasse expiresAt

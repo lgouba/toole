@@ -98,6 +98,6 @@ export function shareLocationWhatsApp(
   latitude: number,
   longitude: number
 ): void {
-  const message = `📦 Tolle - Voici ma position pour la livraison ${reference}: https://maps.google.com/?q=${latitude},${longitude}`;
+  const message = `📦 Toole - Voici ma position pour la livraison ${reference}: https://maps.google.com/?q=${latitude},${longitude}`;
   openWhatsApp(phone, message);
 }

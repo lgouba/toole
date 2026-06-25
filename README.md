@@ -1,4 +1,4 @@
-# Tolle
+# Toole
 
 Application de livraison de colis pour le Burkina Faso.
 

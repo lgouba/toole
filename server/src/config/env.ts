@@ -38,13 +38,13 @@ const envSchema = z.object({
   SMTP_SECURE: z.coerce.boolean().default(true),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
-  SMTP_FROM: z.string().optional(), // ex: "Tolle Admin <noreply@tolle.qalitylabs.fr>"
+  SMTP_FROM: z.string().optional(), // ex: "Toole Admin <noreply@toole.qalitylabs.fr>"
 
   // Adresse qui recoit les alertes admin (ex: nouvelle inscription livreur)
   ADMIN_ALERT_EMAIL: z.string().email().optional(),
 
   // URL publique utilisee pour les liens de suivi destinataire dans les SMS.
-  // Ex: "https://admin.tolle.bf" -> les SMS contiendront https://admin.tolle.bf/track/<token>
+  // Ex: "https://admin.toole.bf" -> les SMS contiendront https://admin.toole.bf/track/<token>
   // Si vide, les SMS destinataire n'incluent pas de lien de suivi.
   PUBLIC_TRACKING_BASE_URL: z.string().optional(),
 
@@ -85,7 +85,7 @@ if (env.NODE_ENV === 'production') {
   if (env.CORS_ORIGIN === '*') {
     // eslint-disable-next-line no-console
     console.warn(
-      'WARN: CORS_ORIGIN="*" in production reflète n\'importe quelle origine avec credentials. Définir les origines explicites (ex. https://admin-tolle.qalitylabs.fr).',
+      'WARN: CORS_ORIGIN="*" in production reflète n\'importe quelle origine avec credentials. Définir les origines explicites (ex. https://admin-toole.qalitylabs.fr).',
     );
   }
 }

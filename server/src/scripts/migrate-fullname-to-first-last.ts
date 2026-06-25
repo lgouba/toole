@@ -11,7 +11,7 @@
  * Idempotent : skip les users qui ont deja firstName ET lastName remplis.
  *
  * Usage :
- *   docker compose exec tolle-api node dist/scripts/migrate-fullname-to-first-last.js
+ *   docker compose exec toole-api node dist/scripts/migrate-fullname-to-first-last.js
  *   (apres rebuild de l'image)
  *
  * Ou en local :

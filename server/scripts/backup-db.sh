@@ -4,7 +4,7 @@
 # ============================================================
 #
 # Que fait ce script :
-#   - dump complet de la DB postgres via le conteneur tolle-db
+#   - dump complet de la DB postgres via le conteneur toole-db
 #   - compresse avec gzip
 #   - sauvegarde dans /opt/toole/backups/ avec timestamp
 #   - rotation : garde les 30 derniers backups, supprime les autres
@@ -20,16 +20,16 @@ set -euo pipefail
 # --- Config ---
 BACKUP_DIR="/opt/toole/backups"
 COMPOSE_DIR="/opt/toole/server"
-DB_CONTAINER="tolle-db"
-DB_NAME="tolle"
-DB_USER="tolle"
+DB_CONTAINER="toole-db"
+DB_NAME="toole"
+DB_USER="toole"
 RETENTION_DAYS=30
-LOG_FILE="/var/log/tolle-backup.log"
+LOG_FILE="/var/log/toole-backup.log"
 
 # --- Setup ---
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-FILENAME="tolle-${TIMESTAMP}.sql.gz"
+FILENAME="toole-${TIMESTAMP}.sql.gz"
 FILEPATH="${BACKUP_DIR}/${FILENAME}"
 
 # Fonction log avec timestamp
@@ -66,11 +66,11 @@ log "Backup OK : ${FILENAME} (${SIZE_HUMAN})"
 # --- Rotation ---
 # Supprime les backups plus vieux que RETENTION_DAYS
 log "Cleanup : suppression backups > ${RETENTION_DAYS} jours"
-DELETED=$(find "$BACKUP_DIR" -name "tolle-*.sql.gz" -type f -mtime +${RETENTION_DAYS} -print -delete | wc -l)
+DELETED=$(find "$BACKUP_DIR" -name "toole-*.sql.gz" -type f -mtime +${RETENTION_DAYS} -print -delete | wc -l)
 log "Anciens backups supprimés : ${DELETED}"
 
 # Affiche un résumé
-TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "tolle-*.sql.gz" -type f | wc -l)
+TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "toole-*.sql.gz" -type f | wc -l)
 TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
 log "État : ${TOTAL_BACKUPS} backups, taille totale ${TOTAL_SIZE}"
 log "=== Backup terminé ==="
@@ -82,14 +82,14 @@ log "=== Backup terminé ==="
 # Pour planifier ce script chaque jour à 3h du matin, lance UNE FOIS :
 #
 #   sudo chmod +x /opt/toole/server/scripts/backup-db.sh
-#   sudo touch /var/log/tolle-backup.log
-#   sudo chmod 644 /var/log/tolle-backup.log
+#   sudo touch /var/log/toole-backup.log
+#   sudo chmod 644 /var/log/toole-backup.log
 #
 #   # Ouvre le crontab root
 #   sudo crontab -e
 #
 #   # Ajoute cette ligne :
-#   0 3 * * * /opt/toole/server/scripts/backup-db.sh >> /var/log/tolle-backup.log 2>&1
+#   0 3 * * * /opt/toole/server/scripts/backup-db.sh >> /var/log/toole-backup.log 2>&1
 #
 # Verif que le cron est bien chargé :
 #   sudo crontab -l
@@ -98,7 +98,7 @@ log "=== Backup terminé ==="
 #   sudo bash /opt/toole/server/scripts/backup-db.sh
 #
 # Voir les logs des backups passés :
-#   tail -50 /var/log/tolle-backup.log
+#   tail -50 /var/log/toole-backup.log
 #
 # Voir les backups disponibles :
 #   ls -lh /opt/toole/backups/
@@ -110,14 +110,14 @@ log "=== Backup terminé ==="
 # Pour restaurer un backup (ATTENTION : ÉCRASE la DB actuelle !) :
 #
 #   cd /opt/toole/server
-#   gunzip < /opt/toole/backups/tolle-YYYYMMDD-HHMMSS.sql.gz | \
-#     docker compose exec -T tolle-db psql -U tolle -d tolle
+#   gunzip < /opt/toole/backups/toole-YYYYMMDD-HHMMSS.sql.gz | \
+#     docker compose exec -T toole-db psql -U toole -d toole
 #
 # Pour restaurer sur une DB de test (sans toucher prod) :
 #
 #   docker run --rm -d --name test-db \
-#     -e POSTGRES_USER=tolle -e POSTGRES_PASSWORD=test -e POSTGRES_DB=tolle \
+#     -e POSTGRES_USER=toole -e POSTGRES_PASSWORD=test -e POSTGRES_DB=toole \
 #     -p 5433:5432 postgres:16-alpine
-#   gunzip < backup.sql.gz | psql -h localhost -p 5433 -U tolle -d tolle
+#   gunzip < backup.sql.gz | psql -h localhost -p 5433 -U toole -d toole
 #
 # ============================================================

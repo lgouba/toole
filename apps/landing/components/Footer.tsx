@@ -48,7 +48,7 @@ export function Footer() {
             </div>
             <ul className="mt-4 space-y-2.5 text-sm text-paper/80">
               <li>
-                <a href="mailto:contact@tolle.bf" className="link-editorial">contact@tolle.bf</a>
+                <a href="mailto:contact@toole.bf" className="link-editorial">contact@toole.bf</a>
               </li>
               <li>
                 <a href="/legal/cgu" className="link-editorial">Conditions générales</a>

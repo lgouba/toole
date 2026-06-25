@@ -14,7 +14,7 @@ export interface GeocodeSuggestion {
 }
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
-const UA = 'Tolle/1.0 (contact@tolle.bf)';
+const UA = 'Toole/1.0 (contact@toole.bf)';
 const TIMEOUT_MS = 8000;
 
 async function fetchJson<T>(url: string): Promise<T | null> {

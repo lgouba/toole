@@ -1,12 +1,12 @@
-# Deploiement du backend Tolle sur VPS
+# Deploiement du backend Toole sur VPS
 
-Guide pour deployer `api.tolle.qalitylabs.fr` sur un VPS Ubuntu/Debian avec SSH root.
+Guide pour deployer `api.toole.qalitylabs.fr` sur un VPS Ubuntu/Debian avec SSH root.
 
 ## Prerequis sur ton VPS
 
 - Ubuntu 22.04+ ou Debian 11+
 - Port 80 et 443 ouverts (pour Nginx + Let's Encrypt)
-- Un enregistrement DNS de type **A** pour `api.tolle.qalitylabs.fr` qui pointe vers l'IP de ton VPS **avant** de lancer le certificat HTTPS
+- Un enregistrement DNS de type **A** pour `api.toole.qalitylabs.fr` qui pointe vers l'IP de ton VPS **avant** de lancer le certificat HTTPS
 
 ---
 
@@ -57,9 +57,9 @@ echo "Mot de passe DB : $DB_PASSWORD"  # NOTE-LE, tu en as besoin plus bas
 
 # Creer l'utilisateur et la base
 sudo -u postgres psql <<EOF
-CREATE USER tolle WITH PASSWORD '$DB_PASSWORD';
-CREATE DATABASE tolle OWNER tolle;
-GRANT ALL PRIVILEGES ON DATABASE tolle TO tolle;
+CREATE USER toole WITH PASSWORD '$DB_PASSWORD';
+CREATE DATABASE toole OWNER toole;
+GRANT ALL PRIVILEGES ON DATABASE toole TO toole;
 EOF
 
 # Verifier
@@ -80,17 +80,17 @@ git init
 # Ajouter un .gitignore racine si pas deja fait
 git add server/
 git commit -m "initial backend"
-git remote add origin git@github.com:TON_USER/tolle.git
+git remote add origin git@github.com:TON_USER/toole.git
 git push -u origin main
 ```
 
 Sur le VPS :
 
 ```bash
-mkdir -p /opt/tolle
-cd /opt/tolle
-git clone git@github.com:TON_USER/tolle.git .
-# ou https si pas de cle SSH : git clone https://github.com/TON_USER/tolle.git .
+mkdir -p /opt/toole
+cd /opt/toole
+git clone git@github.com:TON_USER/toole.git .
+# ou https si pas de cle SSH : git clone https://github.com/TON_USER/toole.git .
 cd server
 ```
 
@@ -100,13 +100,13 @@ Depuis ton Mac :
 
 ```bash
 cd /Users/macos/Tollé
-rsync -avz --exclude 'node_modules' --exclude 'dist' server/ root@TON_VPS_IP:/opt/tolle/server/
+rsync -avz --exclude 'node_modules' --exclude 'dist' server/ root@TON_VPS_IP:/opt/toole/server/
 ```
 
 Sur le VPS :
 
 ```bash
-cd /opt/tolle/server
+cd /opt/toole/server
 ```
 
 ---
@@ -114,7 +114,7 @@ cd /opt/tolle/server
 ## 4. Configurer les variables d'environnement
 
 ```bash
-cd /opt/tolle/server
+cd /opt/toole/server
 cp .env.example .env
 
 # Generer des secrets JWT
@@ -128,7 +128,7 @@ nano .env
 Contenu du `.env` :
 
 ```env
-DATABASE_URL="postgresql://tolle:LE_MOT_DE_PASSE_DB@localhost:5432/tolle"
+DATABASE_URL="postgresql://toole:LE_MOT_DE_PASSE_DB@localhost:5432/toole"
 JWT_ACCESS_SECRET="COLLER_ICI_LA_VALEUR_JWT_ACCESS"
 JWT_REFRESH_SECRET="COLLER_ICI_LA_VALEUR_JWT_REFRESH"
 JWT_ACCESS_EXPIRES_IN="15m"
@@ -146,7 +146,7 @@ OTP_DEV_CODE="1234"
 ## 5. Installer, migrer et build
 
 ```bash
-cd /opt/tolle/server
+cd /opt/toole/server
 npm install --omit=dev --include=dev  # on a besoin des devDependencies pour build
 npm run db:generate
 npm run db:deploy                      # applique les migrations Prisma
@@ -158,9 +158,9 @@ npm run build                          # compile TypeScript -> dist/
 ## 6. Demarrer avec PM2
 
 ```bash
-cd /opt/tolle/server
+cd /opt/toole/server
 pm2 start ecosystem.config.js
-pm2 logs tolle-api --lines 50          # verifier les logs
+pm2 logs toole-api --lines 50          # verifier les logs
 
 # Sauvegarder la config pour reboot automatique
 pm2 save
@@ -179,10 +179,10 @@ curl http://localhost:3000/health
 ## 7. Configurer Nginx en reverse proxy
 
 ```bash
-cat > /etc/nginx/sites-available/tolle-api <<'EOF'
+cat > /etc/nginx/sites-available/toole-api <<'EOF'
 server {
     listen 80;
-    server_name api.tolle.qalitylabs.fr;
+    server_name api.toole.qalitylabs.fr;
 
     # Taille max upload (pour photos colis)
     client_max_body_size 10M;
@@ -203,24 +203,24 @@ server {
 }
 EOF
 
-ln -s /etc/nginx/sites-available/tolle-api /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/toole-api /etc/nginx/sites-enabled/
 nginx -t           # verifier la syntaxe
 systemctl reload nginx
 ```
 
-Verifier : `curl http://api.tolle.qalitylabs.fr/health`
+Verifier : `curl http://api.toole.qalitylabs.fr/health`
 
 ---
 
 ## 8. Activer HTTPS avec Let's Encrypt
 
 ```bash
-certbot --nginx -d api.tolle.qalitylabs.fr --non-interactive --agree-tos -m ton@email.com --redirect
+certbot --nginx -d api.toole.qalitylabs.fr --non-interactive --agree-tos -m ton@email.com --redirect
 ```
 
 Certbot modifie automatiquement la config Nginx pour rediriger HTTP → HTTPS.
 
-Verifier : `curl https://api.tolle.qalitylabs.fr/health`
+Verifier : `curl https://api.toole.qalitylabs.fr/health`
 
 Le renouvellement auto est deja configure via cron/systemd. Tu peux tester avec :
 
@@ -232,7 +232,7 @@ certbot renew --dry-run
 
 ## 9. Pointer l'app mobile vers l'API
 
-Dans [apps/mobile/config/api.ts](apps/mobile/config/api.ts), l'URL par defaut est deja `https://api.tolle.qalitylabs.fr`. Rien a changer si tu fais un nouveau build APK.
+Dans [apps/mobile/config/api.ts](apps/mobile/config/api.ts), l'URL par defaut est deja `https://api.toole.qalitylabs.fr`. Rien a changer si tu fais un nouveau build APK.
 
 Pour surcharger en dev local, cree `apps/mobile/.env` :
 
@@ -246,10 +246,10 @@ EXPO_PUBLIC_API_URL=http://192.168.1.10:3000
 
 ```bash
 # Voir les logs en direct
-pm2 logs tolle-api
+pm2 logs toole-api
 
 # Redemarrer l'API
-pm2 restart tolle-api
+pm2 restart toole-api
 
 # Voir le statut
 pm2 status
@@ -258,22 +258,22 @@ pm2 status
 ufw status
 
 # Se connecter a la DB
-sudo -u postgres psql tolle
+sudo -u postgres psql toole
 
 # Voir les utilisateurs inscrits
-sudo -u postgres psql tolle -c "SELECT id, phone, \"fullName\", \"userType\", \"createdAt\" FROM \"User\" ORDER BY \"createdAt\" DESC LIMIT 20;"
+sudo -u postgres psql toole -c "SELECT id, phone, \"fullName\", \"userType\", \"createdAt\" FROM \"User\" ORDER BY \"createdAt\" DESC LIMIT 20;"
 
 # Voir les livraisons en cours
-sudo -u postgres psql tolle -c "SELECT reference, status, \"createdAt\" FROM \"Delivery\" ORDER BY \"createdAt\" DESC LIMIT 10;"
+sudo -u postgres psql toole -c "SELECT reference, status, \"createdAt\" FROM \"Delivery\" ORDER BY \"createdAt\" DESC LIMIT 10;"
 
 # Mise a jour du code
-cd /opt/tolle
+cd /opt/toole
 git pull
 cd server
 npm install
 npm run db:deploy
 npm run build
-pm2 restart tolle-api
+pm2 restart toole-api
 ```
 
 ---
@@ -283,7 +283,7 @@ pm2 restart tolle-api
 **L'API ne repond pas ?**
 ```bash
 pm2 status
-pm2 logs tolle-api --err
+pm2 logs toole-api --err
 systemctl status nginx
 ```
 
@@ -292,13 +292,13 @@ systemctl status nginx
 systemctl status postgresql
 sudo -u postgres psql -c "SELECT 1;"
 # Tester l'URL du .env
-PGPASSWORD=TON_MDP psql -h localhost -U tolle -d tolle -c "SELECT 1;"
+PGPASSWORD=TON_MDP psql -h localhost -U toole -d toole -c "SELECT 1;"
 ```
 
 **Socket.IO ne fonctionne pas ?**
 - Verifie que Nginx a bien `proxy_set_header Upgrade $http_upgrade` et `Connection "upgrade"`
 - Verifie les logs PM2
-- Teste avec `wscat` : `wscat -c wss://api.tolle.qalitylabs.fr/socket.io/?EIO=4&transport=websocket`
+- Teste avec `wscat` : `wscat -c wss://api.toole.qalitylabs.fr/socket.io/?EIO=4&transport=websocket`
 
 ---
 

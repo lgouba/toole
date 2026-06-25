@@ -331,7 +331,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     zIndex: 9999,
     padding: 16,
-    animation: 'tolle-dialog-fade 160ms ease-out',
+    animation: 'toole-dialog-fade 160ms ease-out',
   },
   dialog: {
     background: '#fff',
@@ -347,7 +347,7 @@ const s: Record<string, React.CSSProperties> = {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
     color: '#0f172a',
-    animation: 'tolle-dialog-slide 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+    animation: 'toole-dialog-slide 200ms cubic-bezier(0.4, 0, 0.2, 1)',
   },
   iconCircle: {
     width: 56,
@@ -430,15 +430,15 @@ const s: Record<string, React.CSSProperties> = {
 };
 
 // Animations CSS injectées dans le head (une seule fois)
-if (typeof document !== 'undefined' && !document.getElementById('tolle-dialog-keyframes')) {
+if (typeof document !== 'undefined' && !document.getElementById('toole-dialog-keyframes')) {
   const style = document.createElement('style');
-  style.id = 'tolle-dialog-keyframes';
+  style.id = 'toole-dialog-keyframes';
   style.textContent = `
-    @keyframes tolle-dialog-fade {
+    @keyframes toole-dialog-fade {
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    @keyframes tolle-dialog-slide {
+    @keyframes toole-dialog-slide {
       from { opacity: 0; transform: translateY(8px) scale(0.96); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }

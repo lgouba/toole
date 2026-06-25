@@ -12,7 +12,7 @@ import { formatEta, formatDistance } from '@/utils/format';
 /**
  * Écran de suivi destinataire PUBLIC (sans authentification).
  *
- * Ouvert via universal link / app link `https://admin-tolle.qalitylabs.fr/track/<token>`
+ * Ouvert via universal link / app link `https://admin-toole.qalitylabs.fr/track/<token>`
  * quand l'app est installée (sinon le navigateur ouvre la page web admin
  * équivalente). Affiche la position live du livreur + l'itinéraire routier
  * phase-aware, exactement comme l'app et la page web.

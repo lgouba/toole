@@ -35,7 +35,7 @@ d'afficher les hors-ligne en gris). À revoir si jugé trop intrusif.
 alimenter la même liste `courier` — l'UI ne change pas.
 
 ⚠️ **Déploiement serveur requis** : `/drivers/map` doit être déployé
-(`docker compose up -d --build tolle-api`), sinon l'accueil affiche 0 livreur.
+(`docker compose up -d --build toole-api`), sinon l'accueil affiche 0 livreur.
 
 ## Onboarding = lanceur uniquement
 

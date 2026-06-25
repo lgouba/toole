@@ -32,7 +32,7 @@ export function initSentry() {
 
     // Release : permet de filtrer par version backend. A bumper a chaque
     // deploiement majeur (via process.env.GIT_SHA si dispo en CI).
-    release: process.env.GIT_SHA ?? 'tolle-server@dev',
+    release: process.env.GIT_SHA ?? 'toole-server@dev',
 
     // 100% des erreurs en prod (volume bas chez nous).
     sampleRate: 1.0,

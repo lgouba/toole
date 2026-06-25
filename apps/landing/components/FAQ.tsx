@@ -52,10 +52,10 @@ export function FAQ() {
             <p className="mt-8 max-w-sm text-base leading-relaxed text-ink-700">
               Une question qui n'est pas listée ?<br />
               <a
-                href="mailto:contact@tolle.bf"
+                href="mailto:contact@toole.bf"
                 className="link-editorial font-medium text-ink-900"
               >
-                contact@tolle.bf
+                contact@toole.bf
               </a>
             </p>
           </div>

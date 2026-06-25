@@ -267,7 +267,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'tolle-auth',
+      name: 'toole-auth',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
