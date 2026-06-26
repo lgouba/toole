@@ -32,11 +32,9 @@ Service Docker : **`toole-admin`** · path VPS : **`/opt/toole/apps/admin`** · 
 
 ⚠️ Le path est `/opt/toole/apps/admin` (PAS `/opt/toole/admin`, PAS `/opt/apps/admin`). Le serveur est `/opt/toole/server` mais l'admin/landing sont sous `/opt/toole/apps/`.
 
-### Landing (VPS)
+### Landing — SUPPRIMÉE (2026-06-26)
 
-```bash
-cd /opt/toole/apps/landing && docker compose up -d --build toole-landing
-```
+La landing (`apps/landing`, conteneur `toole-landing`, domaine `lancement-toole.qalitylabs.fr`) a été **retirée temporairement** à la demande du user. Code supprimé du repo, conteneur arrêté sur le VPS. À réintroduire plus tard.
 
 ### Mobile (EAS OTA — iOS + Android en un seul update)
 
