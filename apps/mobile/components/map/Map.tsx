@@ -129,7 +129,6 @@ function buildHtml(
       ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
       : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   const bodyBg = isDark ? '#0E1326' : isSoft ? '#EDEAE3' : '#F5F5F0';
-  const routeColor = isDark ? '#00E676' : colors.primary;
   const markersJs = markers
     .map((m) => {
       if (m.icon === 'courier') {
@@ -222,24 +221,15 @@ function buildHtml(
     })
     .join('\n');
 
-  // Tracé : si c'est un vrai itinéraire routier (≥ 3 points), ligne PLEINE qui
-  // suit les rues ; si c'est juste une ligne directe (2 points = fallback), on
-  // garde le pointillé pour signaler que ce n'est pas le parcours réel.
-  const isRealRoute = !!route && route.length >= 3;
+  // Tracé : ligne verte épaisse (pleine si vrai itinéraire routier ≥ 3 points,
+  // pointillée si ligne directe) + couche « fourmis » animée. Rendu par
+  // renderRoute() côté WebView (init + mises à jour live partagent le même code).
   const routeLatLngsJs = route
     ? '[' + route.map((p) => `[${p.latitude}, ${p.longitude}]`).join(',') + ']'
     : '[]';
   const routeJs = route
-    ? `
-      window._route = L.polyline(${routeLatLngsJs}, {
-        color: '${routeColor}',
-        weight: 5,
-        opacity: 0.9,
-        lineJoin: 'round',
-        lineCap: 'round'${isRealRoute ? '' : `,\n        dashArray: '10, 10'`}
-      }).addTo(map);
-    `
-    : `window._route = null;`;
+    ? `renderRoute(${routeLatLngsJs});`
+    : `window._route = null; window._routeFlow = null;`;
 
   // Halo "zone desservie" (cercle translucide), SANS pin central (le point vert
   // était pris pour un faux livreur). Seuls les vrais livreurs en ligne s'affichent.
@@ -384,6 +374,11 @@ function buildHtml(
       0%   { transform: scale(0.9); opacity: 0.5; }
       100% { transform: scale(1.9); opacity: 0; }
     }
+    /* Tracé « fourmis » : pointillés qui défilent le long de la route vers la
+       cible (donne l'impression que le livreur avance sur le chemin). */
+    @keyframes route-flow { to { stroke-dashoffset: -18; } }
+    .route-flow { animation: route-flow 0.9s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .route-flow { animation: none; } }
   </style>
 </head>
 <body>
@@ -476,29 +471,30 @@ function buildHtml(
         }
       } catch (e) {}
     };
+    // Dessine/maj le tracé : une ligne de base verte épaisse (pleine si vrai
+    // itinéraire routier, pointillée si ligne directe) + une couche "fourmis"
+    // (petits points verts qui défilent vers la cible via l'anim CSS route-flow).
+    function renderRoute(points) {
+      if (!points || points.length < 2) return;
+      var solid = points.length >= 3;
+      var base = { color: '#15803D', weight: 6, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: solid ? null : '10, 12' };
+      if (window._route) { window._route.setLatLngs(points); window._route.setStyle(base); }
+      else { window._route = L.polyline(points, base).addTo(map); }
+      if (window._routeFlow) { window._routeFlow.setLatLngs(points); }
+      else {
+        window._routeFlow = L.polyline(points, {
+          color: '#86EFAC', weight: 3.5, opacity: 0.95,
+          lineJoin: 'round', lineCap: 'round', dashArray: '2 16', className: 'route-flow'
+        }).addTo(map);
+      }
+      try { window._routeFlow.bringToFront(); } catch (e) {}
+    }
     window.updateRoute = function(aLat, aLng, bLat, bLng) {
-      try {
-        if (window._route) {
-          window._route.setLatLngs([[aLat, aLng], [bLat, bLng]]);
-        }
-      } catch (e) {}
+      try { renderRoute([[aLat, aLng], [bLat, bLng]]); } catch (e) {}
     };
     // Met à jour le tracé complet (itinéraire routier de N points) sans rebuild.
     window.updateRoutePath = function(points) {
-      try {
-        if (!points || points.length < 2) return;
-        var solid = points.length >= 3;
-        if (window._route) {
-          window._route.setLatLngs(points);
-          window._route.setStyle({ dashArray: solid ? null : '10, 10' });
-        } else {
-          window._route = L.polyline(points, {
-            color: '${routeColor}', weight: 5, opacity: 0.9,
-            lineJoin: 'round', lineCap: 'round',
-            dashArray: solid ? null : '10, 10'
-          }).addTo(map);
-        }
-      } catch (e) {}
+      try { renderRoute(points); } catch (e) {}
     };
     window.panToMarker = function(id) {
       try {
