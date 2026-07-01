@@ -461,6 +461,9 @@ function buildMapHtml(d: PublicDelivery): string {
                    background: #16A34A; opacity: .18; animation: radar 2s ease-out infinite; }
     @keyframes radar { 0%{transform:scale(.7);opacity:.4} 100%{transform:scale(1.9);opacity:0} }
     @media (prefers-reduced-motion: reduce) { .rider .halo { animation: none; } }
+    @keyframes route-flow { to { stroke-dashoffset: -18; } }
+    .route-flow { animation: route-flow 0.9s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .route-flow { animation: none; } }
     .leaflet-control-attribution { font-size: 10px; }
   </style>
 </head>
@@ -498,6 +501,7 @@ function buildMapHtml(d: PublicDelivery): string {
         : 'null'
     };
     var routeLine = null;
+    var routeFlow = null;
     var animTimer = null;
 
     function targetFor(status) {
@@ -506,12 +510,21 @@ function buildMapHtml(d: PublicDelivery): string {
       return null;
     }
     function styleFor(len) {
-      return { color: '#15803D', weight: 4, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: (len >= 3 ? null : '6 8') };
+      return { color: '#15803D', weight: 6, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: (len >= 3 ? null : '10 12') };
     }
     function setRoute(latlngs) {
       if (!latlngs || latlngs.length < 2) return;
       if (routeLine) { routeLine.setLatLngs(latlngs); routeLine.setStyle(styleFor(latlngs.length)); }
       else { routeLine = L.polyline(latlngs, styleFor(latlngs.length)).addTo(map); }
+      // Couche "fourmis" : petits points verts qui defilent vers la cible.
+      if (routeFlow) { routeFlow.setLatLngs(latlngs); }
+      else {
+        routeFlow = L.polyline(latlngs, {
+          color: '#86EFAC', weight: 3.5, opacity: 0.95,
+          lineJoin: 'round', lineCap: 'round', dashArray: '2 16', className: 'route-flow'
+        }).addTo(map);
+      }
+      try { routeFlow.bringToFront(); } catch (e) {}
     }
     function glide(toLat, toLng) {
       if (!driverMarker) {
