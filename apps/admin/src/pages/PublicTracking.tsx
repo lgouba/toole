@@ -431,15 +431,21 @@ function Map({ delivery }: { delivery: PublicDelivery }) {
 }
 
 function buildMapHtml(d: PublicDelivery): string {
+  // Défense en profondeur : ce HTML est injecté dans un iframe srcDoc et ces
+  // coordonnées finissent en code JS inline. On force chaque valeur à être un
+  // nombre fini — une valeur API malformée devient 0 au lieu de pouvoir
+  // s'échapper du script. (Les chaînes utilisateur, nom/adresse, ne passent PAS
+  // par ici : elles restent dans le JSX React, auto-échappé.)
+  const num = (v: number): number => (Number.isFinite(v) ? v : 0);
   const pickup = d.pickupLocation;
   const delivery = d.deliveryLocation;
   const driver = d.driver?.currentLocation;
   const path = d.route?.path ?? null;
   const initRouteJs =
     path && path.length >= 2
-      ? `setRoute([${path.map((p) => `[${p.latitude}, ${p.longitude}]`).join(',')}]);`
+      ? `setRoute([${path.map((p) => `[${num(p.latitude)}, ${num(p.longitude)}]`).join(',')}]);`
       : driver
-        ? `var _t = targetFor(${JSON.stringify(d.status)}); if (_t) setRoute([[${driver.latitude}, ${driver.longitude}], _t]); else setRoute([pickup, delivery]);`
+        ? `var _t = targetFor(${JSON.stringify(d.status)}); if (_t) setRoute([[${num(driver.latitude)}, ${num(driver.longitude)}], _t]); else setRoute([pickup, delivery]);`
         : `setRoute([pickup, delivery]);`;
   return `<!DOCTYPE html>
 <html>
@@ -490,14 +496,14 @@ function buildMapHtml(d: PublicDelivery): string {
       return L.divIcon({ className: '', html: '<div class="pin ' + cls + '"></div>', iconSize: [22,22], iconAnchor: [11,11] });
     }
 
-    var pickup = [${pickup.latitude}, ${pickup.longitude}];
-    var delivery = [${delivery.latitude}, ${delivery.longitude}];
+    var pickup = [${num(pickup.latitude)}, ${num(pickup.longitude)}];
+    var delivery = [${num(delivery.latitude)}, ${num(delivery.longitude)}];
     L.marker(pickup, { icon: dot('pin-pickup') }).addTo(map);
     L.marker(delivery, { icon: dot('pin-delivery') }).addTo(map);
 
     var driverMarker = ${
       driver
-        ? `L.marker([${driver.latitude}, ${driver.longitude}], { icon: riderIcon() }).addTo(map)`
+        ? `L.marker([${num(driver.latitude)}, ${num(driver.longitude)}], { icon: riderIcon() }).addTo(map)`
         : 'null'
     };
     var routeLine = null;
@@ -544,7 +550,7 @@ function buildMapHtml(d: PublicDelivery): string {
 
     ${initRouteJs}
 
-    var initBounds = [pickup, delivery${driver ? `, [${driver.latitude}, ${driver.longitude}]` : ''}];
+    var initBounds = [pickup, delivery${driver ? `, [${num(driver.latitude)}, ${num(driver.longitude)}]` : ''}];
     map.fitBounds(initBounds, { padding: [40, 40], maxZoom: 15 });
 
     window.addEventListener('message', function (ev) {
