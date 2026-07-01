@@ -37,8 +37,15 @@ export async function registerPushToken(userId: string, token: string, platform?
   return saved;
 }
 
-export async function unregisterPushToken(token: string) {
-  await prisma.pushToken.deleteMany({ where: { token } }).catch(() => {});
+/**
+ * Désenregistre un token push. On scope OBLIGATOIREMENT par `userId` : sinon un
+ * utilisateur authentifié pourrait supprimer le token d'un autre (connu/deviné)
+ * et couper ses notifications (DoS ciblé). Un user ne peut retirer que SES tokens.
+ */
+export async function unregisterPushToken(userId: string, token: string) {
+  await prisma.pushToken
+    .deleteMany({ where: { token, userId } })
+    .catch(() => {});
 }
 
 export async function sendPushToUser(

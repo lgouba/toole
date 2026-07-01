@@ -1394,35 +1394,49 @@ export async function rateDelivery(args: {
     throw new HttpError(400, 'INVALID_STATE', 'No counterpart to rate');
   }
 
-  const rating = await prisma.$transaction(async (tx) => {
-    const r = await tx.rating.create({
-      data: {
-        deliveryId: args.deliveryId,
-        raterId: args.raterId,
-        ratedId,
-        score: args.score,
-        comment: args.comment,
-      },
+  try {
+    const rating = await prisma.$transaction(async (tx) => {
+      // La contrainte @@unique([deliveryId, raterId]) garantit une seule note
+      // par (livraison, évaluateur) : impossible de gonfler/plomber la moyenne
+      // du contrepartie en notant plusieurs fois. Le create échoue en P2002 sur
+      // doublon (double-tap), capturé plus bas en 409 propre.
+      const r = await tx.rating.create({
+        data: {
+          deliveryId: args.deliveryId,
+          raterId: args.raterId,
+          ratedId,
+          score: args.score,
+          comment: args.comment,
+        },
+      });
+      // Recompute average
+      const agg = await tx.rating.aggregate({
+        where: { ratedId },
+        _avg: { score: true },
+        _count: { _all: true },
+      });
+      await tx.user.update({
+        where: { id: ratedId },
+        data: {
+          ratingAvg: new Prisma.Decimal(
+            Math.round((agg._avg.score ?? 5) * 10) / 10,
+          ),
+          ratingCount: agg._count._all,
+        },
+      });
+      return r;
     });
-    // Recompute average
-    const agg = await tx.rating.aggregate({
-      where: { ratedId },
-      _avg: { score: true },
-      _count: { _all: true },
-    });
-    await tx.user.update({
-      where: { id: ratedId },
-      data: {
-        ratingAvg: new Prisma.Decimal(
-          Math.round((agg._avg.score ?? 5) * 10) / 10,
-        ),
-        ratingCount: agg._count._all,
-      },
-    });
-    return r;
-  });
 
-  return rating;
+    return rating;
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      throw new HttpError(409, 'ALREADY_RATED', 'Vous avez déjà noté cette livraison.');
+    }
+    throw err;
+  }
 }
 
 export async function estimatePrice(

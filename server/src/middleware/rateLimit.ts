@@ -122,6 +122,30 @@ export const kycUploadLimiter = rateLimit({
 });
 
 /**
+ * Limit des opérations "argent" du portefeuille : envoi d'OTP retrait/topup ET
+ * les demandes elles-mêmes (withdraw / topup / topup cash). Ces routes sont
+ * authentifiées, donc on clé par utilisateur (fallback IP). Objectif double :
+ *   - empêcher un livreur de spammer les OTP (draine le crédit SMS Aqilas) ;
+ *   - couper le matraquage de demandes de retrait/règlement.
+ * Max 15 opérations / 15 min / utilisateur — large pour un usage normal
+ * (quelques essais + réseau BF instable), net contre l'abus.
+ */
+export const walletMoneyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const uid = (req as Request & { user?: { id?: string } }).user?.id;
+    if (uid) return `wallet:${uid}`;
+    return ipKeyGenerator(req.ip ?? 'unknown');
+  },
+  handler: tooManyResponse(
+    "Trop d'opérations sur le portefeuille. Réessayez dans 15 minutes.",
+  ),
+});
+
+/**
  * Limit pour brute-force du login admin (mot de passe).
  * Max 10 tentatives par IP par 15 min.
  */

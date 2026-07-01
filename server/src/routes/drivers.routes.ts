@@ -13,8 +13,10 @@ import {
 
 const router = Router();
 
-// Public
-router.get('/nearby', getNearby);
+// Recherche de livreurs proches (coords arrondies) : réservée aux comptes
+// authentifiés (empêche le scraping anonyme de position/identité des livreurs).
+router.get('/nearby', authRequired, getNearby);
+// Carte d'accueil décorative : coords déjà arrondies (~110 m) + statut seul.
 router.get('/map', getMapDrivers);
 
 // Driver-only (place AVANT la route /:id pour ne pas etre capture)
@@ -24,7 +26,8 @@ router.get('/me/kyc', authRequired, requireRole('driver'), getKyc);
 router.put('/me/kyc', authRequired, requireRole('driver'), updateKyc);
 router.get('/me/stats', authRequired, requireRole('driver'), getDriverStatsCtrl);
 
-// Public (doit rester apres les routes specifiques)
-router.get('/:id', getDriver);
+// Profil livreur (whitelist stricte, cf. getPublicDriverProfile) — authentifié.
+// Doit rester APRÈS les routes spécifiques pour ne pas les capturer.
+router.get('/:id', authRequired, getDriver);
 
 export default router;

@@ -101,7 +101,7 @@ export async function unregisterPushTokenCtrl(
 ) {
   try {
     const { token } = pushTokenSchema.pick({ token: true }).parse(req.body);
-    await unregisterPushToken(token);
+    await unregisterPushToken(req.user!.id, token);
     return success(res, { unregistered: true });
   } catch (err) {
     next(err);

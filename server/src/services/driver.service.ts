@@ -271,8 +271,10 @@ export async function findNearbyDrivers(
         vehicleType: d.vehicleType,
         ratingAvg: Number(d.user.ratingAvg),
         distanceKm: Math.round(distanceKm * 10) / 10,
-        currentLat: d.currentLat,
-        currentLng: d.currentLng,
+        // Coords ARRONDIES (~110 m) : présence approximative, jamais la position
+        // exacte d'un livreur (anti-stalking), même pour un compte authentifié.
+        currentLat: Math.round(d.currentLat * 1000) / 1000,
+        currentLng: Math.round(d.currentLng * 1000) / 1000,
       });
     }
   }
@@ -345,11 +347,48 @@ export async function findNearbyDriversForMap(
   return out.slice(0, 40);
 }
 
+/**
+ * Profil livreur exposé au client (bouton Appeler + carte de suivi).
+ * ⚠️ WHITELIST STRICTE : ne JAMAIS renvoyer l'objet brut. Sont volontairement
+ * EXCLUS : email, dateOfBirth, passwordHash, cnibNumber/cnibPhoto*, license*,
+ * vehiclePlate, walletBalance, verificationNote… (données KYC/PII/financières).
+ */
 export async function getPublicDriverProfile(userId: string) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { driverProfile: true },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      avatarUrl: true,
+      ratingAvg: true,
+      ratingCount: true,
+      driverProfile: {
+        select: {
+          vehicleType: true,
+          currentLat: true,
+          currentLng: true,
+          lastLocationUpdate: true,
+        },
+      },
+    },
   });
+
+  // Coords ARRONDIES (~110 m) : cet endpoint REST générique sert seulement à
+  // placer le marqueur initial. La position EXACTE du livreur qui gère MA course
+  // arrive par le socket (room delivery, autorisée au participant). Sans cet
+  // arrondi, n'importe quel compte authentifié pourrait poller /drivers/:id et
+  // pister précisément un livreur (anti-stalking).
+  if (
+    user?.driverProfile?.currentLat != null &&
+    user.driverProfile.currentLng != null
+  ) {
+    user.driverProfile.currentLat =
+      Math.round(user.driverProfile.currentLat * 1000) / 1000;
+    user.driverProfile.currentLng =
+      Math.round(user.driverProfile.currentLng * 1000) / 1000;
+  }
+  return user;
 }
 
 /**

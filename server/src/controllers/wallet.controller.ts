@@ -1,4 +1,5 @@
 import { NextFunction, Response } from 'express';
+import { randomInt } from 'node:crypto';
 import { z } from 'zod';
 import { AuthedRequest } from '../middleware/auth.js';
 import { success, HttpError } from '../utils/response.js';
@@ -61,7 +62,6 @@ export async function getMyTransactionsCtrl(
 
 // -------- Retrait (gains wallet) --------
 
-const withdrawOtpSchema = z.object({ phone: phoneSchema });
 const withdrawSchema = z.object({
   amount: z.number().int().positive(),
   phone: phoneSchema,
@@ -75,8 +75,11 @@ export async function sendWithdrawOtpCtrl(
   next: NextFunction,
 ) {
   try {
-    const { phone } = withdrawOtpSchema.parse(req.body);
-    await sendAuthOtp(phone); // reutilise la meme infra OTP (Africa's Talking ou dev=1234)
+    // L'OTP est TOUJOURS envoyé au numéro du COMPTE authentifié, jamais à un
+    // numéro fourni dans le body : sinon un attaquant recevrait le code sur son
+    // propre téléphone et la "2FA" ne prouverait rien. Le body.phone du retrait
+    // ne sert que de destination Mobile Money du paiement.
+    await sendAuthOtp(req.user!.phone);
     return success(res, { success: true });
   } catch (err) {
     next(err);
@@ -90,7 +93,9 @@ export async function requestWithdrawCtrl(
 ) {
   try {
     const body = withdrawSchema.parse(req.body);
-    await verifyOtpCode(body.phone, body.otpCode);
+    // On valide l'OTP contre le numéro du COMPTE (celui qui a reçu le code),
+    // pas contre body.phone (destination du paiement, contrôlée par l'appelant).
+    await verifyOtpCode(req.user!.phone, body.otpCode);
     const tx = await walletService.requestWithdrawal({
       userId: req.user!.id,
       amount: body.amount,
@@ -105,7 +110,6 @@ export async function requestWithdrawCtrl(
 
 // -------- Topup (reglement de dette) --------
 
-const topupOtpSchema = z.object({ phone: phoneSchema });
 const topupSchema = z.object({
   amount: z.number().int().positive(),
   phone: phoneSchema,
@@ -119,8 +123,8 @@ export async function sendTopupOtpCtrl(
   next: NextFunction,
 ) {
   try {
-    const { phone } = topupOtpSchema.parse(req.body);
-    await sendAuthOtp(phone);
+    // Idem retrait : OTP envoyé au numéro du COMPTE authentifié uniquement.
+    await sendAuthOtp(req.user!.phone);
     return success(res, { success: true });
   } catch (err) {
     next(err);
@@ -140,7 +144,8 @@ export async function requestTopupCtrl(
 ) {
   try {
     const body = topupSchema.parse(req.body);
-    await verifyOtpCode(body.phone, body.otpCode);
+    // OTP validé contre le numéro du COMPTE, pas body.phone (destination MM).
+    await verifyOtpCode(req.user!.phone, body.otpCode);
 
     // Verifie que le user est un livreur
     const profile = await prisma.driverProfile.findUnique({
@@ -253,8 +258,10 @@ export async function requestCashTopupCtrl(
     // Verifie pas de double-paiement (cf. requestTopupCtrl)
     await assertTopupWithinEffectiveDebt(req.user!.id, body.amount);
 
-    // Code court (4 chiffres) que le livreur presentera a l'admin pour valider
-    const confirmCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Code court (4 chiffres) que le livreur presentera a l'admin pour valider.
+    // randomInt (CSPRNG) plutôt que Math.random : le code sert de preuve, il ne
+    // doit pas être prédictible.
+    const confirmCode = randomInt(1000, 10000).toString();
 
     const tx = await prisma.transaction.create({
       data: {

@@ -129,10 +129,28 @@ export async function consumePromoCode(args: {
     await prisma.$transaction(async (tx) => {
       const promo = await tx.promoCode.findUnique({ where: { code } });
       if (!promo) throw new HttpError(400, 'PROMO_NOT_FOUND', 'Code introuvable');
-      await tx.promoCode.update({
-        where: { id: promo.id },
-        data: { currentUses: { increment: 1 } },
-      });
+      // Incrément ATOMIQUE du quota global : on n'incrémente QUE si le compteur
+      // est encore sous maxUses. Postgres verrouille la ligne et réévalue le
+      // WHERE après le commit concurrent → deux commandes simultanées sur un
+      // code à usage unique ne peuvent pas dépasser le quota (anti-TOCTOU).
+      if (promo.maxUses != null) {
+        const claim = await tx.promoCode.updateMany({
+          where: { id: promo.id, currentUses: { lt: promo.maxUses } },
+          data: { currentUses: { increment: 1 } },
+        });
+        if (claim.count !== 1) {
+          throw new HttpError(
+            400,
+            'PROMO_QUOTA_EXHAUSTED',
+            "Ce code a atteint son quota d'utilisations",
+          );
+        }
+      } else {
+        await tx.promoCode.update({
+          where: { id: promo.id },
+          data: { currentUses: { increment: 1 } },
+        });
+      }
       await tx.promoCodeUsage.create({
         data: {
           promoCodeId: promo.id,

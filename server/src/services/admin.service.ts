@@ -526,12 +526,12 @@ export async function confirmTopup(args: {
   }
 
   const updated = await prisma.$transaction(async (trx) => {
-    await trx.driverProfile.update({
-      where: { userId: tx.userId },
-      data: { walletBalance: { increment: tx.amount } },
-    });
-    return trx.transaction.update({
-      where: { id: tx.id },
+    // Transition de statut ATOMIQUE : sur deux appels concurrents (double-clic
+    // admin / retry réseau), une seule requête a count=1, l'autre count=0. On
+    // ne crédite le wallet QUE si on a effectivement remporté la transition,
+    // sinon on annule → plus de double-crédit.
+    const claim = await trx.transaction.updateMany({
+      where: { id: tx.id, type: 'topup', status: 'pending' },
       data: {
         status: 'completed',
         processedBy: args.adminId,
@@ -539,6 +539,14 @@ export async function confirmTopup(args: {
         note: args.note ?? 'Paiement confirme',
       },
     });
+    if (claim.count !== 1) {
+      throw new HttpError(409, 'ALREADY_PROCESSED', 'Cette transaction a déjà été traitée.');
+    }
+    await trx.driverProfile.update({
+      where: { userId: tx.userId },
+      data: { walletBalance: { increment: tx.amount } },
+    });
+    return trx.transaction.findUnique({ where: { id: tx.id } });
   });
 
   // Push livreur : reversement valide.
@@ -558,8 +566,11 @@ export async function rejectTopup(args: {
   adminId: string;
   note?: string;
 }) {
-  const updated = await prisma.transaction.update({
-    where: { id: args.transactionId },
+  // Garde atomique : ne rejette QU'UN topup encore pending, une seule fois
+  // (avant : update inconditionnel → rejouable, pouvait écraser un topup déjà
+  // validé ou agir sur une transaction d'un autre type).
+  const claim = await prisma.transaction.updateMany({
+    where: { id: args.transactionId, type: 'topup', status: 'pending' },
     data: {
       status: 'failed',
       processedBy: args.adminId,
@@ -567,6 +578,12 @@ export async function rejectTopup(args: {
       note: args.note ?? 'Rejete par admin (paiement non recu)',
     },
   });
+  if (claim.count !== 1) {
+    throw new HttpError(409, 'ALREADY_PROCESSED', 'Transaction déjà traitée ou invalide.');
+  }
+  const updated = (await prisma.transaction.findUnique({
+    where: { id: args.transactionId },
+  }))!;
 
   const { sendPushToUser } = await import('./push.service.js');
   void sendPushToUser(

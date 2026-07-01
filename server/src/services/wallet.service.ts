@@ -211,8 +211,8 @@ export async function processWithdrawal(args: {
   const amount = Math.abs(tx.amount);
 
   if (args.decision === 'complete') {
-    const updated = await prisma.transaction.update({
-      where: { id: tx.id },
+    const claim = await prisma.transaction.updateMany({
+      where: { id: tx.id, type: 'withdrawal', status: 'pending' },
       data: {
         status: 'completed',
         processedBy: args.adminId,
@@ -220,6 +220,10 @@ export async function processWithdrawal(args: {
         note: args.note ?? null,
       },
     });
+    if (claim.count !== 1) {
+      throw new HttpError(409, 'ALREADY_PROCESSED', 'Ce retrait a déjà été traité.');
+    }
+    const updated = (await prisma.transaction.findUnique({ where: { id: tx.id } }))!;
 
     // Push livreur : retrait valide.
     void sendPushToUser(
@@ -232,14 +236,12 @@ export async function processWithdrawal(args: {
     return updated;
   }
 
-  // reject -> rembourser le solde et marquer failed
+  // reject -> rembourser le solde et marquer failed. Transition ATOMIQUE :
+  // on ne rembourse QUE si on remporte la transition pending->failed (count=1),
+  // sinon on annule → plus de double-remboursement sur double-clic/retry.
   const updated = await prisma.$transaction(async (trx) => {
-    await trx.driverProfile.update({
-      where: { userId: tx.userId },
-      data: { walletBalance: { increment: amount } },
-    });
-    return trx.transaction.update({
-      where: { id: tx.id },
+    const claim = await trx.transaction.updateMany({
+      where: { id: tx.id, type: 'withdrawal', status: 'pending' },
       data: {
         status: 'failed',
         processedBy: args.adminId,
@@ -247,6 +249,14 @@ export async function processWithdrawal(args: {
         note: args.note ?? 'Rejete par admin',
       },
     });
+    if (claim.count !== 1) {
+      throw new HttpError(409, 'ALREADY_PROCESSED', 'Ce retrait a déjà été traité.');
+    }
+    await trx.driverProfile.update({
+      where: { userId: tx.userId },
+      data: { walletBalance: { increment: amount } },
+    });
+    return trx.transaction.findUnique({ where: { id: tx.id } });
   });
 
   // Push livreur : retrait refuse.
