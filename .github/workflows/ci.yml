@@ -20,6 +20,11 @@ jobs:
     defaults:
       run:
         working-directory: server
+    # `prisma validate` charge la datasource et exige DATABASE_URL (échoue sinon).
+    # On ne se connecte à aucune base ici : une URL factice syntaxiquement valide
+    # suffit pour valider le schéma et générer le client.
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
     steps:
       - uses: actions/checkout@v4
 

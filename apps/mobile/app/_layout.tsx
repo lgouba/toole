@@ -180,7 +180,10 @@ function RootLayout() {
     ) {
       const role = user.userType;
       const seen = roleTutorialSeen[role];
-      const onTutorial = (segments[1] as string) === 'tutorial';
+      // On caste segments en string[] avant d'indexer : avec les typed routes,
+      // useSegments() renvoie un tuple dont la longueur varie (parfois 1 seul
+      // élément), donc segments[1] déclenche une erreur "tuple length" en CI.
+      const onTutorial = (segments as string[])[1] === 'tutorial';
       if (!seen && !onTutorial) {
         const path =
           role === 'driver' ? '/(driver)/tutorial' : '/(client)/tutorial';
