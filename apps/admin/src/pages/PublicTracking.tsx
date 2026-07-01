@@ -31,7 +31,6 @@ interface PublicDelivery {
   expiresAt: string | null;
   driver: null | {
     fullName: string;
-    phone: string | null;
     avatarUrl: string | null;
     ratingAvg: number;
     vehicleType: string | null;
@@ -268,11 +267,6 @@ function DriverCard({ driver }: { driver: NonNullable<PublicDelivery['driver']> 
           {driver.vehicleType ? ` · ${humanVehicle(driver.vehicleType)}` : ''}
         </div>
       </div>
-      {driver.phone ? (
-        <a href={`tel:${driver.phone}`} style={s.callBtn} aria-label="Appeler le livreur">
-          <Sym name="call" size={20} color="#fff" fill={1} />
-        </a>
-      ) : null}
     </div>
   );
 }
@@ -640,17 +634,6 @@ const s: Record<string, CSSProperties> = {
   },
   driverName: { fontWeight: 700, fontSize: 16, color: C.ink },
   driverMeta: { display: 'flex', alignItems: 'center', gap: 5, color: C.muted, fontSize: 13, marginTop: 3 },
-  callBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    background: C.gDark,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textDecoration: 'none',
-    flex: 'none',
-  },
 
   pillsRow: { display: 'flex', gap: 8, marginTop: 18 },
   pill: {

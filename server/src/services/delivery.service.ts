@@ -482,7 +482,6 @@ export async function getPublicTrackingByToken(token: string) {
       driver: {
         select: {
           fullName: true,
-          phone: true,
           avatarUrl: true,
           ratingAvg: true,
           driverProfile: {
@@ -549,10 +548,8 @@ export async function getPublicTrackingByToken(token: string) {
     driver: delivery.driver
       ? {
           fullName: delivery.driver.fullName,
-          // Numéro appelé depuis le bouton "Appeler" de la page de suivi public.
-          // ⚠️ Expose le vrai numéro du livreur au détenteur du lien (pas de
-          // masquage relais). À retirer si on veut le garder privé.
-          phone: delivery.driver.phone,
+          // Volontairement PAS de téléphone : la page de suivi est publique
+          // (lien partageable). Seul le client, dans son app, a le bouton Appeler.
           avatarUrl: delivery.driver.avatarUrl,
           ratingAvg: delivery.driver.ratingAvg,
           vehicleType: delivery.driver.driverProfile?.vehicleType ?? null,
