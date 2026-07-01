@@ -26,12 +26,17 @@
         "NSCameraUsageDescription": "Toolé utilise l'appareil photo pour prendre des photos des colis (preuve de recuperation et de livraison).",
         "NSPhotoLibraryUsageDescription": "Toolé accède à votre galerie pour ajouter des photos de profil et de colis.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification", "location"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "location"
+        ]
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
       },
-      "associatedDomains": ["applinks:admin-toole.qalitylabs.fr"]
+      "associatedDomains": [
+        "applinks:admin-toole.qalitylabs.fr"
+      ]
     },
     "android": {
       "package": "com.qalitylabs.tolle",
@@ -63,7 +68,10 @@
               "pathPrefix": "/track"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -95,7 +103,8 @@
           "icon": "./assets/images/icon.png",
           "color": "#1D9E75"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

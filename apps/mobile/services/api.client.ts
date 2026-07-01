@@ -1,25 +1,79 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL } from '@/config/api';
 
-const ACCESS_TOKEN_KEY = 'toole:access_token';
-const REFRESH_TOKEN_KEY = 'toole:refresh_token';
+// Les tokens d'auth (JWT access + refresh) sont stockés dans le Keychain (iOS) /
+// Keystore (Android) chiffré via expo-secure-store, plus dans AsyncStorage en
+// clair. ⚠️ SecureStore n'accepte que [A-Za-z0-9._-] comme clé : pas de ':'.
+const ACCESS_TOKEN_KEY = 'toole_access_token';
+const REFRESH_TOKEN_KEY = 'toole_refresh_token';
+
+// Anciennes clés AsyncStorage (versions < 1.1.0). On les migre une seule fois
+// vers SecureStore au premier accès pour ne PAS déconnecter les utilisateurs
+// déjà connectés lors de la mise à jour, puis on les efface.
+const LEGACY_ACCESS_KEY = 'toole:access_token';
+const LEGACY_REFRESH_KEY = 'toole:refresh_token';
+
+// AFTER_FIRST_UNLOCK : le token reste lisible tant que l'appareil a été
+// déverrouillé au moins une fois depuis le boot — indispensable pour que le
+// suivi GPS en arrière-plan du livreur (socket) puisse s'authentifier même
+// écran verrouillé. (WHEN_UNLOCKED, le défaut, casserait le background.)
+const SECURE_OPTS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+async function migrateLegacyTokens(): Promise<void> {
+  try {
+    const [legacyAccess, legacyRefresh] = await Promise.all([
+      AsyncStorage.getItem(LEGACY_ACCESS_KEY),
+      AsyncStorage.getItem(LEGACY_REFRESH_KEY),
+    ]);
+    if (!legacyAccess && !legacyRefresh) return;
+    if (legacyAccess) {
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, legacyAccess, SECURE_OPTS);
+    }
+    if (legacyRefresh) {
+      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh, SECURE_OPTS);
+    }
+    await AsyncStorage.multiRemove([LEGACY_ACCESS_KEY, LEGACY_REFRESH_KEY]);
+    console.log('[tokenStorage] migrated tokens AsyncStorage -> SecureStore');
+  } catch (e) {
+    console.warn('[tokenStorage] legacy token migration failed', e);
+  }
+}
+
+// La migration ne tourne qu'une fois par process ; chaque lecture l'attend pour
+// éviter un faux "déconnecté" au démarrage (avant que la migration ait fini).
+let migrationPromise: Promise<void> | null = null;
+function ensureMigrated(): Promise<void> {
+  if (!migrationPromise) migrationPromise = migrateLegacyTokens();
+  return migrationPromise;
+}
 
 export const tokenStorage = {
   async setTokens(accessToken: string, refreshToken: string) {
-    await AsyncStorage.multiSet([
-      [ACCESS_TOKEN_KEY, accessToken],
-      [REFRESH_TOKEN_KEY, refreshToken],
+    await Promise.all([
+      SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken, SECURE_OPTS),
+      SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken, SECURE_OPTS),
     ]);
   },
   async getAccessToken(): Promise<string | null> {
-    return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+    await ensureMigrated();
+    return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
   },
   async getRefreshToken(): Promise<string | null> {
-    return AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    await ensureMigrated();
+    return SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
   },
   async clear() {
-    await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+    await Promise.all([
+      SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+      // Purge aussi les anciennes clés en clair (au cas où la migration n'a
+      // jamais tourné avant un logout).
+      AsyncStorage.multiRemove([LEGACY_ACCESS_KEY, LEGACY_REFRESH_KEY]),
+    ]);
   },
 };
 
