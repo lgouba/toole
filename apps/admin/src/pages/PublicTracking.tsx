@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_BASE_URL } from '../config';
+import { RIDER_MARKER_URI } from '../riderMarker';
 
 type Status =
   | 'scheduled'
@@ -30,13 +31,13 @@ interface PublicDelivery {
   expiresAt: string | null;
   driver: null | {
     fullName: string;
+    phone: string | null;
     avatarUrl: string | null;
     ratingAvg: number;
     vehicleType: string | null;
     currentLocation: { latitude: number; longitude: number } | null;
     lastLocationUpdate: string | null;
   };
-  // Itinéraire routier réel (suit les rues), phase-aware. null = ligne directe.
   route?: {
     path: { latitude: number; longitude: number }[] | null;
     phase: 'to_pickup' | 'to_delivery' | null;
@@ -45,17 +46,68 @@ interface PublicDelivery {
 
 const POLL_MS = 5_000;
 
-const STATUS_META: Record<Status, { label: string; color: string; emoji: string }> = {
-  scheduled: { label: 'Programmée', color: '#6b7280', emoji: '🕒' },
-  pending: { label: 'Recherche d\'un livreur', color: '#f59e0b', emoji: '🔍' },
-  accepted: { label: 'Livreur en route', color: '#3b82f6', emoji: '🛵' },
-  picking_up: { label: 'Livreur sur place', color: '#3b82f6', emoji: '📍' },
-  picked_up: { label: 'Colis récupéré', color: '#10b981', emoji: '📦' },
-  delivering: { label: 'En route vers vous', color: '#10b981', emoji: '🚚' },
-  delivered: { label: 'Livré', color: '#16a34a', emoji: '✅' },
-  cancelled: { label: 'Annulé', color: '#ef4444', emoji: '❌' },
-  expired: { label: 'Expiré', color: '#ef4444', emoji: '⏰' },
+// --- Design tokens B3 ---
+const C = {
+  bg: '#FBF8F0',
+  surface: '#FFFFFF',
+  ink: '#16140F',
+  muted: '#938E80',
+  hair: '#EAE4D8',
+  gDark: '#15803D',
+  gMid: '#16A34A',
+  gBright: '#22C55E',
+  tender: '#E7F6EC',
+  red: '#E5484D',
 };
+const FONT_UI = 'Archivo, system-ui, sans-serif';
+const FONT_MONO = "'Space Mono', ui-monospace, monospace";
+const FONT_NUM = "'Space Grotesk', Archivo, sans-serif";
+
+const STATUS_META: Record<Status, { label: string; done?: boolean; final?: boolean }> = {
+  scheduled: { label: 'Course programmée' },
+  pending: { label: 'Recherche d’un livreur' },
+  accepted: { label: 'Livreur en route' },
+  picking_up: { label: 'Livreur sur place' },
+  picked_up: { label: 'Colis récupéré' },
+  delivering: { label: 'En route vers vous' },
+  delivered: { label: 'Livré', done: true, final: true },
+  cancelled: { label: 'Course annulée', final: true },
+  expired: { label: 'Lien expiré', final: true },
+};
+
+/** Icône Material Symbols (police chargée dans index.html), via ligature. */
+function Sym({
+  name,
+  size = 20,
+  color = 'currentColor',
+  fill = 0,
+  style,
+}: {
+  name: string;
+  size?: number;
+  color?: string;
+  fill?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      style={{
+        fontFamily: "'Material Symbols Rounded'",
+        fontWeight: 'normal',
+        fontSize: size,
+        lineHeight: 1,
+        color,
+        display: 'inline-block',
+        verticalAlign: 'middle',
+        fontVariationSettings: `'FILL' ${fill}`,
+        WebkitFontFeatureSettings: "'liga'",
+        ...style,
+      }}
+    >
+      {name}
+    </span>
+  );
+}
 
 export default function PublicTracking() {
   const { token } = useParams<{ token: string }>();
@@ -87,7 +139,7 @@ export default function PublicTracking() {
           setError(null);
           setLoading(false);
         }
-      } catch (e: any) {
+      } catch {
         if (!cancelled) {
           setError('NETWORK');
           setLoading(false);
@@ -104,86 +156,245 @@ export default function PublicTracking() {
 
   if (loading) {
     return (
-      <div style={s.fullScreen}>
-        <div style={s.spinner} />
-        <div style={s.muted}>Chargement du suivi...</div>
-      </div>
+      <Shell>
+        <div style={{ ...s.center, minHeight: '60vh' }}>
+          <div style={s.spinner} />
+          <div style={{ ...s.muted, marginTop: 12 }}>Chargement du suivi…</div>
+        </div>
+      </Shell>
     );
   }
 
   if (error === 'NOT_FOUND') {
     return (
-      <div style={s.fullScreen}>
-        <div style={s.errorBox}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-          <div style={s.errorTitle}>Suivi introuvable</div>
-          <div style={s.muted}>Ce lien de suivi n'existe pas ou a expiré.</div>
-        </div>
-      </div>
+      <Shell>
+        <ErrorBox
+          icon="link_off"
+          title="Suivi introuvable"
+          message="Ce lien de suivi n'existe pas ou a expiré."
+        />
+      </Shell>
     );
   }
-
   if (error) {
     return (
-      <div style={s.fullScreen}>
-        <div style={s.errorBox}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-          <div style={s.errorTitle}>Connexion impossible</div>
-          <div style={s.muted}>Vérifiez votre connexion et réessayez.</div>
-        </div>
-      </div>
+      <Shell>
+        <ErrorBox
+          icon="wifi_off"
+          title="Connexion impossible"
+          message="Vérifiez votre connexion et réessayez."
+        />
+      </Shell>
     );
   }
-
   if (!data) return null;
 
   const meta = STATUS_META[data.status];
+  const positionStale =
+    !!data.driver &&
+    !data.driver.currentLocation &&
+    !['delivered', 'cancelled', 'expired'].includes(data.status);
 
   return (
-    <div style={s.page}>
+    <Shell>
       <Header />
-
-      <div style={s.statusBanner(meta.color)}>
-        <span style={{ fontSize: 28 }}>{meta.emoji}</span>
-        <div>
-          <div style={s.statusLabel}>{meta.label}</div>
-          <div style={s.refText}>Réf. {data.reference}</div>
-        </div>
-      </div>
-
       <Map delivery={data} />
 
-      {data.driver ? <DriverCard driver={data.driver} /> : null}
+      <div style={s.sheet}>
+        {/* Badge statut */}
+        <div style={s.badgeWrap}>
+          <div style={s.badge}>
+            {!meta.final && <span style={s.badgeDot} className="pulse-dot" />}
+            {meta.final && (
+              <Sym name={meta.done ? 'check_circle' : 'info'} size={16} color={C.gDark} fill={1} />
+            )}
+            <span style={s.badgeLabel}>{meta.label}</span>
+          </div>
+          <div style={s.ref}>Réf. {data.reference}</div>
+        </div>
 
-      <Timeline data={data} />
+        {positionStale && (
+          <div style={s.staleBanner}>
+            <Sym name="my_location" size={15} color={C.muted} />
+            <span>Position en cours d'actualisation…</span>
+          </div>
+        )}
 
-      <Addresses data={data} />
+        {data.driver && <DriverCard driver={data.driver} />}
+
+        <ProgressPills status={data.status} />
+
+        <RouteRail data={data} />
+      </div>
 
       <Footer />
-    </div>
+    </Shell>
   );
 }
 
-// ----------------------------------------
-// Sous-composants
-// ----------------------------------------
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={s.page}>
+      <TrackStyles />
+      {children}
+    </div>
+  );
+}
 
 function Header() {
   return (
     <div style={s.header}>
+      <div style={s.overtitle}>SUIVI DE LIVRAISON</div>
       <div style={s.logo}>
-        <span style={{ color: '#1d9e75' }}>T</span>oolé
+        <span style={{ color: C.gDark }}>T</span>oolé
       </div>
-      <div style={s.headerSub}>Suivi de livraison</div>
     </div>
   );
 }
 
+function DriverCard({ driver }: { driver: NonNullable<PublicDelivery['driver']> }) {
+  return (
+    <div style={s.driverCard}>
+      <div style={s.driverAvatar}>
+        <Sym name="person" size={26} color={C.gDark} fill={1} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={s.driverName}>{driver.fullName}</div>
+        <div style={s.driverMeta}>
+          <Sym name="star" size={14} color="#F5A524" fill={1} />
+          <span style={{ fontFamily: FONT_NUM, fontWeight: 600 }}>
+            {Number(driver.ratingAvg).toFixed(1)}
+          </span>
+          {driver.vehicleType ? ` · ${humanVehicle(driver.vehicleType)}` : ''}
+        </div>
+      </div>
+      {driver.phone ? (
+        <a href={`tel:${driver.phone}`} style={s.callBtn} aria-label="Appeler le livreur">
+          <Sym name="call" size={20} color="#fff" fill={1} />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function humanVehicle(v: string) {
+  if (v === 'moto') return 'Moto';
+  if (v === 'velo') return 'Vélo';
+  if (v === 'voiture') return 'Voiture';
+  if (v === 'tricycle') return 'Tricycle';
+  return v;
+}
+
+function ProgressPills({ status }: { status: Status }) {
+  const steps = [
+    { label: 'En route' },
+    { label: 'Récupéré' },
+    { label: 'Livré' },
+  ];
+  const rank: Record<Status, number> = {
+    scheduled: 0,
+    pending: 0,
+    accepted: 1,
+    picking_up: 1,
+    picked_up: 2,
+    delivering: 2,
+    delivered: 3,
+    cancelled: 0,
+    expired: 0,
+  };
+  const current = rank[status] ?? 0;
+  return (
+    <div style={s.pillsRow}>
+      {steps.map((step, i) => {
+        const idx = i + 1;
+        const done = current > idx || (current === 3 && idx === 3);
+        const active = current === idx;
+        return (
+          <div
+            key={step.label}
+            style={{
+              ...s.pill,
+              ...(done ? s.pillDone : active ? s.pillActive : s.pillIdle),
+            }}
+          >
+            {done && <Sym name="check" size={14} color="#fff" fill={1} />}
+            <span>{step.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RouteRail({ data }: { data: PublicDelivery }) {
+  return (
+    <div style={s.rail}>
+      <div style={s.railRow}>
+        <div style={{ ...s.railDot, background: C.gBright }} />
+        <div>
+          <div style={s.railLabel}>RÉCUPÉRATION</div>
+          <div style={s.railAddr}>{data.pickupAddress}</div>
+        </div>
+      </div>
+      <div style={s.railLine} />
+      <div style={s.railRow}>
+        <div style={{ ...s.railDot, background: C.red }} />
+        <div>
+          <div style={s.railLabel}>LIVRAISON</div>
+          <div style={s.railAddr}>{data.deliveryAddress}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorBox({ icon, title, message }: { icon: string; title: string; message: string }) {
+  return (
+    <>
+      <Header />
+      <div style={{ ...s.center, minHeight: '55vh', padding: 24 }}>
+        <div style={s.errorIcon}>
+          <Sym name={icon} size={34} color={C.gDark} />
+        </div>
+        <div style={s.errorTitle}>{title}</div>
+        <div style={{ ...s.muted, textAlign: 'center', marginTop: 6 }}>{message}</div>
+      </div>
+      <Footer />
+    </>
+  );
+}
+
+function Footer() {
+  return (
+    <div style={s.footer}>
+      Fond de carte © OpenStreetMap · <span style={{ fontWeight: 700 }}>Toolé</span>
+    </div>
+  );
+}
+
+/** Styles globaux (pulse badge/halo + reduced-motion) injectés une fois. */
+function TrackStyles() {
+  return (
+    <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes tk-pulse { 0%{transform:scale(.85);opacity:.75} 100%{transform:scale(2.2);opacity:0} }
+      .pulse-dot { position: relative; }
+      .pulse-dot::after {
+        content:''; position:absolute; inset:0; border-radius:50%;
+        background:${C.gBright}; animation: tk-pulse 1.7s ease-out infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .pulse-dot::after { animation: none; }
+      }
+    `}</style>
+  );
+}
+
+// ----------------------------------------
+// Carte Leaflet (iframe srcDoc + postMessage)
+// ----------------------------------------
+
 function Map({ delivery }: { delivery: PublicDelivery }) {
-  // Carte Leaflet via iframe srcDoc (pas besoin d'installer leaflet sur l'admin).
-  // IMPORTANT : le HTML est construit UNE seule fois (au 1er rendu). Les mises à
-  // jour (position du livreur, itinéraire) passent par postMessage → le marqueur
-  // GLISSE au lieu de recharger toute la carte (plus de clignotement).
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const readyRef = useRef(false);
   const [html] = useState(() => buildMapHtml(delivery));
@@ -204,7 +415,6 @@ function Map({ delivery }: { delivery: PublicDelivery }) {
     );
   };
 
-  // À chaque nouveau poll (delivery change), on pousse la MAJ dans l'iframe.
   useEffect(() => {
     if (readyRef.current) post();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,157 +429,12 @@ function Map({ delivery }: { delivery: PublicDelivery }) {
           readyRef.current = true;
           post();
         }}
-        style={{ width: '100%', height: '100%', border: 0 }}
+        style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
         title="Carte de suivi"
       />
     </div>
   );
 }
-
-function DriverCard({ driver }: { driver: NonNullable<PublicDelivery['driver']> }) {
-  const initial = driver.fullName.charAt(0).toUpperCase();
-  return (
-    <div style={s.driverCard}>
-      <div style={s.driverAvatar}>
-        {driver.avatarUrl ? (
-          <img
-            src={driver.avatarUrl}
-            alt={driver.fullName}
-            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-          />
-        ) : (
-          <span style={s.driverInitial}>{initial}</span>
-        )}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={s.driverName}>{driver.fullName}</div>
-        <div style={s.driverMeta}>
-          ⭐ {Number(driver.ratingAvg).toFixed(1)}
-          {driver.vehicleType ? ` · ${humanVehicle(driver.vehicleType)}` : ''}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function humanVehicle(v: string) {
-  if (v === 'moto') return 'Moto';
-  if (v === 'velo') return 'Vélo';
-  if (v === 'voiture') return 'Voiture';
-  if (v === 'tricycle') return 'Tricycle';
-  return v;
-}
-
-function Timeline({ data }: { data: PublicDelivery }) {
-  const steps = [
-    { key: 'accepted', label: 'Livreur en route', time: data.acceptedAt },
-    { key: 'picked_up', label: 'Colis récupéré', time: data.pickedUpAt },
-    { key: 'delivered', label: 'Livré', time: data.deliveredAt },
-  ];
-  const rank: Record<Status, number> = {
-    scheduled: -1,
-    pending: 0,
-    accepted: 1,
-    picking_up: 1,
-    picked_up: 2,
-    delivering: 2,
-    delivered: 3,
-    cancelled: -1,
-    expired: -1,
-  };
-  const current = rank[data.status] ?? 0;
-
-  return (
-    <div style={s.section}>
-      <div style={s.sectionTitle}>Progression</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {steps.map((step, i) => {
-          const passed = current >= i + 1;
-          return (
-            <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  background: passed ? '#10b981' : '#e5e7eb',
-                  color: passed ? '#fff' : '#9ca3af',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                {passed ? '✓' : i + 1}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: passed ? '#111' : '#9ca3af' }}>
-                  {step.label}
-                </div>
-                {step.time ? (
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>
-                    {new Date(step.time).toLocaleString('fr-FR', {
-                      dateStyle: 'short',
-                      timeStyle: 'short',
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function Addresses({ data }: { data: PublicDelivery }) {
-  return (
-    <div style={s.section}>
-      <div style={s.sectionTitle}>Trajet</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Address dotColor="#1d9e75" label="Récupération" address={data.pickupAddress} />
-        <Address dotColor="#d85a30" label="Livraison" address={data.deliveryAddress} />
-      </div>
-    </div>
-  );
-}
-
-function Address({ dotColor, label, address }: { dotColor: string; label: string; address: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-      <div
-        style={{
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          background: dotColor,
-          marginTop: 6,
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          {label}
-        </div>
-        <div style={{ fontSize: 14, color: '#111', marginTop: 2 }}>{address}</div>
-      </div>
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <div style={{ textAlign: 'center', padding: 16, fontSize: 12, color: '#9ca3af' }}>
-      Toolé · Suivi sécurisé
-    </div>
-  );
-}
-
-// ----------------------------------------
-// Carte Leaflet
-// ----------------------------------------
 
 function buildMapHtml(d: PublicDelivery): string {
   const pickup = d.pickupLocation;
@@ -390,56 +455,73 @@ function buildMapHtml(d: PublicDelivery): string {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
-    body { background: #f8f9fa; }
-    .pickup-marker, .delivery-marker, .driver-marker {
-      width: 28px; height: 28px; border-radius: 14px;
-      border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      display: flex; align-items: center; justify-content: center; font-size: 14px;
-    }
-    .pickup-marker { background: #1d9e75; color: #fff; }
-    .delivery-marker { background: #d85a30; color: #fff; }
-    .driver-marker { background: #fff; color: #1d9e75; font-size: 16px; }
+    body { background: #eef2f4; }
+    .pin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #fff;
+           box-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+    .pin-pickup { background: #22C55E; }
+    .pin-delivery { background: #E5484D; }
+    .rider { position: relative; width: 56px; height: 56px; display:flex; align-items:center; justify-content:center; }
+    .rider img { width: 52px; height: 52px; display:block;
+                 filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)) drop-shadow(0 0 2px rgba(255,255,255,.85)); }
+    .rider .halo { position: absolute; width: 40px; height: 40px; border-radius: 50%;
+                   background: #16A34A; opacity: .18; animation: radar 2s ease-out infinite; }
+    @keyframes radar { 0%{transform:scale(.7);opacity:.4} 100%{transform:scale(1.9);opacity:0} }
+    @media (prefers-reduced-motion: reduce) { .rider .halo { animation: none; } }
+    .leaflet-control-attribution { font-size: 10px; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map', { zoomControl: true, attributionControl: false });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    var map = L.map('map', { zoomControl: true, attributionControl: true });
+    map.zoomControl.setPosition('topleft');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    var RIDER = ${JSON.stringify(RIDER_MARKER_URI)};
+    function riderIcon() {
+      return L.divIcon({
+        className: 'rider-marker',
+        html: '<div class="rider"><div class="halo"></div><img src="' + RIDER + '" alt="livreur"/></div>',
+        iconSize: [56, 56], iconAnchor: [28, 28],
+      });
+    }
+    function dot(cls) {
+      return L.divIcon({ className: '', html: '<div class="pin ' + cls + '"></div>', iconSize: [22,22], iconAnchor: [11,11] });
+    }
 
     var pickup = [${pickup.latitude}, ${pickup.longitude}];
     var delivery = [${delivery.latitude}, ${delivery.longitude}];
-    L.marker(pickup, { icon: L.divIcon({ className: 'pickup-marker', html: '🟢' }) }).addTo(map);
-    L.marker(delivery, { icon: L.divIcon({ className: 'delivery-marker', html: '🔴' }) }).addTo(map);
+    L.marker(pickup, { icon: dot('pin-pickup') }).addTo(map);
+    L.marker(delivery, { icon: dot('pin-delivery') }).addTo(map);
 
     var driverMarker = ${
       driver
-        ? `L.marker([${driver.latitude}, ${driver.longitude}], { icon: L.divIcon({ className: 'driver-marker', html: '🛵' }) }).addTo(map)`
+        ? `L.marker([${driver.latitude}, ${driver.longitude}], { icon: riderIcon() }).addTo(map)`
         : 'null'
     };
     var routeLine = null;
     var animTimer = null;
 
-    // Cible de la phase courante (pour le fallback ligne directe si pas d'OSRM).
     function targetFor(status) {
       if (status === 'accepted' || status === 'picking_up') return pickup;
       if (status === 'picked_up' || status === 'delivering') return delivery;
       return null;
     }
     function styleFor(len) {
-      // Trace plein = vrai itineraire routier ; pointille = ligne directe.
-      return { color: '#1d9e75', weight: 4, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: (len >= 3 ? null : '6 6') };
+      return { color: '#15803D', weight: 4, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: (len >= 3 ? null : '6 8') };
     }
     function setRoute(latlngs) {
       if (!latlngs || latlngs.length < 2) return;
       if (routeLine) { routeLine.setLatLngs(latlngs); routeLine.setStyle(styleFor(latlngs.length)); }
       else { routeLine = L.polyline(latlngs, styleFor(latlngs.length)).addTo(map); }
     }
-    // Glisse le marqueur livreur vers sa nouvelle position (~4s, fluide).
     function glide(toLat, toLng) {
       if (!driverMarker) {
-        driverMarker = L.marker([toLat, toLng], { icon: L.divIcon({ className: 'driver-marker', html: '🛵' }) }).addTo(map);
+        driverMarker = L.marker([toLat, toLng], { icon: riderIcon() }).addTo(map);
         return;
       }
       var from = driverMarker.getLatLng();
@@ -458,8 +540,6 @@ function buildMapHtml(d: PublicDelivery): string {
     var initBounds = [pickup, delivery${driver ? `, [${driver.latitude}, ${driver.longitude}]` : ''}];
     map.fitBounds(initBounds, { padding: [40, 40], maxZoom: 15 });
 
-    // Mises a jour live poussees par la page (postMessage) : deplacement fluide
-    // + itineraire routier phase-aware (livreur -> recup puis livreur -> livraison).
     window.addEventListener('message', function (ev) {
       var msg = ev.data || {};
       if (!msg || msg.type !== 'tracking') return;
@@ -477,131 +557,149 @@ function buildMapHtml(d: PublicDelivery): string {
 }
 
 // ----------------------------------------
-// Styles inline (page autonome, pas de CSS partage)
+// Styles
 // ----------------------------------------
 
-const s = {
+const s: Record<string, CSSProperties> = {
   page: {
+    minHeight: '100vh',
+    background: C.bg,
+    fontFamily: FONT_UI,
+    color: C.ink,
     maxWidth: 480,
     margin: '0 auto',
-    minHeight: '100vh',
-    background: '#fff',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-    color: '#111',
-  } as React.CSSProperties,
+    position: 'relative',
+  },
+  center: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
+  muted: { color: C.muted, fontSize: 14 },
+
   header: {
-    padding: '14px 16px',
-    borderBottom: '1px solid #e5e7eb',
-    background: '#fff',
-    display: 'flex',
-    flexDirection: 'column' as const,
+    background: C.surface,
+    textAlign: 'center',
+    padding: '16px 16px 14px',
+    borderBottom: `1px solid ${C.hair}`,
+  },
+  overtitle: { fontSize: 10.5, letterSpacing: 2.5, fontWeight: 700, color: C.muted },
+  logo: { fontSize: 24, fontWeight: 800, marginTop: 4, letterSpacing: -0.5 },
+
+  mapWrap: { height: 250, width: '100%', background: '#eef2f4', overflow: 'hidden' },
+
+  sheet: {
+    position: 'relative',
+    marginTop: -22,
+    background: C.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: '20px 18px 24px',
+    boxShadow: '0 -8px 24px rgba(0,0,0,0.06)',
+  },
+
+  badgeWrap: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+  badge: {
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: 4,
-  } as React.CSSProperties,
-  logo: {
-    fontSize: 22,
-    fontWeight: 800,
-    letterSpacing: -0.5,
-  } as React.CSSProperties,
-  headerSub: {
-    fontSize: 11,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: 600,
-  } as React.CSSProperties,
-  statusBanner: (color: string): React.CSSProperties => ({
+    gap: 8,
+    background: C.surface,
+    border: `1px solid ${C.hair}`,
+    borderRadius: 999,
+    padding: '8px 16px',
+  },
+  badgeDot: { width: 9, height: 9, borderRadius: '50%', background: C.gBright, display: 'inline-block' },
+  badgeLabel: { fontWeight: 700, fontSize: 14.5, color: C.ink },
+  ref: { fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.3 },
+
+  staleBanner: {
     display: 'flex',
     alignItems: 'center',
-    gap: 14,
-    padding: '14px 16px',
-    background: color + '14',
-    borderBottom: `3px solid ${color}`,
-  }),
-  statusLabel: {
-    fontSize: 17,
-    fontWeight: 700,
-  } as React.CSSProperties,
-  refText: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  } as React.CSSProperties,
-  mapWrap: {
-    height: 280,
-    width: '100%',
-    background: '#f3f4f6',
-  } as React.CSSProperties,
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    color: C.muted,
+    fontSize: 12.5,
+  },
+
   driverCard: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderBottom: '1px solid #e5e7eb',
-  } as React.CSSProperties,
+    gap: 13,
+    background: C.surface,
+    border: `1px solid ${C.hair}`,
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 18,
+  },
   driverAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    background: '#e1f5ee',
+    borderRadius: 14,
+    background: C.tender,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-  } as React.CSSProperties,
-  driverInitial: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#1d9e75',
-  } as React.CSSProperties,
-  driverName: {
-    fontSize: 15,
-    fontWeight: 700,
-  } as React.CSSProperties,
-  driverMeta: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2,
-  } as React.CSSProperties,
-  section: {
-    padding: 16,
-    borderBottom: '1px solid #e5e7eb',
-  } as React.CSSProperties,
-  sectionTitle: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  } as React.CSSProperties,
-  fullScreen: {
-    minHeight: '100vh',
+    flex: 'none',
+  },
+  driverName: { fontWeight: 700, fontSize: 16, color: C.ink },
+  driverMeta: { display: 'flex', alignItems: 'center', gap: 5, color: C.muted, fontSize: 13, marginTop: 3 },
+  callBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    background: C.gDark,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'column' as const,
-    gap: 12,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-    color: '#111',
-    padding: 20,
-  } as React.CSSProperties,
+    textDecoration: 'none',
+    flex: 'none',
+  },
+
+  pillsRow: { display: 'flex', gap: 8, marginTop: 18 },
+  pill: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderRadius: 12,
+    padding: '10px 6px',
+    fontSize: 12.5,
+    fontWeight: 700,
+  },
+  pillDone: { background: C.gDark, color: '#fff' },
+  pillActive: { background: C.tender, color: C.gDark, border: `1.5px solid ${C.gDark}` },
+  pillIdle: { background: C.surface, color: C.muted, border: `1px solid ${C.hair}` },
+
+  rail: {
+    marginTop: 20,
+    background: C.surface,
+    border: `1px solid ${C.hair}`,
+    borderRadius: 18,
+    padding: '16px 16px 16px 14px',
+  },
+  railRow: { display: 'flex', alignItems: 'flex-start', gap: 12 },
+  railDot: { width: 14, height: 14, borderRadius: '50%', border: '3px solid #fff', boxShadow: '0 0 0 1.5px ' + C.hair, marginTop: 2, flex: 'none' },
+  railLine: { width: 2, height: 26, borderLeft: `2px dashed ${C.hair}`, marginLeft: 6 },
+  railLabel: { fontSize: 10.5, letterSpacing: 1, fontWeight: 700, color: C.muted },
+  railAddr: { fontSize: 14, color: C.ink, marginTop: 2, lineHeight: 1.35 },
+
+  footer: { textAlign: 'center', padding: '18px 16px 28px', color: C.muted, fontSize: 11.5 },
+
   spinner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    border: '3px solid #e5e7eb',
-    borderTopColor: '#1d9e75',
+    width: 34,
+    height: 34,
+    borderRadius: '50%',
+    border: `3px solid ${C.hair}`,
+    borderTopColor: C.gDark,
     animation: 'spin 0.8s linear infinite',
-  } as React.CSSProperties,
-  muted: { color: '#6b7280', fontSize: 14 } as React.CSSProperties,
-  errorBox: {
-    textAlign: 'center' as const,
-    maxWidth: 360,
-  } as React.CSSProperties,
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    marginBottom: 8,
-  } as React.CSSProperties,
+  },
+  errorIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    background: C.tender,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  errorTitle: { fontWeight: 800, fontSize: 18, color: C.ink },
 };
