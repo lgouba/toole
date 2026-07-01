@@ -4,10 +4,7 @@ import { Alert } from 'react-native';
 import { Delivery, LatLng } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
 import * as driverService from '@/services/driver.service';
-import { getSocket } from '@/services/socket.client';
-
-const LOCATION_INTERVAL_MS = 10_000; // 10s
-let locationInterval: ReturnType<typeof setInterval> | null = null;
+import { BG_LOCATION_TASK } from '@/services/locationTask';
 
 interface DriverState {
   isOnline: boolean;
@@ -42,72 +39,53 @@ interface DriverState {
   incrementTodayStats: (commission: number) => void;
 }
 
-async function pushLocation(): Promise<LatLng | null> {
-  // ⚠️ Acquisition GPS robuste. AVANT : getCurrentPositionAsync(BestForNavigation)
-  // sans timeout → sur device reel ca peut HANG ou rejeter en attendant une
-  // precision parfaite → le catch avalait l'erreur → AUCUN push → le marker
-  // se figeait. Maintenant :
-  //   1) getCurrentPositionAsync(Balanced) : fix rapide ~50m, large suffisant
-  //      pour afficher un marker qui bouge sur une carte de ville.
-  //   2) fallback getLastKnownPositionAsync si le fix echoue/tarde.
-  let loc: LatLng | null = null;
+/**
+ * Démarre le suivi GPS en ARRIÈRE-PLAN (expo-location + TaskManager).
+ * Contrairement à l'ancien setInterval (foreground only, gelé écran éteint),
+ * `startLocationUpdatesAsync` continue de livrer des points même app fermée /
+ * téléphone verrouillé → suivi temps réel côté client. La tâche
+ * (services/locationTask.ts) pousse chaque point au serveur en HTTP.
+ */
+async function startLocationTracking() {
+  // Permission "Toujours" (arrière-plan). Le foreground est déjà accordé dans
+  // toggleOnline ; si l'utilisateur refuse le "Toujours", le suivi reste actif
+  // tant que l'app est ouverte (dégradé gracieux, pas de crash).
   try {
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+    await Location.requestBackgroundPermissionsAsync();
+  } catch (err) {
+    console.warn('[driver] requestBackgroundPermissions failed', err);
+  }
+
+  try {
+    const already = await Location.hasStartedLocationUpdatesAsync(BG_LOCATION_TASK).catch(
+      () => false,
+    );
+    if (already) return;
+    await Location.startLocationUpdatesAsync(BG_LOCATION_TASK, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 8_000, // ~8s
+      distanceInterval: 15, // ou dès 15 m parcourus (le premier atteint gagne)
+      pausesUpdatesAutomatically: false,
+      showsBackgroundLocationIndicator: false,
+      foregroundService: {
+        notificationTitle: 'Toolé — course en cours',
+        notificationBody: 'Votre position est partagée avec le client.',
+        notificationColor: '#15803D',
+      },
     });
-    loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
   } catch (err) {
-    console.warn('[driver] getCurrentPosition(Balanced) failed, fallback', err);
-    try {
-      const last = await Location.getLastKnownPositionAsync();
-      if (last) {
-        loc = { latitude: last.coords.latitude, longitude: last.coords.longitude };
-      }
-    } catch (err2) {
-      console.warn('[driver] getLastKnownPosition failed too', err2);
-    }
+    console.warn('[driver] startLocationUpdatesAsync failed', err);
   }
-
-  if (!loc) {
-    console.warn('[driver] pushLocation: no position available, skip');
-    return null;
-  }
-
-  // Envoi HTTP (met a jour currentLat/currentLng + forward au client par le
-  // serveur). On NE catch PAS le throw silencieusement sans log.
-  try {
-    await driverService.updateLocation(loc);
-  } catch (err) {
-    console.warn('[driver] updateLocation HTTP failed', err);
-    // On retourne quand meme loc pour mettre a jour la carte locale du livreur.
-    return loc;
-  }
-
-  // Emit via socket (redondant avec HTTP, mais double canal pour fiabilite)
-  const socket = getSocket();
-  if (socket?.connected) {
-    socket.emit('driver:update_location', loc);
-  }
-  return loc;
 }
 
-function startLocationTracking(setLoc: (loc: LatLng) => void) {
-  if (locationInterval) clearInterval(locationInterval);
-  // Push immediatement puis toutes les 10s
-  pushLocation().then((loc) => {
-    if (loc) setLoc(loc);
-  });
-  locationInterval = setInterval(() => {
-    pushLocation().then((loc) => {
-      if (loc) setLoc(loc);
-    });
-  }, LOCATION_INTERVAL_MS);
-}
-
-function stopLocationTracking() {
-  if (locationInterval) {
-    clearInterval(locationInterval);
-    locationInterval = null;
+async function stopLocationTracking() {
+  try {
+    const started = await Location.hasStartedLocationUpdatesAsync(BG_LOCATION_TASK).catch(
+      () => false,
+    );
+    if (started) await Location.stopLocationUpdatesAsync(BG_LOCATION_TASK);
+  } catch (err) {
+    console.warn('[driver] stopLocationUpdatesAsync failed', err);
   }
 }
 
@@ -192,15 +170,15 @@ export const useDriverStore = create<DriverState>((set, get) => ({
           ...(initialLoc ? { currentLocation: initialLoc } : {}),
         });
 
-        // Lance le heartbeat regulier en haute precision (push position
-        // toutes les 10s). Affinera la position fournie en palier 1/2.
-        startLocationTracking((loc) => set({ currentLocation: loc }));
+        // Lance le suivi GPS en arrière-plan (continue écran éteint / app
+        // fermée). La tâche pousse la position et met à jour currentLocation.
+        void startLocationTracking();
       } catch {
         Alert.alert('Erreur', 'Impossible de passer en ligne. Réessayez.');
       }
     } else {
-      // Passer HORS LIGNE: stopper le tracking
-      stopLocationTracking();
+      // Passer HORS LIGNE: stopper le suivi background
+      void stopLocationTracking();
       try {
         await driverService.setOnlineStatus(false);
       } catch {

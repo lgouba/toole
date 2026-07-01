@@ -34,6 +34,9 @@ import { setAuthExpiredHandler } from '@/services/api.client';
 import { useAutoUpdate } from '@/hooks/useAutoUpdate';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/theme';
+// Enregistre la tâche GPS background du livreur (doit être importée au chargement
+// pour exister aussi dans le contexte headless quand l'OS réveille l'app).
+import '@/services/locationTask';
 
 export { ErrorBoundary } from 'expo-router';
 
