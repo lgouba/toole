@@ -1,6 +1,17 @@
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response } from 'express';
 import { logger } from '../lib/logger.js';
+import { env } from '../config/env.js';
+
+/**
+ * En mode SMS "dev" (SMS_PROVIDER=dev), l'OTP est un code FIXE (OTP_DEV_CODE,
+ * def. 1234) et AUCUN SMS reel n'est envoye. Dans ce mode les limiteurs OTP
+ * n'apportent ni securite (le code est fixe de toute facon) ni economie de
+ * credit SMS, et ils bloquent les tests automatises (E2E) qui enchainent les
+ * connexions. On les desactive donc UNIQUEMENT dans ce mode. En prod reel
+ * (SMS_PROVIDER=aqilas), ils restent pleinement actifs.
+ */
+const skipWhenDevSms = () => env.SMS_PROVIDER === 'dev';
 
 /**
  * Limiters HTTP pour prevenir les abus :
@@ -48,6 +59,7 @@ export const otpByPhoneLimiter = rateLimit({
     if (phone) return `phone:${phone}`;
     return ipKeyGenerator(req.ip ?? 'unknown');
   },
+  skip: skipWhenDevSms,
   handler: tooManyResponse(
     'Trop de demandes de code pour ce numéro. Réessayez dans 10 minutes.',
   ),
@@ -64,6 +76,7 @@ export const otpByIpLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipWhenDevSms,
   handler: tooManyResponse(
     'Trop de demandes depuis votre connexion. Réessayez dans 10 minutes.',
   ),
@@ -93,6 +106,7 @@ export const otpVerifyLimiter = rateLimit({
     if (raw) return `otp:${raw.replace(/\s+/g, '')}`;
     return ipKeyGenerator(req.ip ?? 'unknown');
   },
+  skip: skipWhenDevSms,
   handler: tooManyResponse(
     'Trop de tentatives de code. Réessayez dans 15 minutes.',
   ),
