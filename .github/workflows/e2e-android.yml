@@ -1,0 +1,123 @@
+name: E2E Android (Maestro)
+
+# Tests end-to-end de l'app mobile sur emulateur Android.
+#
+# Lourd (build APK + boot emulateur ~20-30 min) : SEPARE de la CI rapide
+# (ci.yml = typecheck) pour ne pas bloquer les merges sur un job long.
+# On le declenche sur les changements mobile + manuellement.
+#
+# ⚠️ Prerequis : le secret repo EXPO_TOKEN doit exister (Settings > Secrets and
+# variables > Actions). Genere-le avec `eas whoami` connecte, via
+# https://expo.dev/accounts/[compte]/settings/access-tokens.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/e2e-android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/e2e-android.yml'
+  workflow_dispatch:
+
+# Annule un run E2E devenu obsolete si on repousse sur la meme ref (economie).
+concurrency:
+  group: e2e-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Garde : si le secret EXPO_TOKEN n'est pas configure, on IGNORE le job E2E
+  # (statut "skipped", pas "failure") au lieu de faire echouer la CI. Evite un
+  # rouge tant que le secret n'est pas mis. Voir apps/mobile/.maestro/README.md.
+  guard:
+    name: Verifie la config E2E
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -n "$EXPO_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::EXPO_TOKEN absent — job E2E ignore. Ajoute le secret (cf. apps/mobile/.maestro/README.md) pour activer les tests."
+          fi
+
+  e2e-android:
+    name: Build APK + Maestro
+    needs: guard
+    if: needs.guard.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Setup Java (requis par le build Android / Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      # Build un APK reel (profil `preview` = APK ad-hoc, cf. eas.json) EN LOCAL
+      # sur le runner : pas de consommation de minutes EAS cloud, mais fidele au
+      # build des testeurs (config plugins, bundle JS embarque, signature).
+      - name: Build APK (EAS local, profil preview)
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas-cli build \
+            --local \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --output "${RUNNER_TEMP}/toole.apk"
+
+      - name: Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> "${GITHUB_PATH}"
+
+      # Boot un emulateur Android, installe l'APK, lance les flows Maestro.
+      # api-level 34 + arch x86_64 + HW accel (KVM sur les runners Linux).
+      - name: Run Maestro on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            adb install -r "${RUNNER_TEMP}/toole.apk"
+            maestro test "${GITHUB_WORKSPACE}/apps/mobile/.maestro" \
+              --format junit \
+              --output "${RUNNER_TEMP}/maestro-report.xml"
+
+      # Rapport + captures Maestro conserves meme en cas d'echec, pour debug.
+      - name: Upload Maestro artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: |
+            ${{ runner.temp }}/maestro-report.xml
+            ~/.maestro/tests/**
+          if-no-files-found: ignore
