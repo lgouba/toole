@@ -229,7 +229,7 @@ function buildHtml(
     : '[]';
   const routeJs = route
     ? `renderRoute(${routeLatLngsJs});`
-    : `window._route = null; window._routeFlow = null;`;
+    : `window._route = null; window._routeCasing = null;`;
 
   // Halo "zone desservie" (cercle translucide), SANS pin central (le point vert
   // était pris pour un faux livreur). Seuls les vrais livreurs en ligne s'affichent.
@@ -387,6 +387,7 @@ function buildHtml(
   <script>
     window._markers = {};
     window._route = null;
+    window._routeCasing = null;
     window._prevPositions = {};
     const map = L.map('map', {
       zoomControl: ${interactive ? 'true' : 'false'},
@@ -476,18 +477,17 @@ function buildHtml(
     // (petits points verts qui défilent vers la cible via l'anim CSS route-flow).
     function renderRoute(points) {
       if (!points || points.length < 2) return;
-      var solid = points.length >= 3;
-      var base = { color: '#15803D', weight: 6, opacity: 0.85, lineJoin: 'round', lineCap: 'round', dashArray: solid ? null : '10, 12' };
-      if (window._route) { window._route.setLatLngs(points); window._route.setStyle(base); }
-      else { window._route = L.polyline(points, base).addTo(map); }
-      if (window._routeFlow) { window._routeFlow.setLatLngs(points); }
-      else {
-        window._routeFlow = L.polyline(points, {
-          color: '#86EFAC', weight: 3.5, opacity: 0.95,
-          lineJoin: 'round', lineCap: 'round', dashArray: '2 16', className: 'route-flow'
-        }).addTo(map);
-      }
-      try { window._routeFlow.bringToFront(); } catch (e) {}
+      var solid = points.length >= 3; // >=3 pts = vrai itineraire routier
+      // Style "navigation" facon Uber : liseré blanc dessous + ligne noire
+      // épaisse dessus (coins arrondis). En fallback ligne directe (2 pts),
+      // la ligne noire devient pointillée pour signaler l'approximation.
+      var casing = { color: '#FFFFFF', weight: 9, opacity: 0.95, lineJoin: 'round', lineCap: 'round' };
+      var main = { color: '#111827', weight: 5, opacity: 0.98, lineJoin: 'round', lineCap: 'round', dashArray: solid ? null : '1, 9' };
+      if (window._routeCasing) { window._routeCasing.setLatLngs(points); window._routeCasing.setStyle(casing); }
+      else { window._routeCasing = L.polyline(points, casing).addTo(map); }
+      if (window._route) { window._route.setLatLngs(points); window._route.setStyle(main); }
+      else { window._route = L.polyline(points, main).addTo(map); }
+      try { window._routeCasing.bringToBack(); window._route.bringToFront(); } catch (e) {}
     }
     window.updateRoute = function(aLat, aLng, bLat, bLng) {
       try { renderRoute([[aLat, aLng], [bLat, bLng]]); } catch (e) {}
