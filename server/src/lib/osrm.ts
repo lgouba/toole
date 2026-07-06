@@ -15,6 +15,10 @@ import { logger } from './logger.js';
  */
 
 const OSRM_BASE = process.env.OSRM_BASE_URL ?? 'https://router.project-osrm.org';
+// Fallback mondial : si l'instance primaire (ex: Burkina auto-hebergee) ne
+// couvre pas la zone (route hors Burkina, typiquement en test), on retombe sur
+// l'OSRM public de demo qui couvre le monde -> le trace suit les rues partout.
+const OSRM_FALLBACK = 'https://router.project-osrm.org';
 const CACHE_TTL_MS = 15_000;
 const FETCH_TIMEOUT_MS = 4_000;
 
@@ -57,29 +61,18 @@ function cacheKey(
   return `${r(fromLat)},${r(fromLng)}->${r(toLat)},${r(toLng)}`;
 }
 
-/**
- * Calcule l'itineraire routier complet (geometrie + ETA) entre deux points GPS.
- * Retourne null si l'API ne repond pas ou retourne une erreur (le caller doit
- * gerer le fallback : typiquement, tracer une ligne directe a la place).
- */
-export async function computeRoute(
+/** Interroge UNE instance OSRM. Retourne null si erreur / hors couverture. */
+async function tryOsrm(
+  base: string,
   fromLat: number,
   fromLng: number,
   toLat: number,
   toLng: number,
 ): Promise<RouteResult | null> {
-  const key = cacheKey(fromLat, fromLng, toLat, toLng);
-  const now = Date.now();
-
-  const cached = cache.get(key);
-  if (cached && cached.expiresAt > now) {
-    return cached.value;
-  }
-
   // OSRM coords format : "lng,lat;lng,lat". overview=full + geometries=geojson
   // => geometrie detaillee qui suit les rues (tableau de [lng,lat]).
   const url =
-    `${OSRM_BASE.replace(/\/+$/, '')}/route/v1/driving/` +
+    `${base.replace(/\/+$/, '')}/route/v1/driving/` +
     `${fromLng},${fromLat};${toLng},${toLat}` +
     `?overview=full&geometries=geojson&alternatives=false&steps=false`;
 
@@ -102,26 +95,17 @@ export async function computeRoute(
       }>;
     };
     if (json.code !== 'Ok' || !json.routes || json.routes.length === 0) {
-      logger.warn({ code: json.code }, 'OSRM returned no route');
+      logger.warn({ code: json.code, base }, 'OSRM returned no route');
       return null;
     }
     const route = json.routes[0];
     const coords = route.geometry?.coordinates ?? [];
-    const result: RouteResult = {
+    return {
       durationSeconds: Math.round(route.duration),
       distanceMeters: Math.round(route.distance),
       // GeoJSON = [lng, lat] -> on expose { latitude, longitude }
       coordinates: coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
     };
-    cache.set(key, { value: result, expiresAt: now + CACHE_TTL_MS });
-
-    // Garde le cache borne (max 500 entrees, drop les plus anciennes).
-    if (cache.size > 500) {
-      const firstKey = cache.keys().next().value;
-      if (firstKey) cache.delete(firstKey);
-    }
-
-    return result;
   } catch (err: any) {
     if (err?.name === 'AbortError') {
       logger.warn({ url }, 'OSRM request timed out');
@@ -130,6 +114,48 @@ export async function computeRoute(
     }
     return null;
   }
+}
+
+/**
+ * Calcule l'itineraire routier complet (geometrie + ETA) entre deux points GPS.
+ * Essaie l'instance primaire (OSRM_BASE) puis, si elle ne couvre pas la zone,
+ * l'instance publique mondiale (OSRM_FALLBACK) -> le trace suit les rues meme
+ * hors Burkina (tests). Retourne null si les deux echouent (le caller trace
+ * alors une ligne directe).
+ */
+export async function computeRoute(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): Promise<RouteResult | null> {
+  const key = cacheKey(fromLat, fromLng, toLat, toLng);
+  const now = Date.now();
+
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  // 1) instance primaire (en prod : OSRM Burkina auto-hebergee).
+  let result = await tryOsrm(OSRM_BASE, fromLat, fromLng, toLat, toLng);
+
+  // 2) fallback mondial si la primaire n'a rien (hors couverture). On evite un
+  //    2e appel si OSRM_BASE EST deja l'instance publique.
+  if (!result && OSRM_BASE.replace(/\/+$/, '') !== OSRM_FALLBACK) {
+    logger.info('OSRM primaire sans route -> fallback OSRM public mondial');
+    result = await tryOsrm(OSRM_FALLBACK, fromLat, fromLng, toLat, toLng);
+  }
+
+  if (!result) return null;
+
+  cache.set(key, { value: result, expiresAt: now + CACHE_TTL_MS });
+  // Garde le cache borne (max 500 entrees, drop les plus anciennes).
+  if (cache.size > 500) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey) cache.delete(firstKey);
+  }
+  return result;
 }
 
 /**
