@@ -88,6 +88,7 @@ async function tryOsrm(
     }
     const json = (await res.json()) as {
       code?: string;
+      waypoints?: Array<{ distance?: number }>;
       routes?: Array<{
         duration: number;
         distance: number;
@@ -96,6 +97,21 @@ async function tryOsrm(
     };
     if (json.code !== 'Ok' || !json.routes || json.routes.length === 0) {
       logger.warn({ code: json.code, base }, 'OSRM returned no route');
+      return null;
+    }
+    // Hors couverture : une instance regionale (ex: Burkina) ne renvoie PAS null
+    // pour un point hors zone (ex: Nice) -> elle SNAPPE le point sur la route la
+    // plus proche de SA carte (a des milliers de km) et renvoie un itineraire
+    // degenere avec code 'Ok'. `waypoints[].distance` = distance de snap en m.
+    // Si un point a ete snappe tres loin, on considere la zone non couverte et
+    // on renvoie null -> le caller tente l'instance mondiale.
+    const MAX_SNAP_M = 5000;
+    const snapped = (json.waypoints ?? []).find((w) => (w.distance ?? 0) > MAX_SNAP_M);
+    if (snapped) {
+      logger.warn(
+        { base, snapDistanceM: Math.round(snapped.distance ?? 0) },
+        'OSRM: point hors couverture (snap trop loin) -> traite comme no-route',
+      );
       return null;
     }
     const route = json.routes[0];
