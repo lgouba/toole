@@ -101,7 +101,9 @@ export function initSocket(httpServer: HttpServer): IoServer {
   const io = new IoServer(httpServer, {
     cors: {
       origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
-      credentials: true,
+      // Meme logique que le CORS HTTP : le combo reflet-toute-origine +
+      // credentials est interdit. En '*' (defaut) on coupe credentials.
+      credentials: env.CORS_ORIGIN !== '*',
     },
     // ⚡ Detection rapide des sockets morts (reseau flaky BF).
     // Defaults socket.io : pingInterval=25s, pingTimeout=20s → jusqu'a 45s
@@ -114,7 +116,7 @@ export function initSocket(httpServer: HttpServer): IoServer {
     pingTimeout: 8_000,
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token =
         (socket.handshake.auth?.token as string | undefined) ??
@@ -124,6 +126,16 @@ export function initSocket(httpServer: HttpServer): IoServer {
         );
       if (!token) return next(new Error('Missing auth token'));
       const payload = verifyAccessToken(token);
+      // Comme authRequired (HTTP), on revalide l'etat du compte a la connexion :
+      // un compte suspendu / KYC rejete ne doit pas garder de socket vivant
+      // (reception de courses, push GPS) jusqu'a l'expiration du token.
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { isActive: true },
+      });
+      if (!user || !user.isActive) {
+        return next(new Error('Inactive user'));
+      }
       (socket as AuthedSocket).data.userId = payload.userId;
       (socket as AuthedSocket).data.userType = payload.userType;
       next();

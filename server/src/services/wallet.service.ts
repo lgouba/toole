@@ -140,16 +140,25 @@ export async function requestWithdrawal(args: {
     select: { walletBalance: true },
   });
   if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Profil livreur introuvable');
+  // Pre-check (message clair immediat). Le vrai garde-fou anti-race est le
+  // debit conditionnel atomique ci-dessous.
   if (profile.walletBalance < args.amount) {
     throw new HttpError(400, 'INSUFFICIENT_FUNDS', 'Solde insuffisant');
   }
 
-  // Transaction atomique : debit wallet + creation transaction 'pending'
+  // Transaction atomique : debit wallet CONDITIONNEL + creation transaction.
+  // Le decrement n'a lieu QUE si walletBalance >= amount (updateMany avec WHERE
+  // borne), et on n'emet le retrait que si count === 1. Sans ce garde, deux
+  // retraits concurrents passaient tous deux le pre-check et decrementaient ->
+  // solde negatif / double paiement.
   const tx = await prisma.$transaction(async (trx) => {
-    await trx.driverProfile.update({
-      where: { userId: args.userId },
+    const debit = await trx.driverProfile.updateMany({
+      where: { userId: args.userId, walletBalance: { gte: args.amount } },
       data: { walletBalance: { decrement: args.amount } },
     });
+    if (debit.count === 0) {
+      throw new HttpError(400, 'INSUFFICIENT_FUNDS', 'Solde insuffisant');
+    }
     return trx.transaction.create({
       data: {
         userId: args.userId,

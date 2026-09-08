@@ -33,12 +33,13 @@ export function errorHandler(
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
+      // On NE renvoie PAS err.meta : il expose le champ en conflit (email/phone)
+      // et sert d'oracle d'enumeration de comptes.
       return failure(
         res,
         {
           code: 'UNIQUE_CONSTRAINT',
           message: 'Resource already exists',
-          details: err.meta,
         },
         409,
       );

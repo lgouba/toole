@@ -150,16 +150,26 @@ export async function getDriver(
   }
 }
 
+// URL de fichier uploade : chemin interne /uploads/... ou URL https du domaine.
+// Rejette javascript:/data:/URL externe (rendues ensuite dans l'admin).
+const uploadUrlSchema = z
+  .string()
+  .max(500)
+  .refine(
+    (v) => v === '' || v.startsWith('/uploads/') || v.startsWith('https://'),
+    'URL de fichier invalide',
+  );
+
 const kycSchema = z.object({
   vehicleType: z.enum(['moto', 'velo', 'voiture', 'tricycle']).optional(),
   vehiclePlate: z.string().max(50).optional(),
-  vehiclePhotoUrl: z.string().max(500).optional(),
+  vehiclePhotoUrl: uploadUrlSchema.optional(),
   cnibNumber: z.string().max(50).optional(),
-  cnibPhotoUrl: z.string().max(500).optional(),
+  cnibPhotoUrl: uploadUrlSchema.optional(),
   /** Photo piece d'identite verso (KYC recto + verso) */
-  cnibPhotoBackUrl: z.string().max(500).optional(),
+  cnibPhotoBackUrl: uploadUrlSchema.optional(),
   licenseNumber: z.string().max(50).optional(),
-  licensePhotoUrl: z.string().max(500).optional(),
+  licensePhotoUrl: uploadUrlSchema.optional(),
 });
 
 export async function updateKyc(

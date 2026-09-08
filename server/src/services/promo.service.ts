@@ -114,52 +114,90 @@ export async function validatePromoCode(
   };
 }
 
-/**
- * Marque le code comme utilise par un user pour une livraison.
- * Atomique : increment currentUses + creation usage en transaction.
- */
-export async function consumePromoCode(args: {
+interface ConsumePromoArgs {
   code: string;
   userId: string;
   deliveryId: string;
   discountAmount: number;
-}): Promise<void> {
+}
+
+/** Logique de consommation, executee DANS une transaction fournie. */
+async function consumePromoInTx(
+  tx: Prisma.TransactionClient,
+  args: ConsumePromoArgs,
+): Promise<void> {
+  const code = args.code.trim().toUpperCase();
+  const promo = await tx.promoCode.findUnique({ where: { code } });
+  if (!promo) throw new HttpError(400, 'PROMO_NOT_FOUND', 'Code introuvable');
+
+  // Quota PAR UTILISATEUR : re-check dans la transaction (le check de
+  // validatePromoCode se fait hors transaction, donc racy). Cas usuel
+  // maxUsesPerUser=1 couvert par ce re-check + la creation d'usage ci-dessous.
+  if (promo.maxUsesPerUser != null) {
+    const userUsages = await tx.promoCodeUsage.count({
+      where: { promoCodeId: promo.id, userId: args.userId },
+    });
+    if (userUsages >= promo.maxUsesPerUser) {
+      throw new HttpError(
+        400,
+        'PROMO_USER_LIMIT',
+        'Vous avez deja utilise ce code le nombre maximum de fois autorise',
+      );
+    }
+  }
+
+  // Incrément ATOMIQUE du quota global : on n'incrémente QUE si le compteur
+  // est encore sous maxUses. Postgres verrouille la ligne et réévalue le
+  // WHERE après le commit concurrent → deux commandes simultanées sur un
+  // code à usage unique ne peuvent pas dépasser le quota (anti-TOCTOU).
+  if (promo.maxUses != null) {
+    const claim = await tx.promoCode.updateMany({
+      where: { id: promo.id, currentUses: { lt: promo.maxUses } },
+      data: { currentUses: { increment: 1 } },
+    });
+    if (claim.count !== 1) {
+      throw new HttpError(
+        400,
+        'PROMO_QUOTA_EXHAUSTED',
+        "Ce code a atteint son quota d'utilisations",
+      );
+    }
+  } else {
+    await tx.promoCode.update({
+      where: { id: promo.id },
+      data: { currentUses: { increment: 1 } },
+    });
+  }
+  await tx.promoCodeUsage.create({
+    data: {
+      promoCodeId: promo.id,
+      userId: args.userId,
+      deliveryId: args.deliveryId,
+      discountAmount: args.discountAmount,
+    },
+  });
+}
+
+/**
+ * Marque le code comme utilise par un user pour une livraison.
+ * Atomique : increment currentUses + creation usage.
+ *
+ * Si un client de transaction `tx` est fourni, la consommation s'execute DANS
+ * cette transaction (c'est le cas depuis createDelivery : create course +
+ * consume promo tout-ou-rien, pour ne jamais persister une course remisee dont
+ * le code n'a pas ete decompte). Sinon, elle ouvre sa propre transaction.
+ */
+export async function consumePromoCode(
+  args: ConsumePromoArgs,
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
   const code = args.code.trim().toUpperCase();
   try {
-    await prisma.$transaction(async (tx) => {
-      const promo = await tx.promoCode.findUnique({ where: { code } });
-      if (!promo) throw new HttpError(400, 'PROMO_NOT_FOUND', 'Code introuvable');
-      // Incrément ATOMIQUE du quota global : on n'incrémente QUE si le compteur
-      // est encore sous maxUses. Postgres verrouille la ligne et réévalue le
-      // WHERE après le commit concurrent → deux commandes simultanées sur un
-      // code à usage unique ne peuvent pas dépasser le quota (anti-TOCTOU).
-      if (promo.maxUses != null) {
-        const claim = await tx.promoCode.updateMany({
-          where: { id: promo.id, currentUses: { lt: promo.maxUses } },
-          data: { currentUses: { increment: 1 } },
-        });
-        if (claim.count !== 1) {
-          throw new HttpError(
-            400,
-            'PROMO_QUOTA_EXHAUSTED',
-            "Ce code a atteint son quota d'utilisations",
-          );
-        }
-      } else {
-        await tx.promoCode.update({
-          where: { id: promo.id },
-          data: { currentUses: { increment: 1 } },
-        });
-      }
-      await tx.promoCodeUsage.create({
-        data: {
-          promoCodeId: promo.id,
-          userId: args.userId,
-          deliveryId: args.deliveryId,
-          discountAmount: args.discountAmount,
-        },
-      });
-    });
+    if (tx) {
+      await consumePromoInTx(tx, args);
+    } else {
+      await prisma.$transaction((trx) => consumePromoInTx(trx, args));
+    }
     logger.info(
       { code, userId: args.userId, deliveryId: args.deliveryId, discountAmount: args.discountAmount },
       'Promo code consumed',

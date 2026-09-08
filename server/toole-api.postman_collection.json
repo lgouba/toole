@@ -1,0 +1,199 @@
+{
+  "info": {
+    "name": "Toolé API",
+    "description": "Collection complète de l'API Toolé (Express). Base: {{baseUrl}} = https://api.toole.qalitylabs.fr/api\n\nAuth: la plupart des routes exigent un JWT. Récupère-le via Auth > verify-otp (OTP test 1234 en mode dev) et mets-le dans la variable {{token}}. Pour l'admin, Admin > login puis {{adminToken}}.\n\nVariables à renseigner: token, adminToken, deliveryId, userId, transactionId, promoId, trackToken.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.toole.qalitylabs.fr/api" },
+    { "key": "token", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "deliveryId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "transactionId", "value": "" },
+    { "key": "promoId", "value": "" },
+    { "key": "trackToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST send-otp",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"22651631515\",\n  \"channel\": \"sms\",\n  \"purpose\": \"login\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/send-otp", "host": ["{{baseUrl}}"], "path": ["auth", "send-otp"] }
+          }
+        },
+        {
+          "name": "POST verify-otp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = (typeof res !== 'undefined' && res.getBody) ? res.getBody() : pm.response.json();",
+                  "const data = body && body.data;",
+                  "const setVar = (k, v) => (typeof bru !== 'undefined' ? bru.setVar(k, v) : pm.collectionVariables.set(k, v));",
+                  "if (data && data.accessToken) {",
+                  "  setVar('token', data.accessToken);",
+                  "  if (data.refreshToken) setVar('refreshToken', data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"22651631515\",\n  \"code\": \"1234\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] },
+            "description": "Renvoie accessToken + refreshToken. Le script Post-Response enregistre automatiquement {{token}} et {{refreshToken}}."
+          }
+        },
+        {
+          "name": "POST register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"22670000009\",\n  \"code\": \"1234\",\n  \"channel\": \"sms\",\n  \"firstName\": \"Aminata\",\n  \"lastName\": \"Ouedraogo\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"userType\": \"client\",\n  \"referralCode\": \"\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "description": "Pour un livreur: userType=driver + vehicleType, cnibPhotoUrl, cnibPhotoBackUrl, licensePhotoUrl (URLs issues de POST /uploads/kyc)."
+          }
+        },
+        {
+          "name": "POST refresh",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        { "name": "GET me", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] } } },
+        { "name": "PUT me", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Nouveau Nom\",\n  \"email\": \"test@example.com\",\n  \"avatarUrl\": null\n}" }, "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] } } },
+        { "name": "DELETE me", "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] } } },
+        { "name": "POST push-token", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"token\": \"ExponentPushToken[xxxxxxxx]\",\n  \"platform\": \"android\"\n}" }, "url": { "raw": "{{baseUrl}}/users/push-token", "host": ["{{baseUrl}}"], "path": ["users", "push-token"] } } },
+        { "name": "DELETE push-token", "request": { "method": "DELETE", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"token\": \"ExponentPushToken[xxxxxxxx]\"\n}" }, "url": { "raw": "{{baseUrl}}/users/push-token", "host": ["{{baseUrl}}"], "path": ["users", "push-token"] } } }
+      ]
+    },
+    {
+      "name": "Drivers",
+      "item": [
+        { "name": "GET nearby", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/drivers/nearby?lat=12.3714&lng=-1.5197", "host": ["{{baseUrl}}"], "path": ["drivers", "nearby"], "query": [{ "key": "lat", "value": "12.3714" }, { "key": "lng", "value": "-1.5197" }] } } },
+        { "name": "GET map (public)", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{baseUrl}}/drivers/map", "host": ["{{baseUrl}}"], "path": ["drivers", "map"] } } },
+        { "name": "PUT status (driver)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"isOnline\": true\n}" }, "url": { "raw": "{{baseUrl}}/drivers/status", "host": ["{{baseUrl}}"], "path": ["drivers", "status"] } } },
+        { "name": "PUT location (driver)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"latitude\": 12.3714,\n  \"longitude\": -1.5197\n}" }, "url": { "raw": "{{baseUrl}}/drivers/location", "host": ["{{baseUrl}}"], "path": ["drivers", "location"] } } },
+        { "name": "GET me/kyc (driver)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/drivers/me/kyc", "host": ["{{baseUrl}}"], "path": ["drivers", "me", "kyc"] } } },
+        { "name": "PUT me/kyc (driver)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"vehicleType\": \"moto\",\n  \"vehiclePlate\": \"11 AB 1234\",\n  \"cnibNumber\": \"B1234567\",\n  \"cnibPhotoUrl\": \"https://.../recto.jpg\",\n  \"cnibPhotoBackUrl\": \"https://.../verso.jpg\",\n  \"licenseNumber\": \"\",\n  \"licensePhotoUrl\": \"\"\n}" }, "url": { "raw": "{{baseUrl}}/drivers/me/kyc", "host": ["{{baseUrl}}"], "path": ["drivers", "me", "kyc"] } } },
+        { "name": "GET me/stats (driver)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/drivers/me/stats", "host": ["{{baseUrl}}"], "path": ["drivers", "me", "stats"] } } },
+        { "name": "GET :id", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/drivers/{{userId}}", "host": ["{{baseUrl}}"], "path": ["drivers", "{{userId}}"] } } }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        { "name": "GET estimate (public)", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries/estimate?packageType=small&packageSize=medium&pickupLat=12.3714&pickupLng=-1.5197&deliveryLat=12.3950&deliveryLng=-1.4900", "host": ["{{baseUrl}}"], "path": ["deliveries", "estimate"], "query": [{ "key": "packageType", "value": "small" }, { "key": "packageSize", "value": "medium" }, { "key": "pickupLat", "value": "12.3714" }, { "key": "pickupLng", "value": "-1.5197" }, { "key": "deliveryLat", "value": "12.3950" }, { "key": "deliveryLng", "value": "-1.4900" }] } } },
+        { "name": "POST create", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"packageType\": \"small\",\n  \"packageCategory\": \"meal\",\n  \"packageSize\": \"medium\",\n  \"packageDescription\": \"Repas\",\n  \"isFragile\": false,\n  \"recipientName\": \"Awa Test\",\n  \"recipientPhone\": \"22670000000\",\n  \"pickupAddress\": \"Point retrait\",\n  \"pickupLat\": 12.3714,\n  \"pickupLng\": -1.5197,\n  \"deliveryAddress\": \"Point livraison\",\n  \"deliveryLat\": 12.3950,\n  \"deliveryLng\": -1.4900,\n  \"paymentMethod\": \"cash\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries", "host": ["{{baseUrl}}"], "path": ["deliveries"] }, "description": "Optionnels: declaredValue, promoCode, senderContactName/Phone (colis détenu par un tiers), scheduledFor (ISO), pickupDetails, deliveryDetails." } },
+        { "name": "GET list", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries?role=sender&status=", "host": ["{{baseUrl}}"], "path": ["deliveries"], "query": [{ "key": "role", "value": "sender", "description": "sender | driver" }, { "key": "status", "value": "", "description": "optionnel" }] } } },
+        { "name": "GET :id", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}"] } } },
+        { "name": "GET :id/route", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/route", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "route"] } } },
+        { "name": "PUT :id/accept (driver)", "request": { "method": "PUT", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/accept", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "accept"] } } },
+        { "name": "PUT :id/reject (driver)", "request": { "method": "PUT", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/reject", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "reject"] } } },
+        { "name": "PUT :id/pickup-confirm (driver)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"photoUrl\": \"https://.../pickup.jpg\",\n  \"pickupCode\": \"1234\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/pickup-confirm", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "pickup-confirm"] } } },
+        { "name": "PUT :id/validate-code (driver)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"1234\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/validate-code", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "validate-code"] } } },
+        { "name": "PUT :id/cancel", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Annulation test\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/cancel", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "cancel"] } } },
+        { "name": "PUT :id/relaunch", "request": { "method": "PUT", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/relaunch", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "relaunch"] } } },
+        { "name": "POST :id/rate", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"score\": 5,\n  \"comment\": \"Parfait\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/rate", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "rate"] } } },
+        { "name": "GET :id/messages", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/messages", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "messages"] } } },
+        { "name": "GET :id/messages/unread", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/messages/unread", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "messages", "unread"] } } },
+        { "name": "POST :id/messages", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"content\": \"Bonjour, je suis en route\"\n}" }, "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/messages", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "messages"] } } },
+        { "name": "POST :id/messages/read", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/deliveries/{{deliveryId}}/messages/read", "host": ["{{baseUrl}}"], "path": ["deliveries", "{{deliveryId}}", "messages", "read"] } } }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        { "name": "GET wallet", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/wallet", "host": ["{{baseUrl}}"], "path": ["wallet"] } } },
+        { "name": "GET transactions", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/wallet/transactions", "host": ["{{baseUrl}}"], "path": ["wallet", "transactions"] } } },
+        { "name": "POST withdraw/otp", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/wallet/withdraw/otp", "host": ["{{baseUrl}}"], "path": ["wallet", "withdraw", "otp"] }, "description": "Envoie l'OTP au numéro du COMPTE (pas de body requis)." } },
+        { "name": "POST withdraw", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000,\n  \"phone\": \"70123456\",\n  \"paymentMethod\": \"orange_money\",\n  \"otpCode\": \"1234\"\n}" }, "url": { "raw": "{{baseUrl}}/wallet/withdraw", "host": ["{{baseUrl}}"], "path": ["wallet", "withdraw"] } } },
+        { "name": "POST topup/otp", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/wallet/topup/otp", "host": ["{{baseUrl}}"], "path": ["wallet", "topup", "otp"] } } },
+        { "name": "POST topup", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 3000,\n  \"phone\": \"70123456\",\n  \"paymentMethod\": \"moov_money\",\n  \"otpCode\": \"1234\"\n}" }, "url": { "raw": "{{baseUrl}}/wallet/topup", "host": ["{{baseUrl}}"], "path": ["wallet", "topup"] } } },
+        { "name": "POST topup/cash", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": 2000\n}" }, "url": { "raw": "{{baseUrl}}/wallet/topup/cash", "host": ["{{baseUrl}}"], "path": ["wallet", "topup", "cash"] } } }
+      ]
+    },
+    {
+      "name": "Promo",
+      "item": [
+        { "name": "POST validate", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"BIENVENUE\",\n  \"orderAmount\": 1500\n}" }, "url": { "raw": "{{baseUrl}}/promo/validate", "host": ["{{baseUrl}}"], "path": ["promo", "validate"] } } }
+      ]
+    },
+    {
+      "name": "Settings & Track (public)",
+      "item": [
+        { "name": "GET settings", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{baseUrl}}/settings", "host": ["{{baseUrl}}"], "path": ["settings"] } } },
+        { "name": "GET track/:token", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{baseUrl}}/track/{{trackToken}}", "host": ["{{baseUrl}}"], "path": ["track", "{{trackToken}}"] }, "description": "Suivi public d'une course (lien destinataire)." } }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        { "name": "POST uploads/:category (multipart)", "request": { "auth": { "type": "noauth" }, "method": "POST", "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": [] }] }, "url": { "raw": "{{baseUrl}}/uploads/kyc", "host": ["{{baseUrl}}"], "path": ["uploads", "kyc"] }, "description": "category = kyc (public, inscription livreur) | avatar | etc. Champ form-data: file. Renvoie l'URL du fichier." } }
+      ]
+    },
+    {
+      "name": "Admin",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+      "item": [
+        { "name": "POST login (public)", "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const body = (typeof res !== 'undefined' && res.getBody) ? res.getBody() : pm.response.json();", "const data = body && body.data;", "const setVar = (k, v) => (typeof bru !== 'undefined' ? bru.setVar(k, v) : pm.collectionVariables.set(k, v));", "if (data && (data.accessToken || data.token)) setVar('adminToken', data.accessToken || data.token);"] } }], "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@toole.bf\",\n  \"password\": \"motdepasse\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/login", "host": ["{{baseUrl}}"], "path": ["admin", "login"] }, "description": "Renvoie un token admin. Le script Post-Response enregistre automatiquement {{adminToken}}." } },
+        { "name": "GET me", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/me", "host": ["{{baseUrl}}"], "path": ["admin", "me"] } } },
+        { "name": "GET stats", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/stats", "host": ["{{baseUrl}}"], "path": ["admin", "stats"] } } },
+        { "name": "GET stats/daily", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/stats/daily", "host": ["{{baseUrl}}"], "path": ["admin", "stats", "daily"] } } },
+        { "name": "GET stats/hotzones", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/stats/hotzones", "host": ["{{baseUrl}}"], "path": ["admin", "stats", "hotzones"] } } },
+        { "name": "GET users", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin", "users"] } } },
+        { "name": "GET users/:id", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}"] } } },
+        { "name": "POST users/:id/suspend", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Comportement abusif\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}/suspend", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}", "suspend"] } } },
+        { "name": "POST users/:id/reactivate", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}/reactivate", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}", "reactivate"] } } },
+        { "name": "POST users/:id/reset-otp", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}/reset-otp", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}", "reset-otp"] } } },
+        { "name": "DELETE users/:id", "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}"] } } },
+        { "name": "POST drivers/:id/verify", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/drivers/{{userId}}/verify", "host": ["{{baseUrl}}"], "path": ["admin", "drivers", "{{userId}}", "verify"] } } },
+        { "name": "GET drivers/:id/location-history", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/drivers/{{userId}}/location-history", "host": ["{{baseUrl}}"], "path": ["admin", "drivers", "{{userId}}", "location-history"] } } },
+        { "name": "GET settings", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/settings", "host": ["{{baseUrl}}"], "path": ["admin", "settings"] } } },
+        { "name": "PUT settings", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"primaryColor\": \"#1D9E75\",\n  \"minWithdrawAmount\": 1000\n}" }, "url": { "raw": "{{baseUrl}}/admin/settings", "host": ["{{baseUrl}}"], "path": ["admin", "settings"] }, "description": "Corps = sous-ensemble des AppSettings à mettre à jour." } },
+        { "name": "GET transactions", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/transactions", "host": ["{{baseUrl}}"], "path": ["admin", "transactions"] } } },
+        { "name": "GET payouts/pending", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/payouts/pending", "host": ["{{baseUrl}}"], "path": ["admin", "payouts", "pending"] } } },
+        { "name": "POST transactions/:id/mark-paid", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"note\": \"Payé Orange Money\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/transactions/{{transactionId}}/mark-paid", "host": ["{{baseUrl}}"], "path": ["admin", "transactions", "{{transactionId}}", "mark-paid"] } } },
+        { "name": "POST transactions/:id/reject", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"note\": \"Fonds insuffisants\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/transactions/{{transactionId}}/reject", "host": ["{{baseUrl}}"], "path": ["admin", "transactions", "{{transactionId}}", "reject"] } } },
+        { "name": "POST transactions/:id/confirm-topup", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/transactions/{{transactionId}}/confirm-topup", "host": ["{{baseUrl}}"], "path": ["admin", "transactions", "{{transactionId}}", "confirm-topup"] } } },
+        { "name": "POST transactions/:id/reject-topup", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/transactions/{{transactionId}}/reject-topup", "host": ["{{baseUrl}}"], "path": ["admin", "transactions", "{{transactionId}}", "reject-topup"] } } },
+        { "name": "POST users/:id/wallet-adjust", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"amount\": -2000,\n  \"note\": \"Régularisation dette cash\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/users/{{userId}}/wallet-adjust", "host": ["{{baseUrl}}"], "path": ["admin", "users", "{{userId}}", "wallet-adjust"] }, "description": "amount positif = crédit, négatif = débit." } },
+        { "name": "GET driver-balances", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/driver-balances", "host": ["{{baseUrl}}"], "path": ["admin", "driver-balances"] } } },
+        { "name": "POST driver-balances/:id/settle", "request": { "method": "POST", "url": { "raw": "{{baseUrl}}/admin/driver-balances/{{userId}}/settle", "host": ["{{baseUrl}}"], "path": ["admin", "driver-balances", "{{userId}}", "settle"] } } },
+        { "name": "GET deliveries", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/deliveries", "host": ["{{baseUrl}}"], "path": ["admin", "deliveries"] } } },
+        { "name": "GET deliveries/:id", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/deliveries/{{deliveryId}}", "host": ["{{baseUrl}}"], "path": ["admin", "deliveries", "{{deliveryId}}"] } } },
+        { "name": "POST deliveries/:id/force-cancel", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Annulation admin\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/deliveries/{{deliveryId}}/force-cancel", "host": ["{{baseUrl}}"], "path": ["admin", "deliveries", "{{deliveryId}}", "force-cancel"] } } },
+        { "name": "GET notifications", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/notifications", "host": ["{{baseUrl}}"], "path": ["admin", "notifications"] } } },
+        { "name": "POST notifications/broadcast", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Info\",\n  \"body\": \"Message à tous les utilisateurs\",\n  \"userType\": \"client\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/notifications/broadcast", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "broadcast"] }, "description": "userType optionnel (client/driver) pour cibler; sinon tous." } },
+        { "name": "GET promo-codes", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/promo-codes", "host": ["{{baseUrl}}"], "path": ["admin", "promo-codes"] } } },
+        { "name": "POST promo-codes", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"BIENVENUE\",\n  \"discountType\": \"fixed\",\n  \"discountValue\": 500,\n  \"minOrderAmount\": 1000,\n  \"maxUses\": 100,\n  \"maxUsesPerUser\": 1,\n  \"isActive\": true\n}" }, "url": { "raw": "{{baseUrl}}/admin/promo-codes", "host": ["{{baseUrl}}"], "path": ["admin", "promo-codes"] }, "description": "discountType: fixed | percentage (1-100)." } },
+        { "name": "PUT promo-codes/:id", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": false\n}" }, "url": { "raw": "{{baseUrl}}/admin/promo-codes/{{promoId}}", "host": ["{{baseUrl}}"], "path": ["admin", "promo-codes", "{{promoId}}"] } } },
+        { "name": "DELETE promo-codes/:id", "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/admin/promo-codes/{{promoId}}", "host": ["{{baseUrl}}"], "path": ["admin", "promo-codes", "{{promoId}}"] } } }
+      ]
+    }
+  ]
+}

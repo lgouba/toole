@@ -1,11 +1,17 @@
+import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 
 /** Canal d'envoi de l'OTP. Determine si on utilise le code dev fixe ou
  *  un code aleatoire reel. */
 export type OtpChannel = 'sms' | 'whatsapp' | 'email';
 
+/**
+ * Code OTP aleatoire a 6 chiffres, genere avec un CSPRNG (crypto.randomInt).
+ * 6 chiffres = 1 000 000 de combinaisons (vs 10 000 pour 4) et une source
+ * cryptographique (vs Math.random, previsible).
+ */
 function randomOtp(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
 /**

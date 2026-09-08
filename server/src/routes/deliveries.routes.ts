@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authRequired } from '../middleware/auth.js';
+import { authRequired, requireRole } from '../middleware/auth.js';
 import {
   createDeliveryCtrl,
   listDeliveriesCtrl,
@@ -33,10 +33,14 @@ router.post('/', createDeliveryCtrl);
 router.get('/', listDeliveriesCtrl);
 router.get('/:id', getDeliveryCtrl);
 router.get('/:id/route', getDeliveryRouteCtrl);
-router.put('/:id/accept', acceptCtrl);
-router.put('/:id/reject', rejectCtrl);
-router.put('/:id/pickup-confirm', pickupCtrl);
-router.put('/:id/validate-code', validateCtrl);
+// Actions RESERVEES aux livreurs : accepter / refuser / confirmer le retrait /
+// valider le code de livraison. Sans requireRole('driver'), n'importe quel
+// compte client authentifie pouvait s'auto-assigner une course (BFLA) et, en
+// creant sa propre course, fabriquer du solde retirable (self-dealing).
+router.put('/:id/accept', requireRole('driver'), acceptCtrl);
+router.put('/:id/reject', requireRole('driver'), rejectCtrl);
+router.put('/:id/pickup-confirm', requireRole('driver'), pickupCtrl);
+router.put('/:id/validate-code', requireRole('driver'), validateCtrl);
 router.put('/:id/cancel', cancelCtrl);
 router.put('/:id/relaunch', relaunchCtrl);
 router.post('/:id/rate', rateCtrl);

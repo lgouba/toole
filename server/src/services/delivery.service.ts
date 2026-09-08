@@ -150,65 +150,69 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
   const isScheduled =
     input.scheduledFor && input.scheduledFor.getTime() - now > minDelayMs;
 
-  const delivery = await prisma.delivery.create({
-    data: {
-      reference: generateReference(),
-      trackingToken: generateTrackingToken(),
-      senderId: input.senderId,
-      packageType: input.packageType,
-      packageCategory: input.packageCategory ?? null,
-      packageSize: input.packageSize ?? null,
-      packageDescription: input.packageDescription,
-      declaredValue: input.declaredValue ?? null,
-      isFragile: input.isFragile ?? false,
-      nightSurchargeApplied: pricing.nightSurcharge || null,
-      recipientName: input.recipientName,
-      recipientPhone: input.recipientPhone,
-      senderContactName: input.senderContactName ?? null,
-      senderContactPhone: input.senderContactPhone ?? null,
-      pickupAddress: input.pickupAddress,
-      pickupDetails: input.pickupDetails,
-      pickupLat: input.pickupLat,
-      pickupLng: input.pickupLng,
-      deliveryAddress: input.deliveryAddress,
-      deliveryDetails: input.deliveryDetails,
-      deliveryLat: input.deliveryLat,
-      deliveryLng: input.deliveryLng,
-      estimatedDistanceKm: new Prisma.Decimal(pricing.distanceKm),
-      price: priceAfterPromo,
-      driverCommission: driverCommissionAfterPromo,
-      // Plateforme absorbe la remise : platformFee peut etre 0 ou negatif si
-      // la remise est grosse. On stocke tel quel pour l'audit.
-      platformFee: priceAfterPromo - driverCommissionAfterPromo,
-      promoCode: promoCodeValue,
-      promoDiscount: promoDiscount || null,
-      validationCode: generateValidationCode(),
-      pickupValidationCode: generateValidationCode(),
-      status: isScheduled ? 'scheduled' : 'pending',
-      scheduledFor: input.scheduledFor ?? null,
-      paymentMethod: input.paymentMethod ?? 'cash',
-      expiresAt: isScheduled
-        ? null // l'expiresAt sera pose au moment de la diffusion
-        : new Date(now + expiryMs),
-    },
-  });
+  const deliveryData: Prisma.DeliveryUncheckedCreateInput = {
+    reference: generateReference(),
+    trackingToken: generateTrackingToken(),
+    senderId: input.senderId,
+    packageType: input.packageType,
+    packageCategory: input.packageCategory ?? null,
+    packageSize: input.packageSize ?? null,
+    packageDescription: input.packageDescription,
+    declaredValue: input.declaredValue ?? null,
+    isFragile: input.isFragile ?? false,
+    nightSurchargeApplied: pricing.nightSurcharge || null,
+    recipientName: input.recipientName,
+    recipientPhone: input.recipientPhone,
+    senderContactName: input.senderContactName ?? null,
+    senderContactPhone: input.senderContactPhone ?? null,
+    pickupAddress: input.pickupAddress,
+    pickupDetails: input.pickupDetails,
+    pickupLat: input.pickupLat,
+    pickupLng: input.pickupLng,
+    deliveryAddress: input.deliveryAddress,
+    deliveryDetails: input.deliveryDetails,
+    deliveryLat: input.deliveryLat,
+    deliveryLng: input.deliveryLng,
+    estimatedDistanceKm: new Prisma.Decimal(pricing.distanceKm),
+    price: priceAfterPromo,
+    driverCommission: driverCommissionAfterPromo,
+    // Plateforme absorbe la remise : platformFee peut etre 0 ou negatif si
+    // la remise est grosse. On stocke tel quel pour l'audit.
+    platformFee: priceAfterPromo - driverCommissionAfterPromo,
+    promoCode: promoCodeValue,
+    promoDiscount: promoDiscount || null,
+    validationCode: generateValidationCode(),
+    pickupValidationCode: generateValidationCode(),
+    status: isScheduled ? 'scheduled' : 'pending',
+    scheduledFor: input.scheduledFor ?? null,
+    paymentMethod: input.paymentMethod ?? 'cash',
+    expiresAt: isScheduled
+      ? null // l'expiresAt sera pose au moment de la diffusion
+      : new Date(now + expiryMs),
+  };
 
-  // Bundle 3 : marque le code promo comme consomme (incremente le compteur +
-  // cree une entry PromoCodeUsage). Fire-and-forget : si ca echoue, la
-  // livraison est tout de meme creee (l'admin peut nettoyer manuellement).
-  if (promoCodeValue && promoDiscount > 0) {
-    void consumePromoCode({
-      code: promoCodeValue,
-      userId: input.senderId,
-      deliveryId: delivery.id,
-      discountAmount: promoDiscount,
-    }).catch((err) =>
-      logger.warn(
-        { err, deliveryId: delivery.id, code: promoCodeValue },
-        'consumePromoCode failed (delivery already created)',
-      ),
-    );
-  }
+  // Bundle 3 : si un code promo s'applique, on cree la course ET on consomme le
+  // code DANS LA MEME TRANSACTION (tout-ou-rien). Avant, consume() etait en
+  // fire-and-forget : N courses concurrentes avec le meme code passaient toutes
+  // le check avant la moindre ecriture d'usage -> maxUsesPerUser contournable et
+  // courses remisees "fantomes". Desormais, si le quota est epuise, la creation
+  // est annulee (rollback) et l'erreur remonte au client.
+  const delivery =
+    promoCodeValue && promoDiscount > 0
+      ? await prisma.$transaction(async (tx) => {
+          const created = await tx.delivery.create({ data: deliveryData });
+          await consumePromoCode(
+            {
+              code: promoCodeValue,
+              userId: input.senderId,
+              deliveryId: created.id,
+              discountAmount: promoDiscount,
+            },
+            tx,
+          );
+          return created;
+        })
+      : await prisma.delivery.create({ data: deliveryData });
 
   // Si pas programme, notifier les livreurs immediatement
   if (!isScheduled) {
@@ -799,6 +803,17 @@ export async function acceptDelivery(deliveryId: string, driverId: string) {
   }
   if (delivery.expiresAt && delivery.expiresAt < new Date()) {
     throw new HttpError(400, 'EXPIRED', 'Delivery request has expired');
+  }
+  // ANTI SELF-DEALING : un livreur ne peut pas accepter sa propre course.
+  // Sinon il pouvait creer une course "payee online", l'accepter, la valider
+  // avec les codes qu'il connait (il est l'expediteur) et se crediter la
+  // commission sans paiement reel -> solde fabrique puis retire en argent.
+  if (delivery.senderId === driverId) {
+    throw new HttpError(
+      403,
+      'FORBIDDEN',
+      'Vous ne pouvez pas accepter votre propre course.',
+    );
   }
 
   // Verifie la dette commission du livreur : bloque si au-dela du plafond admin.

@@ -15,6 +15,17 @@ for (const sub of ['avatars', 'packages', 'kyc']) {
   fs.mkdirSync(path.join(UPLOAD_ROOT, sub), { recursive: true });
 }
 
+// Type MIME autorise -> extension SERVEUR imposee. On NE derive JAMAIS
+// l'extension de file.originalname (controle par l'attaquant) : sur un endpoint
+// KYC public, un `originalname="x.html"` ecrivait un .html servi en text/html
+// = stored XSS non authentifie. L'extension vient donc de cette whitelist.
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+};
+
 const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     // La sous-categorie est passee dans le path: /uploads/:category
@@ -23,8 +34,8 @@ const storage = multer.diskStorage({
     const dest = allowed.includes(category) ? category : 'misc';
     cb(null, path.join(UPLOAD_ROOT, dest));
   },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+  filename: (_file_req, file, cb) => {
+    const ext = MIME_TO_EXT[file.mimetype] ?? '.jpg';
     const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
     cb(null, name);
   },
@@ -34,7 +45,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB max
   fileFilter: (_req, file, cb) => {
-    const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'].includes(file.mimetype);
+    const ok = Object.prototype.hasOwnProperty.call(MIME_TO_EXT, file.mimetype);
     if (!ok) {
       cb(new HttpError(400, 'INVALID_FILE_TYPE', 'Format non supporte (jpg/png/webp/heic)'));
       return;

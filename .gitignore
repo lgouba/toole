@@ -53,3 +53,9 @@ prisma/migrations/dev.db*
 
 # Expo EAS
 .eas/
+
+# Scratch local (debug Playwright MCP, captures d'analyse)
+.playwright-mcp/
+/analyse-*.png
+/fiche.png
+/voile.png

@@ -44,10 +44,13 @@ function tooManyResponse(message: string) {
 }
 
 /**
- * Limit envois d'OTP par numero de telephone.
- * Max 5 demandes par numero par tranche de 10 minutes.
+ * Limit envois d'OTP par identifiant (numero OU email).
+ * Max 5 demandes par identifiant par tranche de 10 minutes.
  *
- * Le numero est extrait du body de la requete. Si absent, on retombe sur l'IP.
+ * ⚠️ La cle DOIT lire `identifier` en priorite : le client mobile envoie le
+ * numero dans `identifier` (pas `phone`). Une cle basee sur `phone` seul
+ * retombait toujours sur l'IP -> la limite par numero n'etait jamais appliquee
+ * (SMS-bombing possible via IP tournantes). On aligne sur verify/register.
  */
 export const otpByPhoneLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 min
@@ -55,8 +58,13 @@ export const otpByPhoneLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
-    const phone = (req.body?.phone ?? '').toString().replace(/\D/g, '');
-    if (phone) return `phone:${phone}`;
+    const raw = (req.body?.identifier ?? req.body?.phone ?? req.body?.email ?? '')
+      .toString()
+      .trim()
+      .toLowerCase();
+    const digits = raw.replace(/\D/g, '');
+    if (digits) return `phone:${digits}`;
+    if (raw) return `otp:${raw.replace(/\s+/g, '')}`;
     return ipKeyGenerator(req.ip ?? 'unknown');
   },
   skip: skipWhenDevSms,
@@ -83,9 +91,10 @@ export const otpByIpLimiter = rateLimit({
 });
 
 /**
- * Anti-brute-force de l'OTP (verify-otp + register). Le code ne fait que 4
- * chiffres (10 000 combinaisons) : sans limiter dédié, le globalLimiter (200/min)
- * laisserait épuiser l'espace. Max 8 essais par identifiant (téléphone/email)
+ * Anti-brute-force de l'OTP (verify-otp + register). Meme avec un code a 6
+ * chiffres (1 000 000 combinaisons), sans limiter dédié le globalLimiter
+ * (200/min) laisserait tenter beaucoup trop d'essais. Max 8 essais par
+ * identifiant (téléphone/email)
  * par tranche de 15 min ; fallback IP si l'identifiant est absent.
  */
 export const otpVerifyLimiter = rateLimit({

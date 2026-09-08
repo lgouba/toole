@@ -95,6 +95,18 @@ export async function verifyOtpCtrl(req: Request, res: Response, next: NextFunct
   }
 }
 
+// URL de fichier uploade : soit un chemin interne /uploads/... (ce que renvoie
+// POST /api/uploads/:category), soit une URL https du domaine. On rejette tout
+// le reste (javascript:, data:, URL externe arbitraire) qui serait ensuite
+// rendu dans le dashboard admin.
+const uploadUrlSchema = z
+  .string()
+  .max(500)
+  .refine(
+    (v) => v === '' || v.startsWith('/uploads/') || v.startsWith('https://'),
+    'URL de fichier invalide',
+  );
+
 const registerSchema = z.object({
   phone: phoneSchema,
   firstName: z.string().trim().min(1).max(50),
@@ -111,8 +123,8 @@ const registerSchema = z.object({
    *  Attachees au driverProfile a la creation, en meme temps que le user
    *  (puisque PUT /drivers/me/kyc apres register echouerait : le compte
    *  est isActive=false donc authRequired rejette). */
-  cnibPhotoUrl: z.string().max(500).optional(),
-  cnibPhotoBackUrl: z.string().max(500).optional(),
+  cnibPhotoUrl: uploadUrlSchema.optional(),
+  cnibPhotoBackUrl: uploadUrlSchema.optional(),
   /** Code de parrainage saisi. La logique de bonus sera ajoutee plus tard. */
   referralCode: z.string().trim().max(20).optional().or(z.literal('')),
 });

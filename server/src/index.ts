@@ -75,6 +75,13 @@ app.use(
   express.static(UPLOAD_ROOT, {
     maxAge: '30d',
     immutable: true,
+    setHeaders: (res) => {
+      // Defense en profondeur pour les fichiers uploades (KYC public) : empeche
+      // le navigateur de "sniffer" un contenu vers text/html, et neutralise
+      // toute execution de script si un fichier hostile passait malgre tout.
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    },
   }),
 );
 app.use(

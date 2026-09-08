@@ -19,11 +19,17 @@ export function signRefreshToken(payload: JwtPayload): string {
 }
 
 export function verifyAccessToken(token: string): JwtPayload {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
+  // Algo epingle (HS256) : defense en profondeur contre une eventuelle
+  // confusion d'algorithme (ex. alg=none / substitution).
+  return jwt.verify(token, env.JWT_ACCESS_SECRET, {
+    algorithms: ['HS256'],
+  }) as JwtPayload;
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {
-  return jwt.verify(token, env.JWT_REFRESH_SECRET) as JwtPayload;
+  return jwt.verify(token, env.JWT_REFRESH_SECRET, {
+    algorithms: ['HS256'],
+  }) as JwtPayload;
 }
 
 /**

@@ -15,6 +15,27 @@ import { sendAdminAlert, sendEmail } from '../lib/mailer.js';
 import { getAppSettings } from './settings.service.js';
 
 /**
+ * Echappe les caracteres HTML sensibles avant interpolation dans un template
+ * email. Les valeurs comme firstName/lastName/email/plaque viennent d'un flux
+ * PUBLIC (inscription) et etaient injectees telles quelles dans le HTML de
+ * l'alerte admin (faux boutons, contenu trompeur).
+ */
+function escapeHtml(value: string | null | undefined): string {
+  if (value == null) return '';
+  return String(value).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[c] as string,
+  );
+}
+
+/**
  * Detecte si un identifier est un email (sinon considere comme phone).
  * Phone : suite de chiffres avec eventuellement un + au debut.
  * Email : doit contenir @ et un .
@@ -151,10 +172,19 @@ export async function verifyOtpCode(identifier: string, code: string): Promise<v
   if (otp.expiresAt < new Date()) {
     throw new HttpError(400, 'EXPIRED_OTP', 'Verification code has expired');
   }
-  // USAGE UNIQUE : on consomme le code dès la 1re vérification réussie, sinon il
-  // resterait rejouable pendant toute sa fenêtre de validité (plusieurs sessions
-  // générées avec un seul code). On purge tous les codes en attente de cet
-  // identifiant d'un coup.
+  // USAGE UNIQUE + ANTI-REPLAY ATOMIQUE : la consommation du code EST le
+  // deleteMany conditionnel ci-dessous. Le premier appel a "gagner" les lignes
+  // (identifier, code) obtient count>=1 et poursuit ; toute requete concurrente
+  // avec le meme code obtient count=0 et est rejetee. Sans ce garde, deux
+  // requetes paralleles (ex. double retrait couvert par un seul OTP) passaient
+  // toutes les deux le findFirst avant la purge.
+  const claim = await prisma.otpCode.deleteMany({
+    where: { identifier: normalized, code },
+  });
+  if (claim.count === 0) {
+    throw new HttpError(400, 'INVALID_OTP', 'Invalid verification code');
+  }
+  // Purge des eventuels autres codes en attente de cet identifiant (resends).
   await prisma.otpCode.deleteMany({ where: { identifier: normalized } });
 }
 
@@ -372,16 +402,16 @@ export async function registerUser(args: {
       const html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111827;">
           <div style="background: linear-gradient(135deg, #1d9e75 0%, #0f6e56 100%); padding: 24px; border-radius: 12px 12px 0 0; color: white;">
-            <h1 style="margin: 0; font-size: 20px;">${appName} — Nouveau livreur</h1>
+            <h1 style="margin: 0; font-size: 20px;">${escapeHtml(appName)} — Nouveau livreur</h1>
             <p style="margin: 4px 0 0; opacity: 0.9; font-size: 13px;">Une inscription à valider</p>
           </div>
           <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 12px 12px;">
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr><td style="padding: 8px 0; color: #6b7280; width: 130px;">Nom complet</td><td style="padding: 8px 0; font-weight: 600;">${user.fullName}</td></tr>
-              <tr><td style="padding: 8px 0; color: #6b7280;">Téléphone</td><td style="padding: 8px 0;">${user.phone}</td></tr>
-              <tr><td style="padding: 8px 0; color: #6b7280;">Date naissance</td><td style="padding: 8px 0;">${dob}</td></tr>
-              <tr><td style="padding: 8px 0; color: #6b7280;">Véhicule</td><td style="padding: 8px 0; text-transform: capitalize;">${user.driverProfile?.vehicleType ?? '—'}${user.driverProfile?.vehiclePlate ? ` · ${user.driverProfile.vehiclePlate}` : ''}</td></tr>
-              <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;">${user.email ?? '—'}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280; width: 130px;">Nom complet</td><td style="padding: 8px 0; font-weight: 600;">${escapeHtml(user.fullName)}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Téléphone</td><td style="padding: 8px 0;">${escapeHtml(user.phone)}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Date naissance</td><td style="padding: 8px 0;">${escapeHtml(dob)}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Véhicule</td><td style="padding: 8px 0; text-transform: capitalize;">${escapeHtml(user.driverProfile?.vehicleType ?? '—')}${user.driverProfile?.vehiclePlate ? ` · ${escapeHtml(user.driverProfile.vehiclePlate)}` : ''}</td></tr>
+              <tr><td style="padding: 8px 0; color: #6b7280;">Email</td><td style="padding: 8px 0;">${escapeHtml(user.email ?? '—')}</td></tr>
             </table>
             <div style="margin-top: 20px; padding: 12px 14px; background: #fef3c7; border-radius: 8px; font-size: 13px; color: #92400e;">
               Ce livreur est <strong>inactif</strong> par défaut. Connectez-vous au panneau d'administration pour l'activer.
