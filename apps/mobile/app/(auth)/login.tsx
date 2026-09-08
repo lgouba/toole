@@ -251,7 +251,7 @@ export default function AuthScreen() {
                     </Text>
 
                     <View style={styles.otpWrap}>
-                      <OtpInput length={4} value={code} onChange={setCode} onComplete={handleVerify} />
+                      <OtpInput length={6} value={code} onChange={setCode} onComplete={handleVerify} />
                     </View>
 
                     {error ? (

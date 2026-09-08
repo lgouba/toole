@@ -209,7 +209,7 @@ export default function OtpScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Vérification</Text>
           <Text style={styles.subtitle}>
-            Entrez le code à 4 chiffres envoyé à{'\n'}
+            Entrez le code à 6 chiffres envoyé à{'\n'}
             <Text style={styles.phone}>
               {isEmail(phoneNumber) ? phoneNumber : formatPhone(phoneNumber)}
             </Text>
@@ -220,7 +220,7 @@ export default function OtpScreen() {
         </View>
 
         <OtpInput
-          length={4}
+          length={6}
           value={code}
           onChange={setCode}
           onComplete={handleVerify}
