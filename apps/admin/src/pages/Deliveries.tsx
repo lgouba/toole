@@ -136,7 +136,7 @@ export default function Deliveries() {
                 borderRadius: 8,
                 border: '1px solid var(--border)',
                 fontSize: 13,
-                minWidth: 240,
+                width: 200,
               }}
             />
             <button
@@ -156,7 +156,8 @@ export default function Deliveries() {
         ) : filtered.length === 0 ? (
           <div className="empty">Aucun résultat.</div>
         ) : (
-          <table>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ whiteSpace: 'nowrap' }}>
             <thead>
               <tr>
                 <th>Référence</th>
@@ -190,6 +191,7 @@ export default function Deliveries() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </>
