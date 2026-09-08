@@ -348,11 +348,14 @@ const styles = StyleSheet.create({
     // la carte comme un panneau plus étroit sur les grands écrans -> liseré
     // latéral + bas visible. On reste bord à bord.
     alignSelf: 'stretch',
+    // Ombre HAUT uniquement (iOS respecte l'offset négatif). Pas d'`elevation`
+    // Android : elle projetait une ombre sur TOUS les côtés, dont une bande
+    // grise décalée sous le bas de la carte. La carte reste détachée du héros
+    // par ses coins arrondis + le contraste.
     shadowColor: '#0f172a',
     shadowOpacity: 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: -8 },
-    elevation: 12,
   },
   pill: {
     flexDirection: 'row',
