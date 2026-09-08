@@ -1054,6 +1054,7 @@ export async function validateCode(
   deliveryId: string,
   driverId: string,
   code: string,
+  deliveryPhotoUrl?: string,
 ) {
   const delivery = await prisma.delivery.findUnique({ where: { id: deliveryId } });
   if (!delivery) throw new HttpError(404, 'NOT_FOUND', 'Delivery not found');
@@ -1076,7 +1077,12 @@ export async function validateCode(
         driverId,
         status: { in: ['picked_up', 'delivering'] },
       },
-      data: { status: 'delivered', deliveredAt: new Date() },
+      data: {
+        status: 'delivered',
+        deliveredAt: new Date(),
+        // Preuve de remise (photo prise par le livreur a la validation du code).
+        ...(deliveryPhotoUrl ? { packagePhotoDeliveryUrl: deliveryPhotoUrl } : {}),
+      },
     });
     if (result.count === 0) {
       throw new HttpError(

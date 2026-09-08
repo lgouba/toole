@@ -203,7 +203,12 @@ export async function pickupCtrl(
   }
 }
 
-const validateSchema = z.object({ code: z.string().length(4) });
+const validateSchema = z.object({
+  code: z.string().length(4),
+  // Photo de preuve de remise. Optionnel cote schema pour ne pas casser un
+  // ancien client, mais l'app la rend obligatoire (cf. code-validation.tsx).
+  photoUrl: z.string().min(1).max(500).optional(),
+});
 
 export async function validateCtrl(
   req: AuthedRequest,
@@ -211,8 +216,8 @@ export async function validateCtrl(
   next: NextFunction,
 ) {
   try {
-    const { code } = validateSchema.parse(req.body);
-    const delivery = await validateCode(req.params.id, req.user!.id, code);
+    const { code, photoUrl } = validateSchema.parse(req.body);
+    const delivery = await validateCode(req.params.id, req.user!.id, code, photoUrl);
     return success(res, delivery);
   } catch (err) {
     next(err);
