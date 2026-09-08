@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { recap as R, step4 as S } from '@/theme/recapTokens';
 import { PriceEstimate } from '@/types';
 import { formatCFA } from '@/utils/format';
 import { PaymentResult } from '@/utils/payment';
+import { MOBILE_MONEY_ENABLED } from '@/config/features';
 import { AmountCard } from './AmountCard';
 import { MethodCard } from './MethodCard';
 import { MobilePaymentFlow } from './MobilePaymentFlow';
@@ -22,6 +23,14 @@ interface Props {
 
 export function PaymentStep4({ estimate, method, onMethodChange, paid, txId, onPaid }: Props) {
   const total = estimate?.price ?? 0;
+
+  // Mobile Money désactivé (API pas encore intégrées) : on force le cash, y
+  // compris si un brouillon plus ancien avait mémorisé orange/moov.
+  useEffect(() => {
+    if (!MOBILE_MONEY_ENABLED && method !== 'cash') {
+      onMethodChange('cash');
+    }
+  }, [method, onMethodChange]);
 
   return (
     <View style={styles.wrap}>
@@ -45,20 +54,24 @@ export function PaymentStep4({ estimate, method, onMethodChange, paid, txId, onP
         <MethodCard
           variant="orange"
           title="Orange Money"
-          subtitle="Paiement mobile sécurisé"
-          selected={method === 'orange_money'}
+          subtitle={MOBILE_MONEY_ENABLED ? 'Paiement mobile sécurisé' : 'Paiement mobile — bientôt disponible'}
+          selected={MOBILE_MONEY_ENABLED && method === 'orange_money'}
           onPress={() => onMethodChange('orange_money')}
+          disabled={!MOBILE_MONEY_ENABLED}
+          badge="Bientôt"
         />
         <MethodCard
           variant="moov"
           title="Moov Money"
-          subtitle="Paiement mobile sécurisé"
-          selected={method === 'moov_money'}
+          subtitle={MOBILE_MONEY_ENABLED ? 'Paiement mobile sécurisé' : 'Paiement mobile — bientôt disponible'}
+          selected={MOBILE_MONEY_ENABLED && method === 'moov_money'}
           onPress={() => onMethodChange('moov_money')}
+          disabled={!MOBILE_MONEY_ENABLED}
+          badge="Bientôt"
         />
       </View>
 
-      {/* Détail contextuel */}
+      {/* Détail contextuel : en Mobile Money désactivé, method est toujours cash. */}
       {method === 'cash' ? (
         <View style={styles.cashNote}>
           <MaterialIcons name="info-outline" size={18} color={S.cashFg} />

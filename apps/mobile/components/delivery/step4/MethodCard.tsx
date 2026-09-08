@@ -10,17 +10,30 @@ interface Props {
   variant: 'cash' | 'orange' | 'moov';
   selected: boolean;
   onPress: () => void;
+  /** Grisé + non cliquable (ex. moyen de paiement pas encore disponible). */
+  disabled?: boolean;
+  /** Petit badge à droite (ex. « Bientôt ») quand la carte est grisée. */
+  badge?: string;
 }
 
-export function MethodCard({ title, subtitle, variant, selected, onPress }: Props) {
+export function MethodCard({
+  title,
+  subtitle,
+  variant,
+  selected,
+  onPress,
+  disabled = false,
+  badge,
+}: Props) {
   const color = variant === 'cash' ? S.cashFg : variant === 'orange' ? S.orange : S.moov;
   return (
     <TouchableOpacity
-      style={[styles.card, selected && styles.cardSelected]}
+      style={[styles.card, selected && styles.cardSelected, disabled && styles.cardDisabled]}
       onPress={onPress}
+      disabled={disabled}
       activeOpacity={0.85}
       accessibilityRole="radio"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
     >
       <View
         style={[
@@ -36,9 +49,15 @@ export function MethodCard({ title, subtitle, variant, selected, onPress }: Prop
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
-      <View style={[styles.radio, selected && styles.radioOn]}>
-        {selected && <View style={styles.radioDot} />}
-      </View>
+      {disabled && badge ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      ) : (
+        <View style={[styles.radio, selected && styles.radioOn]}>
+          {selected && <View style={styles.radioDot} />}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -55,6 +74,19 @@ const styles = StyleSheet.create({
     padding: R.space.lg,
   },
   cardSelected: { borderColor: S.green, backgroundColor: S.activeBg },
+  cardDisabled: { opacity: 0.5 },
+  badge: {
+    paddingHorizontal: R.space.sm,
+    paddingVertical: 3,
+    borderRadius: S.radius.pill,
+    backgroundColor: S.border,
+  },
+  badgeText: {
+    fontFamily: R.font.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.3,
+    color: S.textSec,
+  },
   icon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: R.font.bodyBold, fontSize: 14.5, color: S.textPrim },
   subtitle: { fontFamily: R.font.body, fontSize: 12, color: S.textMuted, marginTop: 1 },
