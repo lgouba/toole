@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SkeletonList } from '@/components/ui';
+import { MOBILE_MONEY_ENABLED } from '@/config/features';
 import { recap as R, wallet as W } from '@/theme/recapTokens';
 import { getMyWallet, getMyTransactions, WalletSnapshot, Transaction } from '@/services/wallet.service';
+import { formatCFA } from '@/utils/format';
 import { WalletCard } from '@/components/driver/wallet/WalletCard';
 import { RemitAlert } from '@/components/driver/wallet/RemitAlert';
 import { ActivityRow } from '@/components/driver/wallet/ActivityRow';
@@ -38,7 +40,9 @@ export default function WalletScreen() {
   const balance = snap?.balance ?? 0;
   const totalEarned = snap?.totalEarned ?? 0;
   const debt = snap?.commissionDebt ?? 0;
-  const canWithdraw = balance > 0;
+  // Retrait Mobile Money désactivé tant que les API de paiement ne sont pas
+  // branchées (cf. config/features). On garde le solde/historique visibles.
+  const canWithdraw = MOBILE_MONEY_ENABLED && balance > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -63,8 +67,28 @@ export default function WalletScreen() {
               <Text style={styles.withdrawText}>Retirer vers Mobile Money</Text>
             </TouchableOpacity>
 
+            {!MOBILE_MONEY_ENABLED ? (
+              <View style={styles.soonChip}>
+                <MaterialIcons name="schedule" size={16} color={W.textMuted} />
+                <Text style={styles.soonText}>
+                  Retrait Mobile Money bientôt disponible. Tes gains restent enregistrés.
+                </Text>
+              </View>
+            ) : null}
+
             {debt > 0 ? (
-              <RemitAlert amount={debt} onPress={() => router.push('/(driver)/remit' as any)} />
+              MOBILE_MONEY_ENABLED ? (
+                <RemitAlert amount={debt} onPress={() => router.push('/(driver)/remit' as any)} />
+              ) : (
+                // Dette réelle mais reversement MM pas encore possible : on informe
+                // sans proposer d'action (pas de lien vers wallet-flow topup).
+                <View style={styles.debtChip}>
+                  <MaterialIcons name="info-outline" size={16} color={W.amberFg} />
+                  <Text style={styles.debtText}>
+                    Commission à reverser : {formatCFA(debt)}. Reversement Mobile Money bientôt disponible.
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={styles.okChip}>
                 <MaterialIcons name="check-circle" size={16} color={W.green} />
@@ -119,6 +143,30 @@ const styles = StyleSheet.create({
     paddingVertical: R.space.md,
   },
   okText: { fontFamily: R.font.body, fontSize: 12.5, color: W.green },
+  soonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: R.space.sm,
+    backgroundColor: W.surface,
+    borderWidth: 1,
+    borderColor: W.border,
+    borderRadius: W.radius.btn,
+    paddingHorizontal: R.space.lg,
+    paddingVertical: R.space.md,
+  },
+  soonText: { flex: 1, fontFamily: R.font.body, fontSize: 12.5, color: W.textSec },
+  debtChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: R.space.sm,
+    backgroundColor: W.amberBg,
+    borderWidth: 1,
+    borderColor: W.amberBorder,
+    borderRadius: W.radius.btn,
+    paddingHorizontal: R.space.lg,
+    paddingVertical: R.space.md,
+  },
+  debtText: { flex: 1, fontFamily: R.font.body, fontSize: 12.5, color: W.amberFg },
   activityTitle: {
     fontFamily: R.font.display,
     fontSize: 16,

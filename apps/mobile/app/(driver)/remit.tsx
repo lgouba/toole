@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { recap as R, wallet as W } from '@/theme/recapTokens';
+import { MOBILE_MONEY_ENABLED } from '@/config/features';
 import { formatCFA } from '@/utils/format';
 import { getMyWallet, getMyTransactions, WalletSnapshot, Transaction } from '@/services/wallet.service';
 import { ActivityRow } from '@/components/driver/wallet/ActivityRow';
@@ -31,7 +32,8 @@ export default function RemitScreen() {
   const debt = snap?.commissionDebt ?? 0;
   const effectiveDebt = snap?.effectiveDebt ?? 0;
   const pending = snap?.pendingTopupAmount ?? 0;
-  const canPay = effectiveDebt > 0;
+  // Reversement Mobile Money désactivé tant que les API ne sont pas branchées.
+  const canPay = MOBILE_MONEY_ENABLED && effectiveDebt > 0;
   const upToDate = debt <= 0;
 
   return (
@@ -89,7 +91,11 @@ export default function RemitScreen() {
                 ) : (
                   <View style={styles.pendingChip}>
                     <MaterialIcons name="schedule" size={16} color={W.amberFg} />
-                    <Text style={styles.pendingText}>En attente de validation admin</Text>
+                    <Text style={styles.pendingText}>
+                      {!MOBILE_MONEY_ENABLED
+                        ? 'Reversement Mobile Money bientôt disponible'
+                        : 'En attente de validation admin'}
+                    </Text>
                   </View>
                 )}
               </>

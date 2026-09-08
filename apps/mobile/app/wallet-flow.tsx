@@ -17,6 +17,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { OtpInput } from '@/components/ui';
 import { MethodCard } from '@/components/delivery/step4/MethodCard';
 import { recap as R, step4 as S } from '@/theme/recapTokens';
+import { MOBILE_MONEY_ENABLED } from '@/config/features';
 import { formatCFA } from '@/utils/format';
 import { useAuthStore } from '@/stores/auth.store';
 import {
@@ -197,6 +198,37 @@ export default function WalletFlowScreen() {
         : '100%';
 
   const operatorLabel = OPERATORS.find((o) => o.key === operator)?.label;
+
+  // Garde : Mobile Money désactivé (API pas encore intégrées). Normalement les
+  // points d'entrée (portefeuille / reversement) sont déjà grisés, mais si
+  // l'écran est atteint autrement on affiche un état "bientôt disponible".
+  if (!MOBILE_MONEY_ENABLED) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+            <MaterialIcons name="arrow-back" size={24} color={S.textPrim} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.headerTitle}>{title}</Text>
+          </View>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={styles.soonWrap}>
+          <MaterialIcons name="schedule" size={40} color={S.textMuted} />
+          <Text style={styles.soonTitle}>Bientôt disponible</Text>
+          <Text style={styles.soonText}>
+            {mode === 'withdraw'
+              ? 'Le retrait de tes gains vers Mobile Money arrive très bientôt. Tes gains restent enregistrés en attendant.'
+              : 'Le reversement de la commission via Mobile Money arrive très bientôt.'}
+          </Text>
+          <TouchableOpacity style={styles.soonBtn} onPress={() => router.back()} activeOpacity={0.9}>
+            <Text style={styles.soonBtnText}>Retour</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -644,4 +676,30 @@ const styles = StyleSheet.create({
   },
   ctaOff: { backgroundColor: '#9CC9AE' },
   ctaText: { fontFamily: R.font.bodyBold, fontSize: 16, color: '#FFFFFF' },
+
+  soonWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: R.space.md,
+    paddingHorizontal: R.space.pad,
+  },
+  soonTitle: { fontFamily: R.font.display, fontSize: 20, color: S.textPrim },
+  soonText: {
+    fontFamily: R.font.body,
+    fontSize: 14,
+    color: S.textSec,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  soonBtn: {
+    marginTop: R.space.sm,
+    height: 50,
+    paddingHorizontal: R.space.pad * 2,
+    borderRadius: S.radius.method,
+    backgroundColor: S.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  soonBtnText: { fontFamily: R.font.bodyBold, fontSize: 15, color: '#FFFFFF' },
 });
