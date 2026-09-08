@@ -48,7 +48,7 @@ interface AuthState {
   setPhoneNumber: (identifier: string) => void;
   sendOtp: (
     identifier: string,
-    channel?: 'sms' | 'whatsapp' | 'email',
+    channel?: 'sms' | 'email',
     purpose?: 'login' | 'register',
   ) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (

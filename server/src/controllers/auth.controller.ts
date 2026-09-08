@@ -30,7 +30,7 @@ const sendOtpSchema = z.object({
   identifier: identifierSchema.optional(),
   phone: phoneSchema.optional(),
   /** Canal d'envoi. Defaut: deduit (sms si phone, email si email). */
-  channel: z.enum(['sms', 'whatsapp', 'email']).optional(),
+  channel: z.enum(['sms', 'email']).optional(),
   /** Verifie l'existence du compte selon l'usage. Si non fourni, pas de check. */
   purpose: z.enum(['login', 'register']).optional(),
 });

@@ -54,7 +54,7 @@ export function normalizeIdentifier(identifier: string): string {
 /**
  * Envoie un OTP au phone OU email donne. Le canal est deduit :
  *   - email -> email (SMTP Hostinger)
- *   - phone -> SMS par defaut, ou WhatsApp si channel='whatsapp'
+ *   - phone -> SMS (Aqilas)
  *
  * `purpose` permet de differencier login (compte doit exister) et register
  * (compte ne doit PAS exister). Si pas fourni, comportement legacy (envoi
@@ -134,7 +134,7 @@ export async function sendOtp(
         throwOnError: true,
       });
     } else {
-      await sendOtpMessage(normalized, code, channel as MessageChannel);
+      await sendOtpMessage(normalized, code);
     }
   } catch (err) {
     await prisma.otpCode.deleteMany({
@@ -147,13 +147,10 @@ export async function sendOtp(
         "Impossible d'envoyer le code par email. Verifiez l'adresse.",
       );
     }
-    const isWhatsApp = channel === 'whatsapp';
     throw new HttpError(
       502,
-      isWhatsApp ? 'WHATSAPP_FAILED' : 'SMS_FAILED',
-      isWhatsApp
-        ? "Impossible d'envoyer le code par WhatsApp. Essayez par SMS."
-        : "Impossible d'envoyer le SMS. Reessayez.",
+      'SMS_FAILED',
+      "Impossible d'envoyer le SMS. Reessayez.",
     );
   }
 

@@ -3,7 +3,7 @@ import { env } from '../config/env.js';
 
 /** Canal d'envoi de l'OTP. Determine si on utilise le code dev fixe ou
  *  un code aleatoire reel. */
-export type OtpChannel = 'sms' | 'whatsapp' | 'email';
+export type OtpChannel = 'sms' | 'email';
 
 /**
  * Code OTP aleatoire a 6 chiffres, genere avec un CSPRNG (crypto.randomInt).
@@ -19,7 +19,7 @@ function randomOtp(): string {
  *
  * - Email : TOUJOURS un code aleatoire reel (SMTP est configure, le code
  *   arrive vraiment dans la boite mail de l'utilisateur).
- * - SMS / WhatsApp : si SMS_PROVIDER=dev (pas de provider reel configure
+ * - SMS : si SMS_PROVIDER=dev (pas de provider reel configure
  *   ou en train de chercher un fournisseur), on renvoie le code fixe
  *   (par defaut "1234") pour faciliter les tests. Sinon code aleatoire.
  */
