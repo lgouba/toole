@@ -344,9 +344,10 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     // paddingBottom appliqué dynamiquement (insets.bottom + 16) en inline
     gap: 14,
-    maxWidth: 440,
-    width: '100%',
-    alignSelf: 'center',
+    // Carte pleine largeur (edge-to-edge) : un maxWidth centré faisait flotter
+    // la carte comme un panneau plus étroit sur les grands écrans -> liseré
+    // latéral + bas visible. On reste bord à bord.
+    alignSelf: 'stretch',
     shadowColor: '#0f172a',
     shadowOpacity: 0.08,
     shadowRadius: 24,
