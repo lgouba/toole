@@ -63,7 +63,9 @@ export async function sendOtpCtrl(req: Request, res: Response, next: NextFunctio
 const verifyOtpSchema = z.object({
   identifier: identifierSchema.optional(),
   phone: phoneSchema.optional(),
-  code: z.string().length(4),
+  // OTP prod (Aqilas/email) = 6 chiffres ; OTP dev (OTP_DEV_CODE, def. 1234) = 4.
+  // On accepte 4 à 6 pour couvrir les deux sans casser les tests dev/E2E.
+  code: z.string().regex(/^\d{4,6}$/, 'Code invalide'),
 });
 
 export async function verifyOtpCtrl(req: Request, res: Response, next: NextFunction) {
@@ -113,7 +115,7 @@ const registerSchema = z.object({
   lastName: z.string().trim().min(1).max(50),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   userType: z.enum(['client', 'driver', 'merchant']),
-  otpCode: z.string().length(4),
+  otpCode: z.string().regex(/^\d{4,6}$/, 'Code invalide'),
   // Email optionnel : la communication se fait par SMS. On accepte une chaine
   // vide ou l'absence du champ (les anciens clients peuvent encore l'envoyer).
   email: z.string().trim().email('Email invalide').optional().or(z.literal('')),
