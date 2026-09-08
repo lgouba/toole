@@ -296,11 +296,15 @@ export async function confirmPickup(
 
 export async function validateDeliveryCode(
   deliveryId: string,
-  code: string
+  code: string,
+  photoUrl?: string,
 ): Promise<{ success: boolean; delivery?: Delivery; errorMessage?: string }> {
   try {
     console.log('[validateDeliveryCode] PUT validate-code for', deliveryId);
-    const res = await api.put(`/deliveries/${deliveryId}/validate-code`, { code });
+    const res = await api.put(`/deliveries/${deliveryId}/validate-code`, {
+      code,
+      ...(photoUrl ? { photoUrl } : {}),
+    });
     const delivery = normalizeDelivery(unwrap<any>(res));
     console.log('[validateDeliveryCode] OK, new status =', delivery.status);
     return { success: true, delivery };

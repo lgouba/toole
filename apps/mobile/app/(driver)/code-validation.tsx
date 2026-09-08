@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { DriverHood } from '@/components/driver/flow/DriverHood';
 import { C, F } from '@/components/driver/flow/tokens';
 import { OtpInput } from '@/components/ui';
 import { useDriverStore } from '@/stores/driver.store';
+import { uploadImage } from '@/services/upload.service';
 import { haptic } from '@/utils/haptics';
 import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
@@ -15,12 +17,14 @@ export default function CodeValidationScreen() {
   const router = useRouter();
   const { validateCode, activeDelivery } = useDriverStore();
   const [code, setCode] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setCode('');
+    setPhoto(null);
     setError('');
     setAttempts(0);
     setSubmitting(false);
@@ -29,18 +33,59 @@ export default function CodeValidationScreen() {
   const recipientName = activeDelivery?.recipientName ?? 'Destinataire';
   const recipientPhone = activeDelivery?.recipientPhone;
   const codeDone = code.length === 4;
+  const photoDone = !!photo;
   const blocked = attempts >= 3;
 
   const prepaid =
     activeDelivery?.paymentMethod === 'orange_money' ||
     activeDelivery?.paymentMethod === 'moov_money';
 
+  const takePhoto = async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Permission caméra refusée',
+          "Autorisez l'accès à l'appareil photo pour prendre la preuve de remise du colis.",
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setPhoto(result.assets[0].uri);
+        setError('');
+      }
+    } catch (err: any) {
+      console.warn('[code-validation] camera error', err);
+      Alert.alert('Erreur caméra', err?.message ?? "Impossible d'ouvrir l'appareil photo.");
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!codeDone || submitting || blocked) return;
+    if (submitting || blocked) return;
+    if (!photoDone) {
+      setError('Prenez une photo de preuve de remise.');
+      return;
+    }
+    if (!codeDone) {
+      setError('Saisissez le code à 4 chiffres du destinataire.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
-      const success = await validateCode(code);
+      // 1) Upload de la preuve de remise (obligatoire) avant de valider le code.
+      const uploaded = await uploadImage(photo!, 'packages');
+      if (!uploaded) {
+        haptic.error();
+        setError("Impossible d'envoyer la photo. Vérifiez votre réseau et réessayez.");
+        return;
+      }
+      // 2) Validation du code + rattachement de la photo à la course.
+      const success = await validateCode(code, uploaded.url);
       if (success) {
         alertConfirmSuccess();
         router.replace('/(driver)/delivery-confirm');
@@ -59,12 +104,6 @@ export default function CodeValidationScreen() {
       setSubmitting(false);
     }
   };
-
-  // Validation automatique dès que les 4 chiffres sont saisis.
-  useEffect(() => {
-    if (codeDone && !submitting && !blocked) handleSubmit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
 
   return (
     <View style={styles.container}>
@@ -117,7 +156,26 @@ export default function CodeValidationScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h}>Code du destinataire</Text>
+        <Text style={styles.h}>Photo de remise</Text>
+        <Text style={styles.hint}>Preuve que le colis a bien été remis.</Text>
+        {photo ? (
+          <View style={styles.photoBox}>
+            <Image source={{ uri: photo }} style={styles.photoImg} />
+            <TouchableOpacity style={styles.retake} onPress={takePhoto}>
+              <Ionicons name="camera" size={16} color="#fff" />
+              <Text style={styles.retakeText}>Reprendre</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.photo} onPress={takePhoto} activeOpacity={0.85}>
+            <View style={styles.photoCircle}>
+              <Ionicons name="camera-outline" size={26} color={C.gDark} />
+            </View>
+            <Text style={styles.photoText}>Prendre la photo</Text>
+          </TouchableOpacity>
+        )}
+
+        <Text style={[styles.h, { marginTop: 22 }]}>Code du destinataire</Text>
         <Text style={styles.hint}>{`Demandez à ${recipientName} son code à 4 chiffres.`}</Text>
         <View style={styles.codeWrap}>
           <OtpInput
@@ -140,9 +198,9 @@ export default function CodeValidationScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.cta, (!codeDone || blocked || submitting) && styles.ctaOff]}
+          style={[styles.cta, (!photoDone || !codeDone || blocked || submitting) && styles.ctaOff]}
           activeOpacity={0.9}
-          disabled={!codeDone || blocked || submitting}
+          disabled={!photoDone || !codeDone || blocked || submitting}
           onPress={handleSubmit}
         >
           <Text style={styles.ctaText}>
@@ -194,8 +252,49 @@ const styles = StyleSheet.create({
 
   content: { padding: 20, paddingBottom: 28 },
   h: { fontFamily: F.display, fontSize: 20, color: C.ink },
-  hint: { fontFamily: F.ui, fontSize: 13, color: C.muted, marginTop: 6, marginBottom: 16 },
+  hint: { fontFamily: F.ui, fontSize: 13, color: C.muted, marginTop: 6, marginBottom: 14 },
   codeWrap: { alignItems: 'center', paddingVertical: 4 },
+
+  photo: {
+    borderRadius: 20,
+    backgroundColor: '#F1FAF4',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#A6DBB8',
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  photoCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: C.gDark,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  photoText: { color: C.gDark, fontFamily: F.uiBold, fontSize: 14 },
+  photoBox: { height: 170, borderRadius: 20, overflow: 'hidden' },
+  photoImg: { flex: 1 },
+  retake: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  retakeText: { color: '#fff', fontFamily: F.uiSemi, fontSize: 12 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

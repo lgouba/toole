@@ -32,7 +32,7 @@ interface DriverState {
   rejectRequest: () => void;
   setActiveDelivery: (delivery: Delivery | null) => void;
   confirmPickup: (photoUri: string, pickupCode: string) => Promise<void>;
-  validateCode: (code: string) => Promise<boolean>;
+  validateCode: (code: string, deliveryPhotoUrl?: string) => Promise<boolean>;
   confirmDelivery: (photoUri: string) => Promise<void>;
   cancelActiveDelivery: (reason: string, comment?: string) => Promise<boolean>;
   clearActiveDelivery: () => void;
@@ -250,11 +250,15 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     set({ activeDelivery: updated });
   },
 
-  validateCode: async (code) => {
+  validateCode: async (code, deliveryPhotoUrl) => {
     const { activeDelivery } = get();
     if (!activeDelivery) return false;
 
-    const result = await deliveryService.validateDeliveryCode(activeDelivery.id, code);
+    const result = await deliveryService.validateDeliveryCode(
+      activeDelivery.id,
+      code,
+      deliveryPhotoUrl,
+    );
     if (result.success && result.delivery) {
       set((state) => ({
         activeDelivery: result.delivery!,
