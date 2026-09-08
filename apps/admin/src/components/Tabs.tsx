@@ -39,14 +39,23 @@ export function Tabs<T extends string>({
       style={{
         display: 'flex',
         alignItems: 'flex-end',
-        gap: 4,
+        gap: 12,
         borderBottom: '1px solid var(--border)',
         marginBottom: 20,
-        overflowX: 'auto',
-        scrollbarWidth: 'thin',
       }}
     >
-      <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+      {/* Seule la zone des onglets défile horizontalement si l'espace manque ;
+          le rightSlot (recherche/actions) reste épinglé et jamais coupé. */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 4,
+          flex: 1,
+          minWidth: 0,
+          overflowX: 'auto',
+          scrollbarWidth: 'thin',
+        }}
+      >
         {tabs.map((t) => {
           const active = value === t.id;
           return (
@@ -96,7 +105,7 @@ export function Tabs<T extends string>({
         })}
       </div>
       {rightSlot ? (
-        <div style={{ paddingBottom: 6 }}>{rightSlot}</div>
+        <div style={{ paddingBottom: 6, flexShrink: 0 }}>{rightSlot}</div>
       ) : null}
     </div>
   );
