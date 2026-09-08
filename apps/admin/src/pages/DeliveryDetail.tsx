@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, unwrap, resolveUploadUrl } from '../api';
-import { formatCFA, formatDate, formatPhone } from '../utils';
+import { formatCFA, formatDate, formatPhone, paymentMethodLabel, txTypeLabel } from '../utils';
 import { StatusBadge } from './Dashboard';
 import { useDialog } from '../components/DialogProvider';
 
@@ -20,6 +20,7 @@ interface DeliveryDetail {
   price: number;
   driverCommission: number | null;
   platformFee: number | null;
+  paymentMethod: string | null;
   tip: number;
   validationCode: string;
   createdAt: string;
@@ -31,7 +32,24 @@ interface DeliveryDetail {
   cancelComment: string | null;
   sender: { id: string; fullName: string; phone: string } | null;
   driver: { id: string; fullName: string; phone: string } | null;
+  transactions?: DeliveryTransaction[];
 }
+
+interface DeliveryTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  paymentMethod: string | null;
+  status: 'pending' | 'completed' | 'failed';
+  note: string | null;
+  createdAt: string;
+}
+
+const TX_STATUS_LABEL: Record<string, string> = {
+  pending: 'En attente',
+  completed: 'Validé',
+  failed: 'Échoué',
+};
 
 export default function DeliveryDetail() {
   const { id } = useParams<{ id: string }>();
@@ -109,7 +127,7 @@ export default function DeliveryDetail() {
           {d.packageDescription ? <div className="hint">{d.packageDescription}</div> : null}
         </div>
         <div className="stat-card">
-          <div className="label">Prix</div>
+          <div className="label">Prix · {paymentMethodLabel(d.paymentMethod)}</div>
           <div className="value" style={{ fontSize: 20 }}>{formatCFA(d.price)}</div>
           <div className="hint">
             Commission {formatCFA(d.platformFee)} · Gain livreur {formatCFA(d.driverCommission ?? 0)}
@@ -189,6 +207,40 @@ export default function DeliveryDetail() {
           </div>
         </div>
       ) : null}
+
+      <div className="card">
+        <div className="card-header"><h2>Mouvements financiers</h2></div>
+        {d.transactions && d.transactions.length > 0 ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Montant</th>
+                <th>Mode</th>
+                <th>Statut</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.transactions.map((t) => (
+                <tr key={t.id}>
+                  <td>{txTypeLabel(t.type)}</td>
+                  <td style={{ color: t.amount < 0 ? 'var(--danger, #c0392b)' : 'var(--success, #15803d)' }}>
+                    {t.amount < 0 ? '−' : '+'}{formatCFA(Math.abs(t.amount))}
+                  </td>
+                  <td>{paymentMethodLabel(t.paymentMethod)}</td>
+                  <td>{TX_STATUS_LABEL[t.status] ?? t.status}</td>
+                  <td>{formatDate(t.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty" style={{ padding: 18 }}>
+            Aucun mouvement financier enregistré pour cette course.
+          </div>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-header"><h2>Chronologie</h2></div>

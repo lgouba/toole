@@ -27,3 +27,30 @@ export function formatPhone(phone: string): string {
   }
   return phone;
 }
+
+/** Libellé lisible d'un mode de paiement (enum PaymentMethod côté serveur). */
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: 'Espèces',
+  wallet: 'Portefeuille',
+  orange_money: 'Orange Money',
+  moov_money: 'Moov Money',
+};
+export function paymentMethodLabel(m: string | null | undefined): string {
+  if (!m) return '—';
+  return PAYMENT_METHOD_LABEL[m] ?? m;
+}
+
+/** Libellé lisible d'un type de transaction (enum TransactionType côté serveur). */
+const TX_TYPE_LABEL: Record<string, string> = {
+  payment: 'Paiement',
+  commission: 'Gain livraison',
+  commission_debt: 'Commission plateforme',
+  tip: 'Pourboire',
+  topup: 'Règlement livreur',
+  withdrawal: 'Retrait',
+  withdrawal_fee: 'Frais retrait',
+  adjustment: 'Ajustement',
+};
+export function txTypeLabel(t: string): string {
+  return TX_TYPE_LABEL[t] ?? t;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api';
-import { formatCFA, formatDate } from '../utils';
+import { formatCFA, formatDate, paymentMethodLabel } from '../utils';
 import { StatusBadge } from './Dashboard';
 import { Tabs, type TabDef } from '../components/Tabs';
 
@@ -31,6 +31,9 @@ interface Row {
   reference: string;
   status: string;
   price: number;
+  platformFee: number | null;
+  driverCommission: number | null;
+  paymentMethod: string | null;
   createdAt: string;
   recipientName: string;
   sender: { fullName: string; phone: string } | null;
@@ -161,7 +164,10 @@ export default function Deliveries() {
                 <th>Client</th>
                 <th>Livreur</th>
                 <th>Destinataire</th>
+                <th>Paiement</th>
                 <th>Prix</th>
+                <th>Commission</th>
+                <th>Gain livreur</th>
                 <th>Créée</th>
                 <th></th>
               </tr>
@@ -174,7 +180,10 @@ export default function Deliveries() {
                   <td>{d.sender?.fullName ?? '-'}</td>
                   <td>{d.driver?.fullName ?? <span className="muted">-</span>}</td>
                   <td>{d.recipientName}</td>
+                  <td>{paymentMethodLabel(d.paymentMethod)}</td>
                   <td>{formatCFA(d.price)}</td>
+                  <td>{d.platformFee != null ? formatCFA(d.platformFee) : <span className="muted">-</span>}</td>
+                  <td>{d.driverCommission != null ? formatCFA(d.driverCommission) : <span className="muted">-</span>}</td>
                   <td>{formatDate(d.createdAt)}</td>
                   <td><Link to={`/deliveries/${d.id}`} className="btn btn-ghost btn-sm">Detail</Link></td>
                 </tr>
