@@ -123,11 +123,32 @@ function buildHtml(
 ): string {
   const isDark = theme === 'dark';
   const isSoft = theme === 'soft';
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+  // Fournisseurs de tuiles SANS clé API.
+  // Les basemaps CARTO (Positron/Dark) exigent désormais une clé (tuiles
+  // filigranées "API KEY REQUIRED"). On les remplace par Esri "Gray Canvas"
+  // (base + labels en couches séparées), qui garde le rendu clair/gris voulu
+  // et ne demande pas de clé. Le thème 'light' reste sur OpenStreetMap
+  // (labels intégrés, sans clé).
+  // TODO prod : pour la montée en charge, passer à un fournisseur licencié
+  // (MapTiler/CARTO avec clé restreinte) plutôt que les tuiles publiques Esri.
+  const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
+  const tileLayers: { url: string; maxNativeZoom: number }[] = isDark
+    ? [
+        { url: ESRI + '/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16 },
+        { url: ESRI + '/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16 },
+      ]
     : isSoft
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      ? [
+          { url: ESRI + '/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16 },
+          { url: ESRI + '/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', maxNativeZoom: 16 },
+        ]
+      : [{ url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', maxNativeZoom: 19 }];
+  const tileLayersJs = tileLayers
+    .map(
+      (l) =>
+        `L.tileLayer('${l.url}', { maxZoom: 20, maxNativeZoom: ${l.maxNativeZoom}, subdomains: 'abcd' }).addTo(map);`,
+    )
+    .join('\n    ');
   const bodyBg = isDark ? '#0E1326' : isSoft ? '#EDEAE3' : '#F5F5F0';
   const markersJs = markers
     .map((m) => {
@@ -398,10 +419,7 @@ function buildHtml(
       attributionControl: false
     }).setView([${center.latitude}, ${center.longitude}], ${zoom});
 
-    L.tileLayer('${tileUrl}', {
-      maxZoom: 20,
-      subdomains: 'abcd'
-    }).addTo(map);
+    ${tileLayersJs}
 
     // Déplace le contrôle zoom (+/-) en HAUT-DROITE pour ne plus chevaucher la
     // barre de statut (heure/batterie) ni le bouton retour en haut-gauche.
