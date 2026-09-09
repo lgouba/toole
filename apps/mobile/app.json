@@ -8,11 +8,6 @@
     "scheme": "tolle",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F5132"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.qalitylabs.tolle",
@@ -44,11 +39,6 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
-      },
-      "splash": {
-        "image": "./assets/images/toole-splash.png",
-        "resizeMode": "cover",
-        "backgroundColor": "#0F5132"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -109,7 +99,8 @@
           "color": "#1D9E75"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withAndroidBootSplash"
     ],
     "experiments": {
       "typedRoutes": true
