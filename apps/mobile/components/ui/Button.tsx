@@ -62,6 +62,14 @@ export function Button({
   const vs = variantStyles[variant];
   const isSmall = size === 'small';
   const isDisabled = disabled || loading;
+  // Désactivé (hors chargement) : couple lisible #E4DCCF / #6E7A72 au lieu d'un
+  // simple opacity 0.5 (blanc sur vert pâle ~2:1, illisible). Les variantes
+  // transparentes gardent leur fond, seul le texte est atténué.
+  const showDisabled = disabled && !loading;
+  const filled = variant === 'primary' || variant === 'secondary' || variant === 'danger';
+  const disabledContainer =
+    showDisabled && filled ? { backgroundColor: '#E4DCCF' } : undefined;
+  const disabledText = showDisabled ? { color: '#6E7A72' } : undefined;
 
   const handlePress = () => {
     haptic.light();
@@ -78,6 +86,7 @@ export function Button({
         vs.container,
         isSmall && styles.containerSmall,
         isDisabled && styles.disabled,
+        disabledContainer,
         style,
       ]}
     >
@@ -90,6 +99,7 @@ export function Button({
             style={[
               isSmall ? typography.buttonSmall : typography.button,
               vs.text,
+              disabledText,
               icon ? { marginLeft: spacing.sm } : undefined,
             ]}
           >
@@ -123,7 +133,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   disabled: {
-    opacity: 0.5,
+    // Plus d'opacity globale : le désactivé lisible est géré par le couple
+    // #E4DCCF/#6E7A72 (cf. disabledContainer/disabledText). On retire juste le relief.
     shadowOpacity: 0,
     elevation: 0,
   },

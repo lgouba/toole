@@ -944,6 +944,8 @@ function StepsIndicator({
                   isActive && styles.stepLabelActive,
                 ]}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {label}
               </Text>
