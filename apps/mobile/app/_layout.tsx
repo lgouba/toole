@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { AndroidBootSplash } from '@/components/AndroidBootSplash';
+import RNBootSplash from 'react-native-bootsplash';
 import {
   useFonts,
   Inter_400Regular,
@@ -98,12 +98,18 @@ function RootLayout() {
   //             centré ; <AndroidBootSplash> (JS) reprend ce logo au pixel près
   //             et transite vers le hero. C'est bootsplash (useHideAnimation) qui
   //             masque le splash natif Android — pas SplashScreen.hideAsync ici.
-  // Android AVEC bootsplash -> l'overlay JS gère le masquage. Sinon (iOS, ou
-  // APK ancien sans le module natif) -> on masque le splash expo nous-mêmes.
-  const [androidSplashDone, setAndroidSplashDone] = useState(!BOOTSPLASH_AVAILABLE);
+  // Masquage du splash une fois les polices chargées.
+  //  • Android + bootsplash : masquage IMPÉRATIF (RNBootSplash.hide) — fiable,
+  //    contrairement à l'overlay useHideAnimation qui pouvait rester bloqué
+  //    (écran vert figé). Failsafe : on retente après un court délai.
+  //  • iOS / APK sans bootsplash : splash expo.
   useEffect(() => {
     if (!fontsLoaded) return;
-    if (BOOTSPLASH_AVAILABLE) return; // géré par <AndroidBootSplash>
+    if (BOOTSPLASH_AVAILABLE) {
+      RNBootSplash.hide({ fade: true }).catch(() => {});
+      const t = setTimeout(() => RNBootSplash.hide({ fade: true }).catch(() => {}), 800);
+      return () => clearTimeout(t);
+    }
     const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 300);
     return () => clearTimeout(t);
   }, [fontsLoaded]);
@@ -227,28 +233,16 @@ function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Raccord splash Android (bootsplash) posé PAR-DESSUS le contenu. `ready` =
-  // polices chargées (le contenu sous le splash peut finir de s'initialiser
-  // pendant l'animation). iOS ne monte jamais ce composant.
-  const androidSplash =
-    BOOTSPLASH_AVAILABLE && !androidSplashDone ? (
-      <AndroidBootSplash ready={fontsLoaded} onDone={() => setAndroidSplashDone(true)} />
-    ) : null;
-
   // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais écran)
   if (isAuthenticated && !user) {
     return (
-      <>
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-        {androidSplash}
-      </>
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
   }
 
   return (
-    <>
     <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeGate>
       <ForceUpdateGate>
@@ -277,8 +271,6 @@ function RootLayout() {
     </ForceUpdateGate>
     </ThemeGate>
     </GestureHandlerRootView>
-    {androidSplash}
-    </>
   );
 }
 
