@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { AppSplash } from '@/components/AppSplash';
 import {
   useFonts,
   Inter_400Regular,
@@ -72,13 +73,18 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
-  // SPLASH — un seul écran, 100% natif sur les 2 plateformes (pas de splash JS) :
-  //  • iOS    : splash natif = hero plein écran (cover).
-  //  • Android: splash natif = logo Toolé coloré centré sur vert (Android 12+
-  //    impose un logo centré, pas de plein écran possible).
-  // On cache simplement le splash natif une fois les polices chargées.
+  // SPLASH — objectif : rendu IDENTIQUE iOS/Android (hero plein écran).
+  //  • iOS    : le splash NATIF est déjà le hero plein écran (cover) -> on le
+  //             cache simplement une fois les polices chargées.
+  //  • Android: Android 12+ impose un logo centré en natif (pas de plein écran).
+  //             On réaffiche donc le hero plein écran via <AppSplash> (JS, même
+  //             image toole-splash.png en cover) juste après le bref splash
+  //             natif -> visuellement uniforme avec iOS. AppSplash appelle
+  //             lui-même SplashScreen.hideAsync (on ne le fait donc pas ici).
+  const [androidSplashDone, setAndroidSplashDone] = useState(Platform.OS !== 'android');
   useEffect(() => {
     if (!fontsLoaded) return;
+    if (Platform.OS === 'android') return; // géré par <AppSplash>
     const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 300);
     return () => clearTimeout(t);
   }, [fontsLoaded]);
@@ -202,16 +208,27 @@ function RootLayout() {
 
   if (!fontsLoaded) return null;
 
+  // Overlay hero plein écran (Android uniquement) posé PAR-DESSUS le contenu,
+  // pour un splash identique à iOS malgré la limite native d'Android 12+.
+  const androidSplash =
+    Platform.OS === 'android' && !androidSplashDone ? (
+      <AppSplash onHidden={() => setAndroidSplashDone(true)} />
+    ) : null;
+
   // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais écran)
   if (isAuthenticated && !user) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <>
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+        {androidSplash}
+      </>
     );
   }
 
   return (
+    <>
     <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeGate>
       <ForceUpdateGate>
@@ -240,6 +257,8 @@ function RootLayout() {
     </ForceUpdateGate>
     </ThemeGate>
     </GestureHandlerRootView>
+    {androidSplash}
+    </>
   );
 }
 
