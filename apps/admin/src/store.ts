@@ -9,12 +9,23 @@ export interface AdminUser {
   userType: string;
 }
 
+/**
+ * Résultat de login exposé à l'UI. On remonte le `status` HTTP (et un
+ * éventuel `retryAfterSec` pour le 429) pour que la page de connexion mappe
+ * elle-même les messages exacts, sans que le store impose un libellé.
+ */
+export interface LoginResult {
+  ok: boolean;
+  status?: number;
+  retryAfterSec?: number;
+}
+
 interface AuthState {
   user: AdminUser | null;
   loading: boolean;
   error: string | null;
   init: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
 }
 
@@ -49,13 +60,13 @@ export const useAuth = create<AuthState>((set) => ({
       tokenStorage.set(data.accessToken);
       set({ user: data.user });
       Sentry.setUser({ id: data.user.id, username: data.user.userType });
-      return true;
+      return { ok: true };
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.error?.message ??
-        'Identifiants incorrects ou compte inactif';
-      set({ error: msg });
-      return false;
+      const status: number | undefined = err?.response?.status;
+      // `Retry-After` en secondes si le serveur l'expose (limiter 429).
+      const ra = Number(err?.response?.headers?.['retry-after']);
+      const retryAfterSec = Number.isFinite(ra) && ra > 0 ? ra : undefined;
+      return { ok: false, status, retryAfterSec };
     }
   },
 
