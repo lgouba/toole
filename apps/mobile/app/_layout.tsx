@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
+  Platform,
+  NativeModules,
+  TurboModuleRegistry,
+} from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { AndroidBootSplash } from '@/components/AndroidBootSplash';
@@ -49,6 +57,16 @@ initSentry();
 // fois les polices chargées (cf. effet hideAsync), pour éviter un flash blanc.
 SplashScreen.preventAutoHideAsync();
 
+// OTA-SAFETY : `react-native-bootsplash` est un module NATIF. Un APK plus ancien
+// (buildé avant son intégration) ne l'a pas -> appeler bootsplash y planterait.
+// On détecte donc sa présence à l'exécution (old arch: NativeModules ; new arch:
+// TurboModuleRegistry). Absent -> on retombe sur le masquage du splash expo,
+// exactement comme avant. Présent (build futur) -> morph bootsplash complet.
+const BOOTSPLASH_AVAILABLE =
+  Platform.OS === 'android' &&
+  (!!(NativeModules as any)?.RNBootSplash ||
+    !!TurboModuleRegistry?.get?.('RNBootSplash'));
+
 function RootLayout() {
   // Verifie automatiquement les OTA Expo au demarrage + au retour en foreground.
   // Sans ce hook, l'utilisateur doit force-close l'app 2 fois pour qu'un nouvel
@@ -80,10 +98,12 @@ function RootLayout() {
   //             centré ; <AndroidBootSplash> (JS) reprend ce logo au pixel près
   //             et transite vers le hero. C'est bootsplash (useHideAnimation) qui
   //             masque le splash natif Android — pas SplashScreen.hideAsync ici.
-  const [androidSplashDone, setAndroidSplashDone] = useState(Platform.OS !== 'android');
+  // Android AVEC bootsplash -> l'overlay JS gère le masquage. Sinon (iOS, ou
+  // APK ancien sans le module natif) -> on masque le splash expo nous-mêmes.
+  const [androidSplashDone, setAndroidSplashDone] = useState(!BOOTSPLASH_AVAILABLE);
   useEffect(() => {
     if (!fontsLoaded) return;
-    if (Platform.OS === 'android') return; // géré par <AndroidBootSplash>
+    if (BOOTSPLASH_AVAILABLE) return; // géré par <AndroidBootSplash>
     const t = setTimeout(() => SplashScreen.hideAsync().catch(() => {}), 300);
     return () => clearTimeout(t);
   }, [fontsLoaded]);
@@ -211,7 +231,7 @@ function RootLayout() {
   // polices chargées (le contenu sous le splash peut finir de s'initialiser
   // pendant l'animation). iOS ne monte jamais ce composant.
   const androidSplash =
-    Platform.OS === 'android' && !androidSplashDone ? (
+    BOOTSPLASH_AVAILABLE && !androidSplashDone ? (
       <AndroidBootSplash ready={fontsLoaded} onDone={() => setAndroidSplashDone(true)} />
     ) : null;
 
