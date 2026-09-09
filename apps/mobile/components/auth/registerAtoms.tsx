@@ -108,7 +108,13 @@ export function PressScale({
   );
 }
 
-/** Hero dégradé vert : back · barre de progression animée · n/n · titre · sous-titre. */
+/**
+ * Hero dégradé vert PLEINE LARGEUR : back · barre de progression · n/n.
+ * - mode 'profile' : grand (≈248), avec titre + sous-titre (écran choix de profil).
+ * - mode 'step'    : compact (≈132), sans titre — la question est rendue dans le
+ *   corps de l'étape (32px). `showBack=false` masque la flèche (1re étape sans
+ *   précédent).
+ */
 export function RegHero({
   stepIndex,
   stepTotal,
@@ -116,13 +122,17 @@ export function RegHero({
   subtitle,
   onBack,
   reduceMotion,
+  mode = 'profile',
+  showBack = true,
 }: {
   stepIndex: number;
   stepTotal: number;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   onBack: () => void;
   reduceMotion?: boolean;
+  mode?: 'profile' | 'step';
+  showBack?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
@@ -138,8 +148,20 @@ export function RegHero({
   }, [frac, reduceMotion]);
   const fillStyle = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
 
+  const isProfile = mode === 'profile';
   return (
-    <View style={[heroStyles.hero, { paddingTop: insets.top + 8 }]} onLayout={onHeroLayout}>
+    <View
+      style={[
+        heroStyles.hero,
+        {
+          paddingTop: insets.top + 8,
+          minHeight: (isProfile ? 248 : 132) + insets.top,
+          borderBottomLeftRadius: isProfile ? 30 : 26,
+          borderBottomRightRadius: isProfile ? 30 : 26,
+        },
+      ]}
+      onLayout={onHeroLayout}
+    >
       <Svg
         width={screenW}
         height={heroH || 260}
@@ -162,9 +184,13 @@ export function RegHero({
       </Svg>
 
       <View style={heroStyles.topRow}>
-        <Pressable onPress={onBack} style={heroStyles.back} hitSlop={8} accessibilityLabel="Retour">
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </Pressable>
+        {showBack ? (
+          <Pressable onPress={onBack} style={heroStyles.back} hitSlop={8} accessibilityLabel="Retour">
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </Pressable>
+        ) : (
+          <View style={heroStyles.back} />
+        )}
         <View style={heroStyles.progressTrack}>
           <Animated.View style={[heroStyles.progressFill, fillStyle]} />
         </View>
@@ -173,26 +199,32 @@ export function RegHero({
         </Text>
       </View>
 
-      <Text style={heroStyles.title} numberOfLines={2}>
-        {title}
-      </Text>
-      <Text style={heroStyles.subtitle}>{subtitle}</Text>
+      {isProfile && title ? (
+        <View style={heroStyles.profileText}>
+          <Text style={heroStyles.title} numberOfLines={2}>
+            {title}
+          </Text>
+          {subtitle ? <Text style={heroStyles.subtitle}>{subtitle}</Text> : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-/** Champ texte avec halo vert animé au focus. */
+/** Champ texte avec halo vert animé au focus. `big` = grand champ d'étape (68/26px). */
 export function Field({
   label,
   required,
   hint,
   containerStyle,
+  big,
   ...props
 }: TextInputProps & {
   label?: string;
   required?: boolean;
   hint?: string;
   containerStyle?: ViewStyle;
+  big?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -214,7 +246,12 @@ export function Field({
           props.onBlur?.(e);
         }}
         placeholderTextColor={RC.muted}
-        style={[fieldStyles.input, focused && fieldStyles.inputFocused, props.style]}
+        style={[
+          fieldStyles.input,
+          big && fieldStyles.inputBig,
+          focused && fieldStyles.inputFocused,
+          props.style,
+        ]}
       />
       {hint ? <Text style={fieldStyles.hint}>{hint}</Text> : null}
     </View>
@@ -256,8 +293,9 @@ const heroStyles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     letterSpacing: 0.5,
   },
-  title: { color: '#fff', fontFamily: RF.display, fontSize: 26, lineHeight: 30 },
-  subtitle: { color: 'rgba(255,255,255,0.75)', fontFamily: RF.ui, fontSize: 14, marginTop: 8, lineHeight: 19 },
+  profileText: { marginTop: 'auto' },
+  title: { color: '#fff', fontFamily: RF.display, fontSize: 30, lineHeight: 34, letterSpacing: -0.5 },
+  subtitle: { color: 'rgba(255,255,255,0.82)', fontFamily: RF.ui, fontSize: 14.5, marginTop: 8, lineHeight: 21 },
 });
 
 const fieldStyles = StyleSheet.create({
@@ -273,8 +311,17 @@ const fieldStyles = StyleSheet.create({
     fontSize: 15.5,
     color: RC.ink,
   },
+  inputBig: {
+    height: 68,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    fontFamily: RF.num,
+    fontSize: 26,
+  },
   inputFocused: {
     borderColor: RC.gDark,
+    borderWidth: 2,
     shadowColor: RC.gMid,
     shadowOpacity: 0.18,
     shadowRadius: 10,
