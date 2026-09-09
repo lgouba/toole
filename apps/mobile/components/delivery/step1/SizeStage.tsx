@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { recap as R, step1 as S } from '@/theme/recapTokens';
 import { PackageSize } from '@/types';
-import { BagHero } from './BagHero';
+import { ParcelScene } from './ParcelScene';
 
 interface Props {
   value: PackageSize;
@@ -11,28 +11,24 @@ interface Props {
 
 const SIZES = S.sizes;
 
-/** Scène héro : sac Toolé rotatif (sans ombre au sol) + segmenté + readout. */
+/** Scène : 3 cartons isométriques côte à côte + readout + segmenté. */
 export function SizeStage({ value, onChange }: Props) {
-  const { height } = useWindowDimensions();
-  const compact = height < 720;
-  const sceneH = compact ? 96 : 110;
-
   const meta = SIZES.find((s) => s.key === value) ?? SIZES[1];
 
   return (
     <View style={[styles.stage, { borderRadius: S.radius.stage }]}>
       <Text style={styles.eyebrow}>ÉTAPE 1 · VOTRE COLIS</Text>
 
-      <View style={[styles.scene, { height: sceneH }]}>
-        <BagHero size={value} />
-      </View>
+      <ParcelScene value={value} onChange={onChange} sizes={SIZES} />
 
       <View style={styles.readout}>
         <Text style={styles.readName}>{meta.name}</Text>
         <Text style={styles.readWeight}>{meta.weight}</Text>
       </View>
 
-      <View style={styles.segment}>
+      {/* Segmenté : masqué de l'arbre a11y (le radiogroup des cartons est le
+          contrôle exposé) -> le lecteur d'écran annonce 3 options, pas 6. */}
+      <View style={styles.segment} importantForAccessibility="no-hide-descendants">
         {SIZES.map((s) => {
           const active = s.key === value;
           return (
