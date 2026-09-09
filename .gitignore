@@ -59,3 +59,7 @@ prisma/migrations/dev.db*
 /analyse-*.png
 /fiche.png
 /voile.png
+
+# Assets bootsplash Android : ce ne sont PAS des dossiers natifs générés,
+# ce sont des ressources versionnées nécessaires au build EAS.
+!apps/mobile/assets/bootsplash/android/
