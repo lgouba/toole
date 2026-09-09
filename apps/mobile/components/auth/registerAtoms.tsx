@@ -9,6 +9,8 @@ import {
   ViewStyle,
   StyleProp,
   Platform,
+  useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -123,6 +125,12 @@ export function RegHero({
   reduceMotion?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { width: screenW } = useWindowDimensions();
+  // Hauteur mesurée : react-native-svg ne remplit pas de façon fiable avec
+  // width/height="100%" (dégradé rogné à droite). On dessine avec des pixels
+  // explicites -> le dégradé occupe toute la largeur, compteur jamais coupé.
+  const [heroH, setHeroH] = useState(0);
+  const onHeroLayout = (e: LayoutChangeEvent) => setHeroH(e.nativeEvent.layout.height);
   const frac = Math.max(0, Math.min(1, stepIndex / stepTotal));
   const w = useSharedValue(frac);
   React.useEffect(() => {
@@ -131,8 +139,13 @@ export function RegHero({
   const fillStyle = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
 
   return (
-    <View style={[heroStyles.hero, { paddingTop: insets.top + 8 }]}>
-      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[heroStyles.hero, { paddingTop: insets.top + 8 }]} onLayout={onHeroLayout}>
+      <Svg
+        width={screenW}
+        height={heroH || 260}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
         <Defs>
           <LinearGradient id="regHood" x1="0" y1="0" x2="0.3" y2="1">
             <Stop offset="0" stopColor={RC.gradFrom} />
@@ -144,8 +157,8 @@ export function RegHero({
             <Stop offset="1" stopColor="#ffffff" stopOpacity="0" />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#regHood)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#regHalo)" />
+        <Rect x="0" y="0" width={screenW} height={heroH || 260} fill="url(#regHood)" />
+        <Rect x="0" y="0" width={screenW} height={heroH || 260} fill="url(#regHalo)" />
       </Svg>
 
       <View style={heroStyles.topRow}>

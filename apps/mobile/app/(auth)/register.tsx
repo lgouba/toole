@@ -671,7 +671,7 @@ function Cta({
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.ctaText}>{label}</Text>
+          <Text style={[styles.ctaText, disabled && styles.ctaTextDisabled]}>{label}</Text>
         )}
       </View>
     </PressScale>
@@ -750,9 +750,12 @@ const styles = StyleSheet.create({
   // --- véhicule ---
   vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 4 },
   vehicleCard: {
+    // Hauteur EXPLICITE (pas d'aspectRatio) : aspectRatio + largeur % dans un
+    // Animated.View reanimated s'effondre à 0 sur la New Architecture -> la
+    // carte devenait invisible (étape « Votre véhicule » vide). width en px
+    // calculée pour 2 colonnes (padding scroll 22*2, gap 12).
     width: '47%',
-    flexGrow: 1,
-    aspectRatio: 1.5,
+    height: 104,
     backgroundColor: RC.surface,
     borderRadius: 18,
     borderWidth: 1.5,
@@ -875,6 +878,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaDisabled: { backgroundColor: '#B9D8C4' },
+  ctaDisabled: { backgroundColor: '#E4DCCF' },
   ctaText: { color: '#fff', fontFamily: RF.uiBold, fontSize: 16 },
+  ctaTextDisabled: { color: '#6E7A72' },
 });
