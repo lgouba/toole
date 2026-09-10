@@ -12,9 +12,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.qalitylabs.tolle",
       "splash": {
-        "image": "./assets/bootsplash-logo.png",
+        "image": "./assets/splash-wordmark.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0F5132"
+        "backgroundColor": "#F6EEDA"
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Toolé utilise votre position pour trouver les livreurs proches et suivre les livraisons.",
@@ -41,9 +41,9 @@
         "backgroundColor": "#FFFFFF"
       },
       "splash": {
-        "image": "./assets/bootsplash-logo.png",
+        "image": "./assets/splash-wordmark.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0F5132"
+        "backgroundColor": "#F6EEDA"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

@@ -23,7 +23,6 @@ import {
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import '@/utils/globalErrorHandler';
 import { initSentry, Sentry } from '@/services/sentry';
@@ -40,7 +39,6 @@ import { setAuthExpiredHandler } from '@/services/api.client';
 import { useAutoUpdate } from '@/hooks/useAutoUpdate';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/theme';
-import { SplashWave } from '@/components/SplashWave';
 // Enregistre la tâche GPS background du livreur (doit être importée au chargement
 // pour exister aussi dans le contexte headless quand l'OS réveille l'app).
 import '@/services/locationTask';
@@ -81,11 +79,6 @@ function RootLayout() {
   // update soit applique. Avec, c'est transparent (reload auto).
   useAutoUpdate();
 
-  // Écran d'ouverture animé « La vague » (iOS + Android). Joué une seule fois
-  // par cold start (l'état survit au warm start tant que le process vit).
-  // NE dépend d'aucun chargement : il se pose par-dessus l'arbre et se démonte.
-  const [splashDone, setSplashDone] = useState(false);
-
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -97,7 +90,6 @@ function RootLayout() {
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
   });
 
   const router = useRouter();
@@ -234,8 +226,8 @@ function RootLayout() {
     segments.join('/'),
   ]);
 
-  // Contenu applicatif. Peut être null (polices) ou un loader ; dans TOUS les
-  // cas, SplashWave se pose par-dessus tant que la séquence n'est pas finie.
+  // Contenu applicatif : null (polices en cours), loader, ou l'arbre complet.
+  // Le splash de lancement est natif (expo-splash-screen), masqué via hideSplash.
   let content: React.ReactNode;
   if (!fontsLoaded) {
     content = null;
@@ -279,12 +271,7 @@ function RootLayout() {
     );
   }
 
-  return (
-    <>
-      {content}
-      {!splashDone && <SplashWave onDone={() => setSplashDone(true)} />}
-    </>
-  );
+  return content;
 }
 
 const styles = StyleSheet.create({
