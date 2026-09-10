@@ -836,10 +836,31 @@ export async function listDriverBalances(params: {
     orderBy: { driverProfile: { walletBalance: 'asc' } },
   });
 
+  // Réconciliation cash : total réellement ENCAISSÉ par chaque livreur auprès
+  // des destinataires = somme des prix des courses cash livrées. (Le dû à la
+  // plateforme est déjà cashDebt ; le reversé est déjà reflété dans walletBalance.)
+  const cashAgg = await prisma.delivery.groupBy({
+    by: ['driverId'],
+    where: {
+      driverId: { in: drivers.map((d) => d.id) },
+      status: 'delivered',
+      paymentMethod: 'cash',
+    },
+    _sum: { price: true },
+    _count: { _all: true },
+  });
+  const cashByDriver = new Map(
+    cashAgg.map((a) => [
+      a.driverId,
+      { collected: a._sum.price ?? 0, count: a._count._all },
+    ]),
+  );
+
   const items = drivers
     .filter((d) => d.driverProfile)
     .map((d) => {
       const wb = d.driverProfile!.walletBalance;
+      const cash = cashByDriver.get(d.id);
       return {
         userId: d.id,
         fullName: d.fullName,
@@ -848,6 +869,9 @@ export async function listDriverBalances(params: {
         walletBalance: wb,
         cashDebt: Math.max(0, -wb),
         availableForPayout: Math.max(0, wb),
+        // Réconciliation cash (affichage seul) :
+        cashCollected: cash?.collected ?? 0,
+        cashDeliveries: cash?.count ?? 0,
         totalDeliveries: d.driverProfile!.totalDeliveries,
         ratingAvg: Number(d.ratingAvg),
         ratingCount: d.ratingCount,
@@ -861,12 +885,14 @@ export async function listDriverBalances(params: {
 
   const totalToCollect = items.reduce((s, i) => s + i.cashDebt, 0);
   const totalToPay = items.reduce((s, i) => s + i.availableForPayout, 0);
+  const totalCashCollected = items.reduce((s, i) => s + i.cashCollected, 0);
 
   return {
     items,
     summary: {
       totalToCollect,
       totalToPay,
+      totalCashCollected,
       debtorCount: items.filter((i) => i.cashDebt > 0).length,
       creditorCount: items.filter((i) => i.availableForPayout > 0).length,
     },

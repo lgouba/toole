@@ -24,6 +24,8 @@ interface DriverBalance {
   walletBalance: number;
   cashDebt: number;
   availableForPayout: number;
+  cashCollected: number;
+  cashDeliveries: number;
   totalDeliveries: number;
   ratingAvg: number;
   ratingCount: number;
@@ -34,6 +36,7 @@ interface BalancesResponse {
   summary: {
     totalToCollect: number;
     totalToPay: number;
+    totalCashCollected: number;
     debtorCount: number;
     creditorCount: number;
   };
@@ -92,6 +95,12 @@ export default function Balances() {
       {/* Cartes resume */}
       {data && (
         <div className="balance-summary">
+          <SummaryCard
+            label="ENCAISSÉ (CASH)"
+            sublabel="Total collecté auprès des destinataires"
+            amount={data.summary.totalCashCollected}
+            tone="neutral"
+          />
           <SummaryCard
             label="À COLLECTER"
             sublabel={`${data.summary.debtorCount} livreur(s) en dette`}
@@ -179,6 +188,7 @@ export default function Balances() {
             <thead>
               <tr>
                 <th>LIVREUR</th>
+                <th style={{ textAlign: 'right' }}>ENCAISSÉ (CASH)</th>
                 <th style={{ textAlign: 'right' }}>SOLDE NET</th>
                 <th style={{ textAlign: 'right' }}>À COLLECTER</th>
                 <th style={{ textAlign: 'right' }}>À REVERSER</th>
@@ -193,6 +203,12 @@ export default function Balances() {
                       <div style={{ fontWeight: 600 }}>{d.fullName}</div>
                       <div className="muted" style={{ fontSize: 12 }}>{d.phone}</div>
                     </Link>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 600 }}>{formatCFA(d.cashCollected)}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {d.cashDeliveries} course(s) cash
+                    </div>
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <span
