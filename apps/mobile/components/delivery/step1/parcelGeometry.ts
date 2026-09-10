@@ -13,7 +13,14 @@ import { PackageSize } from '@/types';
 export const SC = 1.24; // échelle px par unité
 export const GROUND = 220; // ligne de sol (px dans le viewBox)
 const C = 0.8660254; // cos(30°)
-export const SCENE_VIEWBOX = '0 0 350 288';
+// viewBox recadré sur la zone utile (cartons + sol) : on coupe le grand vide
+// au-dessus. Les cartons gardent leur taille ; la scène est juste plus courte.
+// Origine y=96, hauteur 160 -> fenêtre visible y ∈ [96, 256].
+export const SCENE_VB_X = 0;
+export const SCENE_VB_Y = 96;
+export const SCENE_VB_W = 350;
+export const SCENE_VB_H = 160;
+export const SCENE_VIEWBOX = `${SCENE_VB_X} ${SCENE_VB_Y} ${SCENE_VB_W} ${SCENE_VB_H}`;
 
 export interface BoxSpec {
   key: PackageSize;

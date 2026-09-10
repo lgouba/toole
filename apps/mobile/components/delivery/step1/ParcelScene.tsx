@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   View,
-  Text,
   Pressable,
   StyleSheet,
   LayoutChangeEvent,
@@ -14,13 +13,21 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { recap as R, step1 as S } from '@/theme/recapTokens';
 import { PackageSize } from '@/types';
-import { BOXES, BoxSpec, GROUND, SCENE_VIEWBOX } from './parcelGeometry';
+import {
+  BOXES,
+  BoxSpec,
+  GROUND,
+  SCENE_VIEWBOX,
+  SCENE_VB_W,
+  SCENE_VB_H,
+  SCENE_VB_Y,
+} from './parcelGeometry';
 import { IsoParcel } from './IsoParcel';
 
-const VB_W = 350;
-const VB_H = 288;
+const VB_W = SCENE_VB_W;
+const VB_H = SCENE_VB_H;
+const VB_Y = SCENE_VB_Y;
 
 // Courbe à léger dépassement (spec) pour l'échelle + le décalage.
 const OVERSHOOT = Easing.bezier(0.34, 1.5, 0.64, 1);
@@ -46,8 +53,10 @@ function AnimatedCarton({
   sceneH: number;
 }) {
   // Origine de transformation = base du carton, en coords écran.
+  // La fenêtre viewBox commence à y=VB_Y : on soustrait cet offset pour mapper
+  // une coordonnée monde -> écran.
   const ox = (box.cx / VB_W) * sceneW;
-  const oy = (GROUND / VB_H) * sceneH;
+  const oy = ((GROUND - VB_Y) / VB_H) * sceneH;
   const dyScreen = (10 / VB_H) * sceneH; // décalage +10 (unités viewBox) -> écran
 
   const sv = useSharedValue(selected ? 1 : 0); // échelle + décalage (overshoot)
@@ -123,7 +132,7 @@ export function ParcelScene({ value, onChange, sizes }: Props) {
                   <Stop offset="1" stopColor="#EBE2CA" />
                 </RadialGradient>
               </Defs>
-              <Rect x="0" y="0" width={VB_W} height={VB_H} fill="url(#scene-bg)" />
+              <Rect x="0" y={VB_Y} width={VB_W} height={VB_H} fill="url(#scene-bg)" />
               <Line x1="18" y1="236" x2="332" y2="236" stroke="#DFD4B7" strokeWidth={1.3} />
             </Svg>
 
@@ -159,22 +168,6 @@ export function ParcelScene({ value, onChange, sizes }: Props) {
           </>
         ) : null}
       </View>
-
-      {/* Étiquettes sous les cartons */}
-      <View style={styles.labelRow}>
-        {BOXES.map((box) => {
-          const active = box.key === value;
-          return (
-            <Text
-              key={box.key}
-              style={[styles.label, active ? styles.labelActive : styles.labelIdle]}
-              importantForAccessibility="no-hide-descendants"
-            >
-              {nameOf(box.key)}
-            </Text>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -189,8 +182,4 @@ const styles = StyleSheet.create({
   },
   tapRow: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
   tapCol: { flex: 1 },
-  labelRow: { flexDirection: 'row', marginTop: R.space.xs },
-  label: { flex: 1, textAlign: 'center', fontFamily: R.font.bodyBold, fontSize: 13 },
-  labelActive: { color: '#14201A' },
-  labelIdle: { color: '#B7B0A2' },
 });
