@@ -6,6 +6,7 @@ import {
   refreshTokenExpiry,
 } from '../lib/jwt.js';
 import { generateOtp, otpExpiryDate } from '../lib/otp.js';
+import { canonicalUploadPath } from '../lib/signedUpload.js';
 import { HttpError } from '../utils/response.js';
 import { logger } from '../lib/logger.js';
 import { sendOtpMessage, type MessageChannel } from '../lib/sms.js';
@@ -369,8 +370,13 @@ export async function registerUser(args: {
               create: {
                 vehicleType: args.vehicleType ?? 'moto',
                 vehiclePlate: plate,
-                cnibPhotoUrl: args.cnibPhotoUrl ?? null,
-                cnibPhotoBackUrl: args.cnibPhotoBackUrl ?? null,
+                // Canonicalise (retire ?exp&sig) : on stocke le chemin stable.
+                cnibPhotoUrl: args.cnibPhotoUrl
+                  ? canonicalUploadPath(args.cnibPhotoUrl)
+                  : null,
+                cnibPhotoBackUrl: args.cnibPhotoBackUrl
+                  ? canonicalUploadPath(args.cnibPhotoBackUrl)
+                  : null,
                 verificationStatus: 'pending',
               },
             },

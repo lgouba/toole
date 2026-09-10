@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../utils/response.js';
+import { signKycFields } from '../lib/signedUpload.js';
 import {
   signAccessToken,
   signRefreshToken,
@@ -291,7 +292,9 @@ export async function getUserDetail(userId: string) {
 
   // Ne jamais exposer passwordHash dans les reponses (meme admin).
   const { passwordHash: _ph, ...safeUser } = user;
-  return { user: safeUser, recentDeliveries };
+  // Signe les URLs KYC (pièces d'identité) pour que l'admin puisse les afficher
+  // en <img> via une URL signée à durée limitée (fichiers non publics).
+  return { user: signKycFields(safeUser), recentDeliveries };
 }
 
 /**

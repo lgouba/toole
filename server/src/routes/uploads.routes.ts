@@ -7,6 +7,7 @@ import { authRequired, AuthedRequest } from '../middleware/auth.js';
 import { kycUploadLimiter } from '../middleware/rateLimit.js';
 import { success } from '../utils/response.js';
 import { HttpError } from '../utils/response.js';
+import { signKycUrl } from '../lib/signedUpload.js';
 
 const UPLOAD_ROOT = process.env.UPLOAD_DIR ?? '/app/uploads';
 
@@ -82,10 +83,13 @@ router.post('/:category', kycUploadLimiter, conditionalAuth, upload.single('file
     }
     const category = req.params.category;
     const filename = req.file.filename;
-    // URL publique servie par Nginx / Express static
     const publicUrl = `/uploads/${category}/${filename}`;
+    // KYC : renvoyer une URL SIGNÉE (le fichier n'est pas public). L'appelant
+    // l'affiche telle quelle et la renvoie à /auth/register ou /drivers/me/kyc,
+    // qui la canonicalisent (retirent la query) avant stockage.
+    const url = category === 'kyc' ? signKycUrl(publicUrl) : publicUrl;
     return success(res, {
-      url: publicUrl,
+      url,
       filename,
       size: req.file.size,
       category,

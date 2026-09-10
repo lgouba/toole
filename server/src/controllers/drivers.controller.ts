@@ -10,6 +10,7 @@ import {
   getPublicDriverProfile,
 } from '../services/driver.service.js';
 import { getDriverStats } from '../services/driver-stats.service.js';
+import { signKycFields, canonicalizeKycFields } from '../lib/signedUpload.js';
 import { emitToUser } from '../services/notification.service.js';
 import { success } from '../utils/response.js';
 import { HttpError } from '../utils/response.js';
@@ -178,7 +179,9 @@ export async function updateKyc(
   next: NextFunction,
 ) {
   try {
-    const data = kycSchema.parse(req.body);
+    // Canonicalise les URLs KYC (retire la query ?exp&sig) avant stockage :
+    // on garde le chemin stable en base, la signature est recalculée à lecture.
+    const data = canonicalizeKycFields(kycSchema.parse(req.body));
     const profile = await prisma.driverProfile.findUnique({
       where: { userId: req.user!.id },
     });
@@ -198,7 +201,7 @@ export async function updateKyc(
           : {}),
       },
     });
-    return success(res, updated);
+    return success(res, signKycFields(updated));
   } catch (err) {
     next(err);
   }
@@ -214,7 +217,7 @@ export async function getKyc(
       where: { userId: req.user!.id },
     });
     if (!profile) throw new HttpError(404, 'NOT_FOUND', 'Driver profile not found');
-    return success(res, profile);
+    return success(res, signKycFields(profile));
   } catch (err) {
     next(err);
   }

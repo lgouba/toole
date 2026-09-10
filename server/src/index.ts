@@ -36,6 +36,7 @@ import {
 } from './services/delivery.service.js';
 import { markStaleDriversOffline } from './services/driver.service.js';
 import { globalLimiter } from './middleware/rateLimit.js';
+import { verifyKycSignature } from './lib/signedUpload.js';
 
 const app = express();
 
@@ -70,6 +71,27 @@ app.use(express.urlencoded({ extended: true }));
 // Service statique des uploads
 const UPLOAD_ROOT = process.env.UPLOAD_DIR ?? '/app/uploads';
 fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
+
+// GARDE KYC : les pièces d'identité (/uploads/kyc/*) ne sont PAS publiques.
+// Elles ne sont servies que via une URL SIGNÉE (?exp&sig) émise par le serveur
+// au moment du renvoi (upload, /drivers/me/kyc, détail admin). Monté AVANT le
+// static pour intercepter ces chemins. Les avatars/packages restent publics.
+app.use('/uploads/kyc', (req, res, next) => {
+  const fullPath = '/uploads/kyc' + req.path;
+  if (
+    verifyKycSignature(
+      fullPath,
+      req.query.exp as string | undefined,
+      req.query.sig as string | undefined,
+    )
+  ) {
+    return next();
+  }
+  return res
+    .status(403)
+    .json({ data: null, error: { code: 'FORBIDDEN', message: 'Lien expiré ou invalide' } });
+});
+
 app.use(
   '/uploads',
   express.static(UPLOAD_ROOT, {
