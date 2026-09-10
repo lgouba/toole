@@ -350,8 +350,8 @@ function SettleModal({
   // modale, focus rendu au déclencheur à la fermeture.
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    amountRef.current?.focus();
-    amountRef.current?.select?.();
+    // focus sans sélectionner le texte (pas de surbrillance sur le montant).
+    amountRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !busyRef.current) {
         onClose();

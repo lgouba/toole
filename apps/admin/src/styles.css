@@ -2198,7 +2198,7 @@ table tr:hover td {
 /* En-tête */
 .settle-console .sc-header {
   position: relative;
-  padding: 22px 28px 18px;
+  padding: 16px 28px 12px;
   border-bottom: 1px solid var(--sc-sep);
 }
 .settle-console .sc-eyebrow {
@@ -2254,7 +2254,7 @@ table tr:hover td {
 
 /* Corps */
 .settle-console .sc-body {
-  padding: 18px 28px 0;
+  padding: 12px 28px 0;
 }
 
 /* Libellés de section (Space Mono, MAJUSCULES) */
@@ -2276,7 +2276,7 @@ table tr:hover td {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 15px;
+  padding: 11px 14px;
   border-radius: 13px;
   background: var(--sc-inset);
   border: 1px solid var(--sc-inset-border);
@@ -2330,11 +2330,11 @@ table tr:hover td {
 
 /* Blocs de champ */
 .settle-console .sc-block {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 .settle-console .sc-block > .sc-label {
   display: block;
-  margin-bottom: 9px;
+  margin-bottom: 6px;
 }
 
 /* Montant — champ dominant */
@@ -2342,7 +2342,7 @@ table tr:hover td {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 9px;
+  margin-bottom: 6px;
 }
 .settle-console .sc-all {
   height: 25px;
@@ -2365,7 +2365,7 @@ table tr:hover td {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 62px;
+  height: 54px;
   padding: 0 18px;
   border-radius: 13px;
   background: #0a100d;
@@ -2385,7 +2385,7 @@ table tr:hover td {
   background: transparent;
   outline: none;
   font-family: var(--sc-mono);
-  font-size: 27px;
+  font-size: 24px;
   font-weight: 700;
   color: #f2faf5;
 }
@@ -2426,7 +2426,7 @@ table tr:hover td {
 .settle-console .sc-input {
   width: 100%;
   box-sizing: border-box;
-  height: 46px;
+  height: 42px;
   padding: 0 15px;
   border-radius: 10px;
   background: var(--sc-field);
@@ -2445,10 +2445,10 @@ table tr:hover td {
   box-shadow: 0 0 0 3px rgba(47, 208, 123, 0.12);
 }
 .settle-console .sc-textarea {
-  height: 78px;
-  padding: 13px 15px;
+  height: 52px;
+  padding: 11px 15px;
   resize: vertical;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 .settle-console .sc-select-wrap {
   position: relative;
@@ -2487,9 +2487,14 @@ table tr:hover td {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 24px;
-  padding: 18px 28px 24px;
+  margin-top: 16px;
+  padding: 14px 28px 18px;
   border-top: 1px solid var(--sc-sep);
+  /* Collant en bas de la modale : le bouton « Verser » reste toujours visible,
+     même si le contenu est grand — pas besoin de scroller pour l'atteindre. */
+  position: sticky;
+  bottom: 0;
+  background: var(--sc-surface);
 }
 .settle-console .sc-btn-ghost {
   height: 44px;
@@ -2547,6 +2552,12 @@ table tr:hover td {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Sélection de texte discrète et on-brand (pas la surbrillance système). */
+.settle-console ::selection {
+  background: rgba(47, 208, 123, 0.28);
+  color: #f2faf5;
 }
 
 /* Focus visible clavier */
