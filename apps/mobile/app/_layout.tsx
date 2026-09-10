@@ -23,6 +23,7 @@ import {
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import '@/utils/globalErrorHandler';
 import { initSentry, Sentry } from '@/services/sentry';
@@ -39,6 +40,7 @@ import { setAuthExpiredHandler } from '@/services/api.client';
 import { useAutoUpdate } from '@/hooks/useAutoUpdate';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/theme';
+import { SplashWave } from '@/components/SplashWave';
 // Enregistre la tâche GPS background du livreur (doit être importée au chargement
 // pour exister aussi dans le contexte headless quand l'OS réveille l'app).
 import '@/services/locationTask';
@@ -79,6 +81,11 @@ function RootLayout() {
   // update soit applique. Avec, c'est transparent (reload auto).
   useAutoUpdate();
 
+  // Écran d'ouverture animé « La vague » (iOS + Android). Joué une seule fois
+  // par cold start (l'état survit au warm start tant que le process vit).
+  // NE dépend d'aucun chargement : il se pose par-dessus l'arbre et se démonte.
+  const [splashDone, setSplashDone] = useState(false);
+
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -90,6 +97,7 @@ function RootLayout() {
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
   const router = useRouter();
@@ -226,46 +234,56 @@ function RootLayout() {
     segments.join('/'),
   ]);
 
-  if (!fontsLoaded) return null;
-
-  // Si authentifie mais user pas encore charge, afficher un loader (évite flash sur mauvais écran)
-  if (isAuthenticated && !user) {
-    return (
+  // Contenu applicatif. Peut être null (polices) ou un loader ; dans TOUS les
+  // cas, SplashWave se pose par-dessus tant que la séquence n'est pas finie.
+  let content: React.ReactNode;
+  if (!fontsLoaded) {
+    content = null;
+  } else if (isAuthenticated && !user) {
+    // Authentifie mais user pas encore charge : loader (évite flash mauvais écran)
+    content = (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
+  } else {
+    content = (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeGate>
+          <ForceUpdateGate>
+            <SocketProvider>
+              <ActiveDeliveryGuard />
+              <ConnectionBanner />
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(client)" />
+                <Stack.Screen name="(driver)" />
+                <Stack.Screen name="delivery/[id]" />
+                <Stack.Screen name="track/[token]" />
+                <Stack.Screen name="chat/[deliveryId]" />
+                <Stack.Screen name="profile-edit" />
+                <Stack.Screen name="settings" />
+                <Stack.Screen name="about" />
+                <Stack.Screen
+                  name="address-picker"
+                  options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                />
+                <Stack.Screen name="wallet-flow" />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <ActiveDeliveryBanner />
+            </SocketProvider>
+          </ForceUpdateGate>
+        </ThemeGate>
+      </GestureHandlerRootView>
+    );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-    <ThemeGate>
-      <ForceUpdateGate>
-      <SocketProvider>
-        <ActiveDeliveryGuard />
-        <ConnectionBanner />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(client)" />
-        <Stack.Screen name="(driver)" />
-        <Stack.Screen name="delivery/[id]" />
-        <Stack.Screen name="track/[token]" />
-        <Stack.Screen name="chat/[deliveryId]" />
-        <Stack.Screen name="profile-edit" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="about" />
-        <Stack.Screen
-          name="address-picker"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen name="wallet-flow" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <ActiveDeliveryBanner />
-    </SocketProvider>
-    </ForceUpdateGate>
-    </ThemeGate>
-    </GestureHandlerRootView>
+    <>
+      {content}
+      {!splashDone && <SplashWave onDone={() => setSplashDone(true)} />}
+    </>
   );
 }
 
