@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -121,6 +122,11 @@ export function NewCourseModal({
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+      {/* IMPORTANT (Android) : le contenu d'un <Modal> RN est une fenêtre native
+          séparée, NON couverte par le GestureHandlerRootView racine (_layout).
+          Sans ce wrapper, le geste "Glissez pour accepter" (Gesture.Pan) ne
+          reçoit aucune touche sur Android. On ré-enveloppe donc ici. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.root}>
         <MissionBackground reduceMotion={reduceMotion} />
         <PerimeterCountdown progress={progress} />
@@ -227,6 +233,7 @@ export function NewCourseModal({
           </TouchableOpacity>
         </ScrollView>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
