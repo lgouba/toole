@@ -31,6 +31,32 @@ import { rateDelivery } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { resolveUploadUrl } from '@/services/upload.service';
 import { DriverWithProfile } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Mémorise localement les courses déjà notées : une note est UNIQUE par course
+// (le serveur refuse une 2e note). On grise donc « Envoyer mon avis » si la
+// course a déjà été notée, y compris à la réouverture de l'écran.
+const RATED_KEY = 'ratedDeliveryIds';
+async function markRatedLocally(id: string) {
+  try {
+    const raw = await AsyncStorage.getItem(RATED_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!ids.includes(id)) {
+      ids.push(id);
+      await AsyncStorage.setItem(RATED_KEY, JSON.stringify(ids.slice(-200)));
+    }
+  } catch {
+    /* silencieux */
+  }
+}
+async function isRatedLocally(id: string): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(RATED_KEY);
+    return raw ? (JSON.parse(raw) as string[]).includes(id) : false;
+  } catch {
+    return false;
+  }
+}
 
 export default function DeliveryCompleteScreen() {
   const router = useRouter();
@@ -42,6 +68,7 @@ export default function DeliveryCompleteScreen() {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadyRated, setAlreadyRated] = useState(false);
   const [fetchedDriver, setFetchedDriver] = useState<DriverWithProfile | null>(
     null,
   );
@@ -103,11 +130,19 @@ export default function DeliveryCompleteScreen() {
     router.replace('/(client)');
   };
 
+  // Course déjà notée ? (mémorisé localement) -> on grise le bouton d'envoi.
+  useEffect(() => {
+    if (activeDelivery?.id) {
+      isRatedLocally(activeDelivery.id).then(setAlreadyRated);
+    }
+  }, [activeDelivery?.id]);
+
   const handleSubmit = async () => {
-    if (score === 0 || !activeDelivery) return;
+    if (score === 0 || !activeDelivery || alreadyRated) return;
     setSubmitting(true);
     try {
       await rateDelivery(activeDelivery.id, score, comment.trim() || undefined);
+      await markRatedLocally(activeDelivery.id);
       setSubmitted(true);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(
@@ -117,11 +152,21 @@ export default function DeliveryCompleteScreen() {
       // Auto-retour après 1.8s
       setTimeout(() => handleDone(), 1800);
     } catch (err: any) {
-      Alert.alert(
-        'Erreur',
-        err?.response?.data?.error?.message ??
-          'Impossible d\'envoyer la note. Réessayez.',
-      );
+      const status = err?.response?.status;
+      const code = err?.response?.data?.error?.code;
+      const msg = err?.response?.data?.error?.message ?? '';
+      // Course déjà notée côté serveur : on entérine (grise le bouton) au lieu
+      // d'afficher une erreur anxiogène.
+      if (status === 409 || code === 'ALREADY_RATED' || /déjà|already/i.test(msg)) {
+        await markRatedLocally(activeDelivery.id);
+        setAlreadyRated(true);
+        Alert.alert('Déjà noté', 'Vous avez déjà noté cette course. Merci !');
+      } else {
+        Alert.alert(
+          'Erreur',
+          msg || "Impossible d'envoyer la note. Réessayez.",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -240,28 +285,41 @@ export default function DeliveryCompleteScreen() {
             </Text>
           )}
 
-          <Rating value={score} onChange={setScore} size={44} />
-
-          {score > 0 ? (
-            <View style={styles.commentWrap}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Un commentaire (optionnel)..."
-                placeholderTextColor={colors.textTertiary}
-                value={comment}
-                onChangeText={setComment}
-                multiline
-                maxLength={250}
-                numberOfLines={3}
-              />
-              <Text style={styles.commentCount}>{comment.length}/250</Text>
+          {alreadyRated ? (
+            <View style={styles.alreadyRatedRow}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              <Text style={styles.alreadyRatedText}>
+                Vous avez déjà noté cette course. Merci !
+              </Text>
             </View>
-          ) : null}
+          ) : (
+            <>
+              <Rating value={score} onChange={setScore} size={44} />
+
+              {score > 0 ? (
+                <View style={styles.commentWrap}>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder="Un commentaire (optionnel)..."
+                    placeholderTextColor={colors.textTertiary}
+                    value={comment}
+                    onChangeText={setComment}
+                    multiline
+                    maxLength={250}
+                    numberOfLines={3}
+                  />
+                  <Text style={styles.commentCount}>{comment.length}/250</Text>
+                </View>
+              ) : null}
+            </>
+          )}
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        {score > 0 ? (
+        {alreadyRated ? (
+          <Button title="Avis déjà envoyé" onPress={() => {}} disabled />
+        ) : score > 0 ? (
           <Button
             title="Envoyer mon avis"
             onPress={handleSubmit}
@@ -455,6 +513,18 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  alreadyRatedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  alreadyRatedText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
   },
   commentWrap: {
     width: '100%',
