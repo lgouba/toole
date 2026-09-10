@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api';
 import { formatCFA } from '../utils';
@@ -324,6 +324,65 @@ function SettleModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const amountRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  // Formatage d'AFFICHAGE uniquement (séparateur de milliers). L'état `amount`
+  // reste un nombre brut -> le payload envoyé au backend est IDENTIQUE à avant.
+  const fmt = (n: number) =>
+    n.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+  const parse = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0;
+
+  const over = amount > maxAmount;
+  const reste = Math.max(0, maxAmount - amount);
+  const verb = kind === 'collect' ? 'Encaisser' : 'Verser';
+  const initials = driver.fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+
+  // A11y : focus sur Montant à l'ouverture, Échap ferme, piège de focus dans la
+  // modale, focus rendu au déclencheur à la fermeture.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    amountRef.current?.focus();
+    amountRef.current?.select?.();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busyRef.current) {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const nodes = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => !el.hasAttribute('disabled'));
+        if (nodes.length === 0) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      prev?.focus?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submit = async () => {
     setBusy(true);
     setErr(null);
@@ -343,76 +402,185 @@ function SettleModal({
     }
   };
 
+  const titleId = 'settle-title';
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
-        <h2 className="modal-title">
-          {kind === 'collect' ? 'Encaisser la dette' : 'Verser le solde'}
-        </h2>
-        <p className="muted" style={{ marginBottom: 20 }}>
-          {kind === 'collect'
-            ? `${driver.fullName} doit ${formatCFA(maxAmount)} à la plateforme (commission sur paiements cash).`
-            : `La plateforme doit ${formatCFA(maxAmount)} à ${driver.fullName} (gains online).`}
-        </p>
+    <div
+      className="settle-console sc-overlay"
+      onClick={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <div
+        className="sc-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        ref={modalRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* En-tête */}
+        <div className="sc-header">
+          <div className="sc-eyebrow">
+            <span className="sc-dot" /> OPÉRATION MANUELLE
+          </div>
+          <button
+            className="sc-close"
+            aria-label="Fermer"
+            onClick={onClose}
+            disabled={busy}
+          >
+            ×
+          </button>
+          <h2 className="sc-title" id={titleId}>
+            {kind === 'collect' ? 'Encaisser la dette' : 'Verser le solde'}
+          </h2>
+        </div>
 
-        <div className="form">
-          <label>
-            Montant (max {formatCFA(maxAmount)})
+        {/* Corps */}
+        <div className="sc-body">
+          {/* Bloc bénéficiaire */}
+          <div className="sc-benef">
+            <div className="sc-benef-left">
+              <div className="sc-avatar">{initials}</div>
+              <div>
+                <div className="sc-benef-name">{driver.fullName}</div>
+                <div className="sc-benef-origin">
+                  {kind === 'collect' ? 'commission cash' : 'gains online'}
+                </div>
+              </div>
+            </div>
+            <div className="sc-benef-right">
+              <div className="sc-label">
+                {kind === 'collect' ? 'DÛ À LA PLATEFORME' : 'DÛ PAR LA PLATEFORME'}
+              </div>
+              <div className="sc-benef-amount">{fmt(maxAmount)} FCFA</div>
+            </div>
+          </div>
+
+          {/* Montant — champ dominant */}
+          <div className="sc-block">
+            <div className="sc-amount-head">
+              <span className="sc-label">Montant</span>
+              <button
+                type="button"
+                className="sc-all"
+                onClick={() => setAmount(maxAmount)}
+              >
+                TOUT
+              </button>
+            </div>
+            <div className={`sc-amount-field${over ? ' sc-amount-field--err' : ''}`}>
+              <input
+                ref={amountRef}
+                type="text"
+                inputMode="numeric"
+                className="sc-amount-input"
+                aria-label="Montant"
+                aria-invalid={over}
+                value={amount ? fmt(amount) : ''}
+                onChange={(e) => setAmount(parse(e.target.value))}
+              />
+              <span className="sc-amount-suffix">FCFA</span>
+            </div>
+            <div className="sc-amount-foot">
+              <span className="sc-amount-max">max {fmt(maxAmount)} FCFA</span>
+              <span
+                className={`sc-reste${reste === 0 ? ' sc-reste--ok' : ' sc-reste--warn'}`}
+                aria-live="polite"
+              >
+                reste {fmt(reste)} FCFA
+              </span>
+            </div>
+            {over && (
+              <div className="sc-field-err">Le montant dépasse le maximum.</div>
+            )}
+          </div>
+
+          {/* Mode de versement */}
+          <div className="sc-block">
+            <label className="sc-label" htmlFor="sc-mode">
+              Mode {kind === 'collect' ? "d'encaissement" : 'de versement'}
+            </label>
+            <div className="sc-select-wrap">
+              <select
+                id="sc-mode"
+                className="sc-input sc-select"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as any)}
+              >
+                <option value="orange_money">Orange Money</option>
+                <option value="moov_money">Moov Money</option>
+                <option value="cash">Cash</option>
+                <option value="wallet">Wallet (interne)</option>
+              </select>
+              <svg
+                className="sc-chevron"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* Référence */}
+          <div className="sc-block">
+            <label className="sc-label" htmlFor="sc-ref">
+              Référence <span className="sc-opt">(optionnel)</span>
+            </label>
             <input
-              type="number"
-              value={amount}
-              min={1}
-              max={maxAmount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-            />
-          </label>
-
-          <label>
-            Mode {kind === 'collect' ? "d'encaissement" : 'de versement'}
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value as any)}
-            >
-              <option value="orange_money">Orange Money</option>
-              <option value="moov_money">Moov Money</option>
-              <option value="cash">Cash</option>
-              <option value="wallet">Wallet (interne)</option>
-            </select>
-          </label>
-
-          <label>
-            Référence (optionnel)
-            <input
-              type="text"
+              id="sc-ref"
+              className="sc-input"
               placeholder="N° de transaction, reçu, etc."
               value={reference}
               onChange={(e) => setReference(e.target.value)}
             />
-          </label>
+          </div>
 
-          <label>
-            Note (optionnel)
+          {/* Note */}
+          <div className="sc-block">
+            <label className="sc-label" htmlFor="sc-note">
+              Note <span className="sc-opt">(optionnel)</span>
+            </label>
             <textarea
-              rows={2}
+              id="sc-note"
+              className="sc-input sc-textarea"
               placeholder="Ex: virement reçu le 23/05 à 14h"
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
-          </label>
+          </div>
+
+          {err && <div className="sc-alert">{err}</div>}
         </div>
 
-        {err && <div className="error-banner">{err}</div>}
-
-        <div className="row" style={{ gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
-          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
+        {/* Pied */}
+        <div className="sc-footer">
+          <button className="sc-btn-ghost" onClick={onClose} disabled={busy}>
             Annuler
           </button>
           <button
-            className={kind === 'collect' ? 'btn' : 'btn btn-success'}
+            className="sc-btn-primary"
             onClick={submit}
-            disabled={busy || !amount || amount > maxAmount}
+            disabled={busy || !amount || over}
           >
-            {busy ? 'Enregistrement…' : kind === 'collect' ? 'Encaisser' : 'Verser'}
+            {busy ? (
+              <>
+                <span className="sc-spinner" /> Versement…
+              </>
+            ) : (
+              `${verb} ${fmt(amount || 0)} FCFA`
+            )}
           </button>
         </div>
       </div>
