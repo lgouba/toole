@@ -19,7 +19,7 @@ const C = 0.8660254; // cos(30°)
 export const SCENE_VB_X = 0;
 export const SCENE_VB_Y = 96;
 export const SCENE_VB_W = 350;
-export const SCENE_VB_H = 160;
+export const SCENE_VB_H = 150;
 export const SCENE_VIEWBOX = `${SCENE_VB_X} ${SCENE_VB_Y} ${SCENE_VB_W} ${SCENE_VB_H}`;
 
 export interface BoxSpec {
