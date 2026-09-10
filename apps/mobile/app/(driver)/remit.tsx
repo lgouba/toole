@@ -107,7 +107,9 @@ export default function RemitScreen() {
         ListEmptyComponent={
           <Text style={styles.empty}>Aucun reversement pour l'instant.</Text>
         }
-        renderItem={({ item }) => <ActivityRow tx={item} />}
+        renderItem={({ item }) => (
+          <ActivityRow item={{ kind: 'single' as const, tx: item }} />
+        )}
       />
     </SafeAreaView>
   );

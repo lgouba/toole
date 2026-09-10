@@ -35,7 +35,7 @@ export function WalletCard({ balance, totalEarned }: { balance: number; totalEar
         {formatCFA(balance).replace(' FCFA', '')}
         <Text style={styles.currency}> FCFA</Text>
       </Text>
-      <Text style={styles.total}>Total gagné · {formatCFA(totalEarned)}</Text>
+      <Text style={styles.total}>Gains cumulés · {formatCFA(totalEarned)}</Text>
     </View>
   );
 }

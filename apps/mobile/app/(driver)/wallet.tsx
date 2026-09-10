@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -6,7 +6,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SkeletonList } from '@/components/ui';
 import { MOBILE_MONEY_ENABLED } from '@/config/features';
 import { recap as R, wallet as W } from '@/theme/recapTokens';
-import { getMyWallet, getMyTransactions, WalletSnapshot, Transaction } from '@/services/wallet.service';
+import {
+  getMyWallet,
+  getMyTransactions,
+  buildActivityItems,
+  WalletSnapshot,
+  Transaction,
+} from '@/services/wallet.service';
 import { formatCFA } from '@/utils/format';
 import { WalletCard } from '@/components/driver/wallet/WalletCard';
 import { RemitAlert } from '@/components/driver/wallet/RemitAlert';
@@ -44,11 +50,14 @@ export default function WalletScreen() {
   // branchées (cf. config/features). On garde le solde/historique visibles.
   const canWithdraw = MOBILE_MONEY_ENABLED && balance > 0;
 
+  // Regroupe les 2 lignes d'une course cash (gain + commission) en une entrée.
+  const items = useMemo(() => buildActivityItems(txs), [txs]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={txs}
-        keyExtractor={(t) => t.id}
+        data={items}
+        keyExtractor={(it) => (it.kind === 'course' ? `c-${it.id}` : it.tx.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={W.green} />}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
@@ -97,6 +106,11 @@ export default function WalletScreen() {
             )}
 
             <Text style={styles.activityTitle}>Activité</Text>
+            <Text style={styles.activityKey}>
+              <Text style={{ color: W.plus }}>● </Text>Gain (déjà encaissé en cash)  ·
+              <Text style={{ color: W.amberFg }}> ● </Text>à reverser  ·
+              <Text style={{ color: '#2563EB' }}> ● </Text>versement reçu
+            </Text>
           </View>
         }
         ListEmptyComponent={
@@ -111,7 +125,7 @@ export default function WalletScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => <ActivityRow tx={item} />}
+        renderItem={({ item }) => <ActivityRow item={item} />}
       />
     </SafeAreaView>
   );
@@ -172,6 +186,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: W.textPrim,
     marginTop: R.space.sm,
+  },
+  activityKey: {
+    fontFamily: R.font.body,
+    fontSize: 11,
+    color: W.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
   },
   empty: { alignItems: 'center', gap: R.space.sm, paddingTop: 60, paddingHorizontal: R.space.xl },
   emptyText: { fontFamily: R.font.body, fontSize: 13.5, color: W.textMuted, textAlign: 'center' },

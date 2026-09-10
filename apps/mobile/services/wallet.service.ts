@@ -101,10 +101,90 @@ export function formatPhoneForDisplay(phone: string | null | undefined): string 
 export const TX_TYPE_LABEL: Record<Transaction['type'], string> = {
   payment: 'Paiement',
   commission: 'Gain livraison',
-  commission_debt: 'Commission plateforme',
+  commission_debt: 'Commission à reverser',
   tip: 'Pourboire',
-  topup: 'Règlement',
-  withdrawal: 'Retrait',
+  topup: 'Reversement commission',
+  withdrawal: 'Versement reçu',
   withdrawal_fee: 'Frais de retrait',
   adjustment: 'Ajustement',
 };
+
+/**
+ * Nature d'une ligne d'activité pour l'affichage (couleur + sens) :
+ *  - 'gain'      : crédit livreur (gain, pourboire) — vert +
+ *  - 'reverse'   : commission cash que le livreur DOIT à la plateforme — ambre
+ *  - 'payout'    : versement/retrait reçu par le livreur — bleu (sorti)
+ *  - 'remit'     : reversement effectué par le livreur (règle sa dette) — bleu
+ *  - 'neutral'   : le reste
+ */
+export type TxNature = 'gain' | 'reverse' | 'payout' | 'remit' | 'neutral';
+export function txNature(type: Transaction['type']): TxNature {
+  switch (type) {
+    case 'commission':
+    case 'tip':
+      return 'gain';
+    case 'commission_debt':
+      return 'reverse';
+    case 'withdrawal':
+    case 'withdrawal_fee':
+      return 'payout';
+    case 'topup':
+      return 'remit';
+    default:
+      return 'neutral';
+  }
+}
+
+/**
+ * Élément d'affichage du fil d'activité. Une course CASH produit 2 transactions
+ * (commission +gain ET commission_debt −commission) : on les REGROUPE en une
+ * seule entrée « course » pour lever l'ambiguïté. Le reste = ligne simple.
+ */
+export type ActivityItem =
+  | {
+      kind: 'course';
+      id: string;
+      reference: string | null;
+      createdAt: string;
+      gain: number; // part livreur (déjà encaissée en cash)
+      commission: number; // commission due à la plateforme (à reverser)
+    }
+  | { kind: 'single'; tx: Transaction };
+
+/**
+ * Transforme la liste plate de transactions en éléments d'affichage :
+ * apparie commission (+) et commission_debt (−) d'une même course cash.
+ */
+export function buildActivityItems(txs: Transaction[]): ActivityItem[] {
+  // Index des dettes de commission par deliveryId (course cash).
+  const debtByDelivery = new Map<string, Transaction>();
+  for (const t of txs) {
+    if (t.type === 'commission_debt' && t.deliveryId) {
+      debtByDelivery.set(t.deliveryId, t);
+    }
+  }
+  const consumed = new Set<string>();
+  const items: ActivityItem[] = [];
+  for (const t of txs) {
+    if (consumed.has(t.id)) continue;
+    // Gain d'une course cash : il a une dette de commission jumelle -> on regroupe.
+    if (t.type === 'commission' && t.deliveryId && debtByDelivery.has(t.deliveryId)) {
+      const debt = debtByDelivery.get(t.deliveryId)!;
+      consumed.add(t.id);
+      consumed.add(debt.id);
+      items.push({
+        kind: 'course',
+        id: t.deliveryId,
+        reference: t.delivery?.reference ?? debt.delivery?.reference ?? null,
+        createdAt: t.createdAt,
+        gain: Math.abs(t.amount),
+        commission: Math.abs(debt.amount),
+      });
+      continue;
+    }
+    // Dette déjà regroupée avec son gain : on l'ignore ici.
+    if (t.type === 'commission_debt' && t.deliveryId && consumed.has(t.id)) continue;
+    items.push({ kind: 'single', tx: t });
+  }
+  return items;
+}
