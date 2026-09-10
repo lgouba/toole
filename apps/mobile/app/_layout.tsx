@@ -49,9 +49,11 @@ export { ErrorBoundary } from 'expo-router';
 // Comme ca, meme un crash dans le tout premier rendu est capture.
 initSentry();
 
-// Empêche le splash natif de se cacher tout seul : on le cache nous-mêmes une
-// fois les polices chargées (cf. effet hideAsync), pour éviter un flash blanc.
-SplashScreen.preventAutoHideAsync();
+// On retient le splash jusqu'à ce que l'app soit prête, puis on le masque via
+// SplashScreen.hideAsync (cf. effet). Le splash = logo Toolé centré sur fond vert,
+// IDENTIQUE iOS + Android (contrainte Android 12 : le splash système ne sait
+// afficher qu'un logo centré sur une couleur -> on aligne iOS dessus).
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Masque le splash de lancement. UN SEUL système sur les deux plateformes :
 // expo-splash-screen (SplashScreen.hideAsync). Fiable, éprouvé sur iOS. On a

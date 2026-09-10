@@ -12,8 +12,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.qalitylabs.tolle",
       "splash": {
-        "image": "./assets/images/toole-splash.png",
-        "resizeMode": "cover",
+        "image": "./assets/bootsplash-logo.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0F5132"
       },
       "infoPlist": {
@@ -41,8 +41,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "splash": {
-        "image": "./assets/images/toole-splash.png",
-        "resizeMode": "cover",
+        "image": "./assets/bootsplash-logo.png",
+        "resizeMode": "contain",
         "backgroundColor": "#0F5132"
       },
       "edgeToEdgeEnabled": true,
