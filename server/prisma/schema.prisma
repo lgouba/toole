@@ -188,6 +188,9 @@ model Delivery {
   /// sans installer l'app. 12 caracteres hex = ~10^14 combinaisons (non
   /// devinable brute-force).
   trackingToken           String?          @unique
+  /// Cle d'idempotence (UUID genere par le client par brouillon) : empeche la
+  /// double creation d'une meme course sur reseau instable (timeout + reessai).
+  idempotencyKey          String?          @unique
   senderId                String           @db.Uuid
   driverId                String?          @db.Uuid
   packageType             PackageType

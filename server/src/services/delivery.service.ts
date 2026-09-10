@@ -61,6 +61,29 @@ async function getNearbyRadiusKm(): Promise<number> {
   }
 }
 
+/**
+ * Distance de TARIFICATION : distance routière réelle (OSRM) plutôt que le vol
+ * d'oiseau. À Ouaga (fleuves, ponts rares, sens uniques), le trajet réel dépasse
+ * largement la ligne droite -> avec le haversine, le client était sous-facturé
+ * et le livreur sous-payé. Repli haversine si OSRM est indisponible.
+ */
+async function pricingDistanceKm(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): Promise<number> {
+  try {
+    const route = await computeRoute(fromLat, fromLng, toLat, toLng);
+    if (route && route.distanceMeters > 0) {
+      return route.distanceMeters / 1000;
+    }
+  } catch {
+    /* repli ci-dessous */
+  }
+  return haversineKm(fromLat, fromLng, toLat, toLng);
+}
+
 export interface CreateDeliveryInput {
   senderId: string;
   packageType: PackageType;
@@ -92,10 +115,22 @@ export interface CreateDeliveryInput {
   scheduledFor?: Date;
   /** Mode de paiement choisi par le client. Defaut = cash a la livraison. */
   paymentMethod?: 'cash' | 'orange_money' | 'moov_money' | 'wallet';
+  /** Clé d'idempotence (UUID généré par le client par brouillon de course) :
+   *  évite la double création sur réseau instable (timeout + réessai). */
+  idempotencyKey?: string;
 }
 
 export async function createDelivery(input: CreateDeliveryInput): Promise<Delivery> {
-  const distanceKm = haversineKm(
+  // Idempotence : si le client renvoie la même course (timeout réseau BF puis
+  // réessai), on retourne la course déjà créée au lieu d'en fabriquer une 2e.
+  if (input.idempotencyKey) {
+    const existing = await prisma.delivery.findFirst({
+      where: { idempotencyKey: input.idempotencyKey, senderId: input.senderId },
+    });
+    if (existing) return existing;
+  }
+
+  const distanceKm = await pricingDistanceKm(
     input.pickupLat,
     input.pickupLng,
     input.deliveryLat,
@@ -186,6 +221,7 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
     status: isScheduled ? 'scheduled' : 'pending',
     scheduledFor: input.scheduledFor ?? null,
     paymentMethod: input.paymentMethod ?? 'cash',
+    idempotencyKey: input.idempotencyKey ?? null,
     expiresAt: isScheduled
       ? null // l'expiresAt sera pose au moment de la diffusion
       : new Date(now + expiryMs),
@@ -197,22 +233,38 @@ export async function createDelivery(input: CreateDeliveryInput): Promise<Delive
   // le check avant la moindre ecriture d'usage -> maxUsesPerUser contournable et
   // courses remisees "fantomes". Desormais, si le quota est epuise, la creation
   // est annulee (rollback) et l'erreur remonte au client.
-  const delivery =
-    promoCodeValue && promoDiscount > 0
-      ? await prisma.$transaction(async (tx) => {
-          const created = await tx.delivery.create({ data: deliveryData });
-          await consumePromoCode(
-            {
-              code: promoCodeValue,
-              userId: input.senderId,
-              deliveryId: created.id,
-              discountAmount: promoDiscount,
-            },
-            tx,
-          );
-          return created;
-        })
-      : await prisma.delivery.create({ data: deliveryData });
+  let delivery: Delivery;
+  try {
+    delivery =
+      promoCodeValue && promoDiscount > 0
+        ? await prisma.$transaction(async (tx) => {
+            const created = await tx.delivery.create({ data: deliveryData });
+            await consumePromoCode(
+              {
+                code: promoCodeValue,
+                userId: input.senderId,
+                deliveryId: created.id,
+                discountAmount: promoDiscount,
+              },
+              tx,
+            );
+            return created;
+          })
+        : await prisma.delivery.create({ data: deliveryData });
+  } catch (e) {
+    // Course concurrente avec la MÊME clé d'idempotence (conflit unique P2002) :
+    // on retourne celle déjà créée au lieu d'échouer.
+    if (
+      input.idempotencyKey &&
+      (e as { code?: string })?.code === 'P2002'
+    ) {
+      const existing = await prisma.delivery.findFirst({
+        where: { idempotencyKey: input.idempotencyKey, senderId: input.senderId },
+      });
+      if (existing) return existing;
+    }
+    throw e;
+  }
 
   // Si pas programme, notifier les livreurs immediatement
   if (!isScheduled) {
@@ -1474,6 +1526,11 @@ export async function estimatePrice(
   deliveryLng: number,
   packageSize?: PackageSize,
 ) {
-  const distanceKm = haversineKm(pickupLat, pickupLng, deliveryLat, deliveryLng);
+  const distanceKm = await pricingDistanceKm(
+    pickupLat,
+    pickupLng,
+    deliveryLat,
+    deliveryLng,
+  );
   return calculatePrice(packageType, distanceKm, new Date(), packageSize);
 }

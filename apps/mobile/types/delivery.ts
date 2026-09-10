@@ -185,6 +185,9 @@ export interface DeliveryDraft {
   scheduledFor?: string; // ISO datetime
   /** Mode de paiement choisi par le client. Default = cash a la livraison. */
   paymentMethod?: 'cash' | 'orange_money' | 'moov_money';
+  /** Clé d'idempotence (UUID) stable pour CE brouillon : évite la double
+   *  création côté serveur sur réseau instable (timeout + réessai). */
+  idempotencyKey?: string;
 }
 
 export interface PriceEstimate {

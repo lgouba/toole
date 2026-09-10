@@ -8,6 +8,19 @@ import {
 } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
 
+/**
+ * UUID v4 léger (sans dépendance). Sert uniquement de clé d'idempotence côté
+ * création de course : n'a PAS besoin de force cryptographique, juste d'être
+ * unique par brouillon.
+ */
+function newIdempotencyKey(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 interface DeliveryState {
   draft: DeliveryDraft;
   activeDelivery: Delivery | null;
@@ -50,6 +63,15 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   createDelivery: async (senderId) => {
     set({ isLoading: true });
     try {
+      // Clé d'idempotence STABLE pour ce brouillon : si le 1er POST a réussi
+      // côté serveur mais a timeout côté client (réseau BF), le réessai renvoie
+      // la MÊME clé -> le serveur retourne la course déjà créée (pas de doublon).
+      // Régénérée seulement quand le brouillon est réinitialisé (nouvelle course).
+      let key = get().draft.idempotencyKey;
+      if (!key) {
+        key = newIdempotencyKey();
+        set({ draft: { ...get().draft, idempotencyKey: key } });
+      }
       const delivery = await deliveryService.createDelivery(get().draft, senderId);
       set({ activeDelivery: delivery, isLoading: false, draft: {} });
       return delivery;

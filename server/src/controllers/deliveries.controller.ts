@@ -62,6 +62,8 @@ const createDeliverySchema = z.object({
   paymentMethod: z
     .enum(['cash', 'orange_money', 'moov_money', 'wallet'])
     .optional(),
+  /** Clé d'idempotence (UUID) : anti double-création sur réseau instable. */
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 export async function createDeliveryCtrl(
