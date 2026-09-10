@@ -88,11 +88,11 @@ export async function sendOtp(
       'OTP request : checking identifier existence',
     );
     if (purpose === 'login' && !existing) {
-      throw new HttpError(
-        404,
-        'IDENTIFIER_INVALID',
-        'Impossible d\'envoyer le code. Verifiez vos informations.',
-      );
+      // ANTI-ÉNUMÉRATION : on renvoie le MÊME succès générique que si le code
+      // était parti, sans créer d'OTP ni envoyer de SMS (aucun compte à
+      // connecter). Sinon le simple code HTTP (404 vs 200) révélait l'existence
+      // d'un compte malgré le message générique.
+      return { success: true };
     }
     if (purpose === 'register' && existing) {
       throw new HttpError(
@@ -106,6 +106,10 @@ export async function sendOtp(
   // OTP : code reel pour email (SMTP livre vraiment), code dev pour SMS
   // tant que le provider SMS reel n'est pas branche.
   const code = generateOtp(channel);
+  // Un seul OTP valide à la fois : purge les codes en attente de cet identifiant
+  // avant d'en créer un nouveau (un renvoi invalide les précédents). Réduit la
+  // surface de brute-force (sinon jusqu'à 5 codes valides en parallèle).
+  await prisma.otpCode.deleteMany({ where: { identifier: normalized } });
   await prisma.otpCode.create({
     data: {
       identifier: normalized,

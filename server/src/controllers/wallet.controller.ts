@@ -66,7 +66,7 @@ const withdrawSchema = z.object({
   amount: z.number().int().positive(),
   phone: phoneSchema,
   paymentMethod: z.enum(['orange_money', 'moov_money']),
-  otpCode: z.string().length(4),
+  otpCode: z.string().regex(/^\d{4,6}$/, 'Code invalide'),
 });
 
 export async function sendWithdrawOtpCtrl(
@@ -114,7 +114,7 @@ const topupSchema = z.object({
   amount: z.number().int().positive(),
   phone: phoneSchema,
   paymentMethod: z.enum(['orange_money', 'moov_money']),
-  otpCode: z.string().length(4),
+  otpCode: z.string().regex(/^\d{4,6}$/, 'Code invalide'),
 });
 
 export async function sendTopupOtpCtrl(
@@ -274,12 +274,12 @@ export async function requestCashTopupCtrl(
       },
     });
 
+    // NE PAS logger confirmCode : c'est une preuve remise à l'admin.
     logger.info(
       {
         userId: req.user!.id,
         amount: body.amount,
         txId: tx.id,
-        confirmCode,
       },
       'Cash topup requested',
     );

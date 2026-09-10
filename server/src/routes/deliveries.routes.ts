@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authRequired, requireRole } from '../middleware/auth.js';
+import { validateCodeLimiter } from '../middleware/rateLimit.js';
 import {
   createDeliveryCtrl,
   listDeliveriesCtrl,
@@ -40,7 +41,7 @@ router.get('/:id/route', getDeliveryRouteCtrl);
 router.put('/:id/accept', requireRole('driver'), acceptCtrl);
 router.put('/:id/reject', requireRole('driver'), rejectCtrl);
 router.put('/:id/pickup-confirm', requireRole('driver'), pickupCtrl);
-router.put('/:id/validate-code', requireRole('driver'), validateCtrl);
+router.put('/:id/validate-code', requireRole('driver'), validateCodeLimiter, validateCtrl);
 router.put('/:id/cancel', cancelCtrl);
 router.put('/:id/relaunch', relaunchCtrl);
 router.post('/:id/rate', rateCtrl);

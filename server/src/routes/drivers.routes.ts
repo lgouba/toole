@@ -16,8 +16,9 @@ const router = Router();
 // Recherche de livreurs proches (coords arrondies) : réservée aux comptes
 // authentifiés (empêche le scraping anonyme de position/identité des livreurs).
 router.get('/nearby', authRequired, getNearby);
-// Carte d'accueil décorative : coords déjà arrondies (~110 m) + statut seul.
-router.get('/map', getMapDrivers);
+// Carte d'accueil : coords arrondies (~110 m) + statut seul, mais réservée aux
+// comptes authentifiés (pas de scraping anonyme des positions livreurs).
+router.get('/map', authRequired, getMapDrivers);
 
 // Driver-only (place AVANT la route /:id pour ne pas etre capture)
 router.put('/status', authRequired, requireRole('driver'), updateStatus);

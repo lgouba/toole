@@ -169,6 +169,29 @@ export const walletMoneyLimiter = rateLimit({
 });
 
 /**
+ * Anti-brute-force du CODE DE LIVRAISON. La route /validate-code n'avait aucune
+ * limite serveur (les "3 essais" étaient purement côté app -> contournables via
+ * l'API : un livreur scriptant l'endpoint pouvait forcer le code et marquer
+ * "livré" sans livrer). Clé par (livreur, course). Max 6 essais / 15 min ->
+ * forcer un code même à 4 chiffres (10 000 combinaisons) devient infaisable.
+ */
+export const validateCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const uid = (req as Request & { user?: { id?: string } }).user?.id;
+    const did = (req.params as { id?: string }).id;
+    if (uid && did) return `deliverycode:${uid}:${did}`;
+    return ipKeyGenerator(req.ip ?? 'unknown');
+  },
+  handler: tooManyResponse(
+    'Trop de tentatives de code. Contactez le destinataire ou le support.',
+  ),
+});
+
+/**
  * Limit pour brute-force du login admin (mot de passe).
  * Max 10 tentatives par IP par 15 min.
  */

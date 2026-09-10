@@ -133,12 +133,12 @@ export async function getMapDrivers(
 }
 
 export async function getDriver(
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const driver = await getPublicDriverProfile(req.params.id);
+    const driver = await getPublicDriverProfile(req.params.id, req.user?.id);
     if (!driver) {
       return res
         .status(404)

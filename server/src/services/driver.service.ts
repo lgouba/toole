@@ -244,7 +244,7 @@ export async function findNearbyDrivers(
       lastLocationUpdate: { gte: activeCutoff },
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
-      verificationStatus: { in: ['verified', 'pending'] },
+      verificationStatus: 'verified',
     },
     include: {
       user: {
@@ -313,7 +313,7 @@ export async function findNearbyDriversForMap(
     where: {
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
-      verificationStatus: { in: ['verified', 'pending'] },
+      verificationStatus: 'verified',
       // En ligne -> toujours inclus (vert) dès qu'on a une position, même
       // ancienne. Hors ligne -> seulement si position récente (< 2h) pour le gris.
       OR: [{ isOnline: true }, { lastLocationUpdate: { gte: recentCutoff } }],
@@ -329,17 +329,21 @@ export async function findNearbyDriversForMap(
   });
 
   const round = (n: number) => Math.round(n * 1000) / 1000;
+  // Vert = réellement "matchable" : en ligne ET position fraîche (< 5 min),
+  // cohérent avec le filtre du matching (findNearbyDrivers). Sinon le client
+  // voyait des marqueurs verts pour des livreurs qui ne recevraient jamais sa
+  // course (app fermée sans toggle). N'altère PAS isOnline (affichage seul).
+  const freshCutoff = new Date(Date.now() - 5 * 60 * 1000);
   const out: MapDriver[] = [];
   for (const d of candidates) {
     if (!d.user.isActive || d.currentLat == null || d.currentLng == null) continue;
     if (haversineKm(lat, lng, d.currentLat, d.currentLng) > radiusKm) continue;
+    const fresh = !!d.lastLocationUpdate && d.lastLocationUpdate >= freshCutoff;
     out.push({
       id: d.userId,
       lat: round(d.currentLat),
       lng: round(d.currentLng),
-      // Vert = en ligne (isOnline), gris = hors ligne. Indépendant de la
-      // fraîcheur de la dernière position.
-      status: d.isOnline ? 'online' : 'offline',
+      status: d.isOnline && fresh ? 'online' : 'offline',
     });
   }
   // En ligne d'abord, puis plafond.
@@ -353,7 +357,7 @@ export async function findNearbyDriversForMap(
  * EXCLUS : email, dateOfBirth, passwordHash, cnibNumber/cnibPhoto*, license*,
  * vehiclePlate, walletBalance, verificationNote… (données KYC/PII/financières).
  */
-export async function getPublicDriverProfile(userId: string) {
+export async function getPublicDriverProfile(userId: string, requesterId?: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -373,6 +377,25 @@ export async function getPublicDriverProfile(userId: string) {
       },
     },
   });
+
+  // Le téléphone du livreur n'est révélé QU'AU client qui a une course active
+  // avec lui (bouton Appeler). Sinon on le retire : sans ce garde, tout compte
+  // authentifié pouvait poller /drivers/:id et moissonner les numéros.
+  if (user) {
+    const authorized =
+      !!requesterId &&
+      (await prisma.delivery.findFirst({
+        where: {
+          driverId: userId,
+          senderId: requesterId,
+          status: { in: ['accepted', 'picking_up', 'picked_up', 'delivering'] },
+        },
+        select: { id: true },
+      })) !== null;
+    if (!authorized) {
+      (user as { phone?: string | null }).phone = null;
+    }
+  }
 
   // Coords ARRONDIES (~110 m) : cet endpoint REST générique sert seulement à
   // placer le marqueur initial. La position EXACTE du livreur qui gère MA course

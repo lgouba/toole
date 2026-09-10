@@ -1108,8 +1108,14 @@ export async function validateCode(
     }
     const d = (await tx.delivery.findUnique({ where: { id: deliveryId } }))!;
 
-    if (d.driverCommission && d.platformFee && d.driverId) {
+    // Garde sur driverId + (gain OU commission) : avec l'ancien
+    // `driverCommission && platformFee`, une course à platformFee=0 (commission
+    // 0%, petite course) sautait TOUT le bloc -> aucun gain enregistré,
+    // totalDeliveries jamais incrémenté. Un montant à 0 reste inoffensif ci-dessous.
+    if (d.driverId && (d.driverCommission || d.platformFee)) {
       const isCash = d.paymentMethod === 'cash';
+      const driverCommission = d.driverCommission ?? 0;
+      const platformFee = d.platformFee ?? 0;
 
       if (isCash) {
         // Modele cash : le client paie tout le prix cash au livreur.
@@ -1128,7 +1134,7 @@ export async function validateCode(
             userId: d.driverId,
             deliveryId: d.id,
             type: 'commission',
-            amount: d.driverCommission,
+            amount: driverCommission,
             paymentMethod: 'cash',
             status: 'completed',
             note: 'Gain livreur (paiement cash du client)',
@@ -1139,7 +1145,7 @@ export async function validateCode(
             userId: d.driverId,
             deliveryId: d.id,
             type: 'commission_debt',
-            amount: -d.platformFee,
+            amount: -platformFee,
             paymentMethod: 'cash',
             status: 'completed',
             note: 'Commission plateforme due (paiement cash)',
@@ -1148,7 +1154,7 @@ export async function validateCode(
         await tx.driverProfile.update({
           where: { userId: d.driverId },
           data: {
-            walletBalance: { decrement: d.platformFee },
+            walletBalance: { decrement: platformFee },
             totalDeliveries: { increment: 1 },
           },
         });
@@ -1164,7 +1170,7 @@ export async function validateCode(
             userId: d.driverId,
             deliveryId: d.id,
             type: 'commission',
-            amount: d.driverCommission,
+            amount: driverCommission,
             paymentMethod: d.paymentMethod,
             status: 'completed',
             note: `Gain livreur (paiement ${d.paymentMethod} du client)`,
@@ -1173,7 +1179,7 @@ export async function validateCode(
         await tx.driverProfile.update({
           where: { userId: d.driverId },
           data: {
-            walletBalance: { increment: d.driverCommission },
+            walletBalance: { increment: driverCommission },
             totalDeliveries: { increment: 1 },
           },
         });

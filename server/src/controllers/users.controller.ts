@@ -14,7 +14,11 @@ export async function getMe(req: AuthedRequest, res: Response, next: NextFunctio
       where: { id: req.user!.id },
       include: { driverProfile: true },
     });
-    return success(res, user);
+    if (!user) return success(res, null);
+    // Ne jamais renvoyer le hash du mot de passe (secret dérivé), même à soi-même.
+    const { passwordHash, ...safe } = user;
+    void passwordHash;
+    return success(res, safe);
   } catch (err) {
     next(err);
   }
