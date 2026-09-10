@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -123,6 +124,12 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { logout } = useAuthStore();
   const appName = useSettingsStore((s) => s.settings.appName);
+  // Largeur EN PIXELS des cartes véhicule (2 colonnes). Un `width:'47%'` posé sur
+  // l'Animated.View interne de PressScale ne se résout pas (le Pressable externe
+  // n'a pas de largeur) -> cartes réduites au contenu. Le px résout le souci.
+  // scroll padding 22*2 = 44, gap 12 entre les 2 colonnes.
+  const { width: winW } = useWindowDimensions();
+  const vehicleCardW = Math.floor((winW - 44 - 12) / 2);
 
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -613,7 +620,7 @@ export default function RegisterScreen() {
                           key={v.type}
                           reduceMotion={reduceMotion}
                           onPress={() => setVehicleType(v.type)}
-                          style={[styles.vehicleCard, sel && styles.cardSelected]}
+                          style={[styles.vehicleCard, { width: vehicleCardW }, sel && styles.cardSelected]}
                         >
                           <SpringIcon selected={sel} reduceMotion={reduceMotion}>
                             <MaterialIcons
@@ -923,7 +930,8 @@ const styles = StyleSheet.create({
   // --- véhicule ---
   vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
   vehicleCard: {
-    width: '47%',
+    // Largeur passée inline en PX (vehicleCardW) : un width:'47%' ici ne se
+    // résout pas à travers le Pressable de PressScale -> bandes verticales.
     height: 104,
     backgroundColor: RC.surface,
     borderRadius: 18,
