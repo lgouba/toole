@@ -4,11 +4,9 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
-  Platform,
 } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import RNBootSplash from 'react-native-bootsplash';
 import {
   useFonts,
   Inter_400Regular,
@@ -55,32 +53,22 @@ initSentry();
 // fois les polices chargées (cf. effet hideAsync), pour éviter un flash blanc.
 SplashScreen.preventAutoHideAsync();
 
-// Masque le splash de lancement. Sur Android c'est bootsplash qui dessine le
-// splash natif (fond #176842 + logo) -> RNBootSplash.hide() est le SEUL appel
-// qui le retire. On l'appelle SANS condition de détection (l'ancienne sonde
-// NativeModules/TurboModuleRegistry renvoyait false en New Architecture -> hide
-// jamais appelé -> écran vert figé). Si le module natif est absent (vieil APK)
-// hide() rejette -> on retombe proprement sur le splash expo. iOS : splash expo.
+// Masque le splash de lancement. UN SEUL système sur les deux plateformes :
+// expo-splash-screen (SplashScreen.hideAsync). Fiable, éprouvé sur iOS. On a
+// retiré react-native-bootsplash : sur les ROM Transsion/Tecno, sa fenêtre
+// native ne se retirait pas (hide() résolvait côté JS mais l'image verte restait
+// collée), et son import statique (getEnforcing) crashait les vieux APK en OTA.
 let splashHidden = false;
 function hideSplash(origin: string) {
   if (splashHidden) return;
   splashHidden = true;
-  if (Platform.OS === 'android') {
-    console.log(`[bootsplash] hide() appelé (${origin})`);
-    RNBootSplash.hide({ fade: true })
-      .then(() => console.log('[bootsplash] hide() résolu'))
-      .catch((e) => {
-        console.log('[bootsplash] hide() rejeté -> fallback expo', e?.message ?? e);
-        SplashScreen.hideAsync().catch(() => {});
-      });
-  } else {
-    SplashScreen.hideAsync().catch(() => {});
-  }
+  console.log(`[splash] hideAsync (${origin})`);
+  SplashScreen.hideAsync().catch(() => {});
 }
 
 // FAILSAFE module-level : quoi qu'il arrive (polices qui traînent, erreur de
 // rendu très précoce), on masque le splash au bout de 4 s pour ne jamais rester
-// bloqué sur le fond vert.
+// bloqué dessus.
 setTimeout(() => hideSplash('failsafe-4s'), 4000);
 
 function RootLayout() {
@@ -107,13 +95,9 @@ function RootLayout() {
   const { isAuthenticated, isOnboarded, user, refreshUser, logout, roleTutorialSeen } =
     useAuthStore();
 
-  // SPLASH
-  //  • iOS    : splash NATIF (expo-splash-screen) = hero plein écran. On le cache
-  //             une fois les polices chargées.
-  //  • Android: react-native-bootsplash. Le natif dessine fond #176842 + logo
-  //             centré ; <AndroidBootSplash> (JS) reprend ce logo au pixel près
-  //             et transite vers le hero. C'est bootsplash (useHideAnimation) qui
-  //             masque le splash natif Android — pas SplashScreen.hideAsync ici.
+  // SPLASH (iOS + Android identiques) : splash NATIF expo-splash-screen = hero
+  // plein écran sur fond vert. On le masque nous-mêmes via SplashScreen.hideAsync
+  // une fois l'app prête.
   // Masquage du splash dès que l'app est prête. « Prête » = polices chargées OU
   // en erreur de chargement (fontError) : dans les deux cas on ne doit PAS rester
   // sur le splash. On ne le conditionne donc plus au SEUL succès des polices,
