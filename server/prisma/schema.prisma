@@ -190,7 +190,11 @@ model Delivery {
   trackingToken           String?          @unique
   /// Cle d'idempotence (UUID genere par le client par brouillon) : empeche la
   /// double creation d'une meme course sur reseau instable (timeout + reessai).
-  idempotencyKey          String?          @unique
+  /// PAS @unique : le conteneur fait `prisma db push` SANS --accept-data-loss,
+  /// qui refuse d'ajouter une contrainte unique. La dedup se fait au niveau
+  /// applicatif (findFirst sur idempotencyKey avant create). Index simple pour
+  /// accelerer ce lookup.
+  idempotencyKey          String?
   senderId                String           @db.Uuid
   driverId                String?          @db.Uuid
   packageType             PackageType
@@ -268,6 +272,7 @@ model Delivery {
   @@index([status])
   @@index([createdAt])
   @@index([scheduledFor])
+  @@index([idempotencyKey])
 }
 
 /// Message de chat in-app entre le client (sender de la course) et le livreur
