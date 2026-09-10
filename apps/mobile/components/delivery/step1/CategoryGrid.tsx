@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   cell: { width: '23%', alignItems: 'center', gap: 3 },
   tile: {
     width: '100%',
-    aspectRatio: 1.12,
+    aspectRatio: 1.25,
     borderRadius: S.radius.tile,
     alignItems: 'center',
     justifyContent: 'center',
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tileSelected: { borderColor: S.green },
-  emoji: { fontSize: 26 },
+  emoji: { fontSize: 23 },
   checkBadge: {
     position: 'absolute',
     top: -6,

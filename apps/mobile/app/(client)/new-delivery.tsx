@@ -376,6 +376,7 @@ export default function NewDeliveryScreen() {
 
         <ScrollView
           style={styles.body}
+          contentContainerStyle={styles.bodyContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
@@ -728,6 +729,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
+  bodyContent: {
+    paddingBottom: spacing.md,
+  },
   stepContent: {
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
@@ -839,7 +843,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xs,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
   contactBtn: {
     flexDirection: 'row',
