@@ -355,53 +355,51 @@ function SettleModal({
             : `La plateforme doit ${formatCFA(maxAmount)} à ${driver.fullName} (gains online).`}
         </p>
 
-        <label className="field">
-          <span>Montant (max {formatCFA(maxAmount)})</span>
-          <input
-            type="number"
-            className="input"
-            value={amount}
-            min={1}
-            max={maxAmount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-          />
-        </label>
+        <div className="form">
+          <label>
+            Montant (max {formatCFA(maxAmount)})
+            <input
+              type="number"
+              value={amount}
+              min={1}
+              max={maxAmount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+            />
+          </label>
 
-        <label className="field">
-          <span>Mode {kind === 'collect' ? 'd\'encaissement' : 'de versement'}</span>
-          <select
-            className="input"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as any)}
-          >
-            <option value="orange_money">Orange Money</option>
-            <option value="moov_money">Moov Money</option>
-            <option value="cash">Cash</option>
-            <option value="wallet">Wallet (interne)</option>
-          </select>
-        </label>
+          <label>
+            Mode {kind === 'collect' ? "d'encaissement" : 'de versement'}
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+            >
+              <option value="orange_money">Orange Money</option>
+              <option value="moov_money">Moov Money</option>
+              <option value="cash">Cash</option>
+              <option value="wallet">Wallet (interne)</option>
+            </select>
+          </label>
 
-        <label className="field">
-          <span>Référence (optionnel)</span>
-          <input
-            type="text"
-            className="input"
-            placeholder="N° de transaction, reçu, etc."
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-          />
-        </label>
+          <label>
+            Référence (optionnel)
+            <input
+              type="text"
+              placeholder="N° de transaction, reçu, etc."
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </label>
 
-        <label className="field">
-          <span>Note (optionnel)</span>
-          <textarea
-            className="input"
-            rows={2}
-            placeholder="Ex: virement reçu le 23/05 à 14h"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
+          <label>
+            Note (optionnel)
+            <textarea
+              rows={2}
+              placeholder="Ex: virement reçu le 23/05 à 14h"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+        </div>
 
         {err && <div className="error-banner">{err}</div>}
 
