@@ -106,7 +106,8 @@ export const useAuthStore = create<AuthState>()(
       sendOtp: async (phone, channel = 'sms', purpose) => {
         set({ isLoading: true });
         try {
-          console.log('[auth] sendOtp ->', channel, 'for', phone);
+          // PII : ne pas logger le numéro complet (masqué aux 2 derniers chiffres).
+          console.log('[auth] sendOtp ->', channel, 'for', `***${String(phone).slice(-2)}`);
           const result = await authService.sendOtp(phone, channel, purpose);
           console.log('[auth] sendOtp result:', result);
           set({ phoneNumber: phone, isLoading: false });

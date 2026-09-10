@@ -28,7 +28,7 @@ interface DriverState {
   promoteQueuedRequest: () => void;
   /** Annule la queuedNextRequest (l'utilisateur a refuse la banniere). */
   dismissQueuedRequest: () => void;
-  acceptRequest: () => Promise<void>;
+  acceptRequest: () => Promise<boolean>;
   rejectRequest: () => void;
   setActiveDelivery: (delivery: Delivery | null) => void;
   confirmPickup: (photoUri: string, pickupCode: string) => Promise<void>;
@@ -215,12 +215,19 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   acceptRequest: async () => {
     const { currentRequest } = get();
-    if (!currentRequest) return;
+    if (!currentRequest) return false;
 
     const updated = await deliveryService.updateDeliveryStatus(currentRequest.id, 'accepted');
     if (updated) {
       set({ activeDelivery: updated, currentRequest: null });
+      return true;
     }
+    // Échec (course déjà prise par un autre livreur / indisponible / réseau) :
+    // on ferme la demande morte (et on promeut une éventuelle course en file)
+    // pour ne PAS laisser l'appelant naviguer vers un écran sans course.
+    const { queuedNextRequest } = get();
+    set({ currentRequest: queuedNextRequest ?? null, queuedNextRequest: null });
+    return false;
   },
 
   rejectRequest: () => set({ currentRequest: null }),

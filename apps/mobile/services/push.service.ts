@@ -77,7 +77,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       projectId,
     });
     cachedToken = tokenResponse.data;
-    console.log('[push] obtained token:', cachedToken);
+    console.log('[push] obtained token:', cachedToken.slice(0, 30) + '…');
     return cachedToken;
   } catch (err) {
     console.warn('[push] error obtaining token:', err);

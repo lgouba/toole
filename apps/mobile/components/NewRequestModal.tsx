@@ -1,4 +1,5 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDriverStore } from '@/stores/driver.store';
 import { stopAlert, alertRejection } from '@/utils/alerts';
@@ -36,8 +37,18 @@ export function NewRequestModal() {
   const handleAccept = async () => {
     stopAlert();
     // L'haptique de succès est déjà jouée par le glisser (SlideToAccept).
-    await acceptRequest();
-    router.replace('/(driver)/pickup-navigation');
+    // On ne navigue QUE si l'acceptation a réussi côté serveur : sinon (course
+    // déjà prise par un autre livreur / réseau) le livreur atterrissait sur
+    // l'écran de récupération SANS course active (écran mort).
+    const ok = await acceptRequest();
+    if (ok) {
+      router.replace('/(driver)/pickup-navigation');
+    } else {
+      Alert.alert(
+        'Course indisponible',
+        "Cette course vient d'être prise par un autre livreur ou n'est plus disponible.",
+      );
+    }
   };
 
   const handleRefuse = () => {

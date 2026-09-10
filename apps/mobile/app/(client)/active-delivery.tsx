@@ -21,7 +21,7 @@ import { useAnimatedPosition } from '@/hooks/useAnimatedPosition';
 import { openPhone } from '@/utils/linking';
 import { useMessageStore } from '@/stores/message.store';
 import { formatEta, formatDistance } from '@/utils/format';
-import { getDeliveryById, getDeliveryRoute } from '@/services/delivery.service';
+import { getDeliveryById, getDeliveryRoute, cancelDelivery } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
@@ -132,6 +132,7 @@ export default function ActiveDeliveryScreen() {
   // Itinéraire routier réel (suit les rues), calculé côté serveur via OSRM.
   // null tant qu'on n'a rien → la carte trace une ligne directe en fallback.
   const [routePath, setRoutePath] = useState<LatLng[] | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   // Trace chaque changement de status pour debug in-app
   useEffect(() => {
@@ -298,6 +299,42 @@ export default function ActiveDeliveryScreen() {
   // ----- valeurs dérivées du statut -----
   const status = delivery.status;
   const isDelivered = status === 'delivered';
+  // Annulation client : possible tant que la course n'est pas terminée. Sinon le
+  // client restait coincé si le livreur acceptait puis ne venait jamais.
+  const canCancel =
+    status !== 'delivered' && status !== 'cancelled' && status !== 'expired';
+  const handleCancel = () => {
+    if (cancelling) return;
+    Alert.alert(
+      'Annuler la course',
+      'Voulez-vous vraiment annuler cette course ?',
+      [
+        { text: 'Retour', style: 'cancel' },
+        {
+          text: 'Annuler la course',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await cancelDelivery(delivery.id, 'client_cancel');
+              setActiveDelivery(null);
+              router.replace('/(client)');
+            } catch (e: any) {
+              const code = e?.response?.data?.error?.code;
+              Alert.alert(
+                'Annulation impossible',
+                code === 'CANCEL_COOLDOWN'
+                  ? "Patientez un court instant avant de pouvoir annuler."
+                  : "Impossible d'annuler pour le moment. Réessayez.",
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  };
   const inProgress = [
     'accepted',
     'picking_up',
@@ -630,6 +667,21 @@ export default function ActiveDeliveryScreen() {
               <Text style={styles.ctaText}>Partager le suivi</Text>
             </TouchableOpacity>
           ) : null}
+
+          {canCancel ? (
+            <TouchableOpacity
+              style={styles.cancelLink}
+              activeOpacity={0.7}
+              onPress={handleCancel}
+              disabled={cancelling}
+              accessibilityRole="button"
+              accessibilityLabel="Annuler la course"
+            >
+              <Text style={styles.cancelLinkText}>
+                {cancelling ? 'Annulation…' : 'Annuler la course'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </View>
     </View>
@@ -955,6 +1007,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   ctaText: { color: D.greenDeep, fontFamily: FONT.bold, fontSize: 15.5 },
+  cancelLink: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
+  cancelLinkText: { color: '#B42318', fontFamily: FONT.medium, fontSize: 14 },
 
   // ---- skeleton ----
   skelBlock: { backgroundColor: D.hair },
