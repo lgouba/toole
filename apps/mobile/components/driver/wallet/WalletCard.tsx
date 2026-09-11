@@ -2,24 +2,35 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { recap as R, wallet as W } from '@/theme/recapTokens';
+import { recap as R } from '@/theme/recapTokens';
 import { formatCFA } from '@/utils/format';
 
-/** Carte Toolé (héros) : solde disponible à retirer + total gagné. */
-export function WalletCard({ balance, totalEarned }: { balance: number; totalEarned: number }) {
+/**
+ * Carte Toolé (héros) : porte les TROIS chiffres calculés par le serveur —
+ * disponible à retirer, gains cumulés, commission à reverser. Aucun calcul ici.
+ */
+export function WalletCard({
+  balance,
+  totalEarned,
+  debt,
+}: {
+  balance: number;
+  totalEarned: number;
+  debt: number;
+}) {
   return (
     <View style={styles.card}>
-      {/* Dégradé + cercles décoratifs */}
+      {/* Dégradé 147° + cercle décoratif */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
-          <LinearGradient id="wc" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={W.cardGradFrom} />
-            <Stop offset="100%" stopColor={W.cardGradTo} />
+          <LinearGradient id="wc" x1="0.12" y1="0" x2="0.88" y2="1">
+            <Stop offset="0%" stopColor="#1FA65A" />
+            <Stop offset="48%" stopColor="#12803E" />
+            <Stop offset="100%" stopColor="#0A5227" />
           </LinearGradient>
         </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" rx={W.radius.card} fill="url(#wc)" />
-        <Circle cx="88%" cy="8%" r="60" fill="#FFFFFF" opacity={0.07} />
-        <Circle cx="72%" cy="95%" r="90" fill="#FFFFFF" opacity={0.05} />
+        <Rect x="0" y="0" width="100%" height="100%" rx={20} fill="url(#wc)" />
+        <Circle cx="100%" cy="0%" r="90" fill="#FFFFFF" opacity={0.09} />
       </Svg>
 
       <View style={styles.topRow}>
@@ -35,18 +46,31 @@ export function WalletCard({ balance, totalEarned }: { balance: number; totalEar
         {formatCFA(balance).replace(' FCFA', '')}
         <Text style={styles.currency}> FCFA</Text>
       </Text>
-      <Text style={styles.total}>Gains cumulés · {formatCFA(totalEarned)}</Text>
+
+      <View style={styles.sep} />
+
+      <View style={styles.cols}>
+        <View style={styles.col}>
+          <Text style={styles.colLabel}>Gains cumulés</Text>
+          <Text style={styles.colValue}>{formatCFA(totalEarned)}</Text>
+        </View>
+        <View style={styles.colDivider} />
+        <View style={styles.col}>
+          <Text style={styles.colLabel}>À reverser</Text>
+          <Text style={[styles.colValue, styles.colValueDebt]}>{formatCFA(debt)}</Text>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: W.radius.card,
-    padding: R.space.pad,
-    // Fond vert plein en base (le dégradé SVG passe par-dessus) → garantit que
-    // tout le contenu reste sur du vert, même si la hauteur grandit.
-    backgroundColor: W.cardGradTo,
+    borderRadius: 20,
+    paddingTop: 16,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
+    backgroundColor: '#0A5227', // base pleine (le dégradé passe par-dessus)
     overflow: 'hidden',
     shadowColor: '#0E5E2A',
     shadowOpacity: 0.3,
@@ -55,25 +79,55 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  wordmark: { fontFamily: R.font.displayXBold, fontSize: 22, color: '#FFFFFF' },
+  wordmark: { fontFamily: R.font.displayXBold, fontSize: 16, color: '#FFFFFF' },
   driverTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    height: 24,
     backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 9,
-    paddingVertical: 4,
     borderRadius: 999,
   },
-  driverTagText: { fontFamily: R.font.mono, fontSize: 9, letterSpacing: 1, color: '#FFFFFF' },
+  driverTagText: {
+    fontFamily: R.font.mono,
+    fontSize: 9.5,
+    letterSpacing: 0.9,
+    color: '#FFFFFF',
+  },
   label: {
     fontFamily: R.font.mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: R.space.lg,
+    fontSize: 10.5,
+    letterSpacing: 1.15,
+    color: 'rgba(255,255,255,0.72)',
+    marginTop: 12,
   },
-  balance: { fontFamily: R.font.displayXBold, fontSize: 36, color: '#FFFFFF', marginTop: 2 },
-  currency: { fontFamily: R.font.bodyBold, fontSize: 18, color: 'rgba(255,255,255,0.85)' },
-  total: { fontFamily: R.font.mono, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  balance: { fontFamily: R.font.displayXBold, fontSize: 34, color: '#FFFFFF', marginTop: 2 },
+  currency: { fontFamily: R.font.bodyBold, fontSize: 16, color: 'rgba(255,255,255,0.8)' },
+  sep: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    marginTop: 13,
+  },
+  cols: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  col: { flex: 1 },
+  colDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    marginHorizontal: 14,
+  },
+  colLabel: {
+    fontFamily: R.font.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.5,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  colValue: {
+    fontFamily: R.font.bodyBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginTop: 3,
+  },
+  colValueDebt: { color: '#FFE2A8' },
 });

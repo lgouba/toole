@@ -146,14 +146,17 @@ export type ActivityItem =
       id: string;
       reference: string | null;
       createdAt: string;
-      gain: number; // part livreur (déjà encaissée en cash)
-      commission: number; // commission due à la plateforme (à reverser)
+      gain: number; // part livreur (montant crédité / net gagné)
+      commission: number; // commission due à la plateforme (0 si course wallet)
+      isCash: boolean; // true = payée cash (commission à reverser), false = versée au wallet
     }
   | { kind: 'single'; tx: Transaction };
 
 /**
  * Transforme la liste plate de transactions en éléments d'affichage :
- * apparie commission (+) et commission_debt (−) d'une même course cash.
+ * une COURSE = une seule ligne. Pour une course cash, on apparie le gain
+ * (commission +) et la commission due (commission_debt −) du même deliveryId.
+ * Pour une course wallet, il n'y a qu'un gain (pas de dette).
  */
 export function buildActivityItems(txs: Transaction[]): ActivityItem[] {
   // Index des dettes de commission par deliveryId (course cash).
@@ -167,23 +170,23 @@ export function buildActivityItems(txs: Transaction[]): ActivityItem[] {
   const items: ActivityItem[] = [];
   for (const t of txs) {
     if (consumed.has(t.id)) continue;
-    // Gain d'une course cash : il a une dette de commission jumelle -> on regroupe.
-    if (t.type === 'commission' && t.deliveryId && debtByDelivery.has(t.deliveryId)) {
-      const debt = debtByDelivery.get(t.deliveryId)!;
+    // Le gain d'une course -> ligne "course" (cash: avec dette jumelle ; wallet: seul).
+    if (t.type === 'commission' && t.deliveryId) {
+      const debt = debtByDelivery.get(t.deliveryId);
+      const isCash = t.paymentMethod === 'cash' || !!debt;
       consumed.add(t.id);
-      consumed.add(debt.id);
+      if (debt) consumed.add(debt.id);
       items.push({
         kind: 'course',
         id: t.deliveryId,
-        reference: t.delivery?.reference ?? debt.delivery?.reference ?? null,
+        reference: t.delivery?.reference ?? debt?.delivery?.reference ?? null,
         createdAt: t.createdAt,
         gain: Math.abs(t.amount),
-        commission: Math.abs(debt.amount),
+        commission: debt ? Math.abs(debt.amount) : 0,
+        isCash,
       });
       continue;
     }
-    // Dette déjà regroupée avec son gain : on l'ignore ici.
-    if (t.type === 'commission_debt' && t.deliveryId && consumed.has(t.id)) continue;
     items.push({ kind: 'single', tx: t });
   }
   return items;
