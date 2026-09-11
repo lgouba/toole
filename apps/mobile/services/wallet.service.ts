@@ -34,6 +34,9 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
   processedAt: string | null;
+  /** Pour une ligne commission_debt : date d'imputation intégrale par des
+   *  reversements (FIFO). null = encore due. */
+  settledAt: string | null;
   delivery?: {
     reference: string;
     status: string;
@@ -149,6 +152,7 @@ export type ActivityItem =
       gain: number; // part livreur (montant crédité / net gagné)
       commission: number; // commission due à la plateforme (0 si course wallet)
       isCash: boolean; // true = payée cash (commission à reverser), false = versée au wallet
+      settled: boolean; // true = commission déjà reversée (imputation FIFO serveur)
     }
   | { kind: 'single'; tx: Transaction };
 
@@ -184,6 +188,7 @@ export function buildActivityItems(txs: Transaction[]): ActivityItem[] {
         gain: Math.abs(t.amount),
         commission: debt ? Math.abs(debt.amount) : 0,
         isCash,
+        settled: !!debt?.settledAt,
       });
       continue;
     }

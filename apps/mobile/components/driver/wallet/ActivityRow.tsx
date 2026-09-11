@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { recap as R } from '@/theme/recapTokens';
 import { formatCFA } from '@/utils/format';
 import { ActivityItem, Transaction, TX_TYPE_LABEL } from '@/services/wallet.service';
@@ -22,29 +24,19 @@ const C = {
 };
 
 // --- Dates : format court, heure en 24h, année masquée si année courante. ---
-function isSameYear(d: Date): boolean {
-  return d.getFullYear() === new Date().getFullYear();
-}
+// date-fns (déjà utilisé partout) — toLocale*/Intl est peu fiable sur Hermes
+// Android (options ignorées, heure tronquée).
 function dateShort(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    ...(isSameYear(d) ? {} : { year: 'numeric' }),
-  });
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return format(d, sameYear ? 'd MMM' : 'd MMM yyyy', { locale: fr });
 }
 /** Montant formaté sans le suffixe monnaie (pour les lignes de détail compactes). */
 function noCur(n: number): string {
   return formatCFA(n).replace(/\s\S+$/, '');
 }
 function dateTimeShort(iso: string): string {
-  const d = new Date(iso);
-  const time = d.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  return `${dateShort(iso)} · ${time}`;
+  return `${dateShort(iso)} · ${format(new Date(iso), 'HH:mm', { locale: fr })}`;
 }
 
 /**
@@ -62,10 +54,17 @@ export function ActivityRow({
   // ── Course (cash ou wallet) : une seule ligne ──
   if (item.kind === 'course') {
     if (variant === 'commission') {
+      const settled = item.settled;
       return (
-        <View style={styles.row}>
-          <View style={[styles.icon, { backgroundColor: C.amberTile }]}>
-            <MaterialIcons name="payments" size={18} color={C.amberFg} />
+        <View style={[styles.row, settled && styles.rowSettled]}>
+          <View
+            style={[styles.icon, { backgroundColor: settled ? C.neutralTile : C.amberTile }]}
+          >
+            <MaterialIcons
+              name={settled ? 'check' : 'payments'}
+              size={18}
+              color={settled ? C.neutralFg : C.amberFg}
+            />
           </View>
           <View style={styles.mid}>
             <Text style={styles.label} numberOfLines={1}>
@@ -74,9 +73,17 @@ export function ActivityRow({
             <Text style={styles.meta} numberOfLines={1}>
               {item.reference ? `${item.reference} · ` : ''}
               {dateShort(item.createdAt)}
+              {settled ? ' · reversé' : ''}
             </Text>
           </View>
-          <Text style={[styles.amount, { color: C.amberFg }]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.amount,
+              { color: settled ? C.neutralFg : C.amberFg },
+              settled && styles.amountStrike,
+            ]}
+            numberOfLines={1}
+          >
             {formatCFA(item.commission)}
           </Text>
         </View>
@@ -255,4 +262,6 @@ const styles = StyleSheet.create({
   },
   bkDebtVal: { fontFamily: R.font.bodyBold, fontSize: 11, color: C.amberFg },
   pillDot: { width: 5, height: 5, borderRadius: 3 },
+  rowSettled: { opacity: 0.5 },
+  amountStrike: { textDecorationLine: 'line-through' },
 });

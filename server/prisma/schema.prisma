@@ -168,6 +168,10 @@ model DriverProfile {
   lastLocationUpdate DateTime?
   walletBalance      Int                @default(0)
   totalDeliveries    Int                @default(0)
+  /// Reliquat de reversement pas encore suffisant pour solder INTEGRALEMENT la
+  /// prochaine ligne de commission due (imputation FIFO). Reporte d'un topup au
+  /// suivant. null = 0. Nullable → safe pour `prisma db push`.
+  reversalCarry      Int?
   verificationStatus VerificationStatus @default(pending)
   verificationNote   String?
   verifiedAt         DateTime?
@@ -557,6 +561,12 @@ model Transaction {
   processedAt      DateTime?
   status           TransactionStatus @default(pending)
   createdAt        DateTime          @default(now())
+  /// Uniquement pour les lignes `commission_debt` (dette commission cash) :
+  /// horodatage auquel la ligne a ete INTEGRALEMENT couverte par des
+  /// reversements (topups) valides, imputes FIFO (les plus anciennes d'abord).
+  /// null = encore due (constitue le compte "a reverser"). Nullable → safe pour
+  /// `prisma db push` sans --accept-data-loss.
+  settledAt        DateTime?
 
   user     User      @relation(fields: [userId], references: [id])
   delivery Delivery? @relation(fields: [deliveryId], references: [id])

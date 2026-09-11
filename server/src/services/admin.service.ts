@@ -545,9 +545,46 @@ export async function confirmTopup(args: {
     if (claim.count !== 1) {
       throw new HttpError(409, 'ALREADY_PROCESSED', 'Cette transaction a déjà été traitée.');
     }
+
+    // Imputation FIFO : ce reversement solde les commissions dues les plus
+    // ANCIENNES d'abord. Une ligne n'est marquée `settledAt` que si elle est
+    // INTEGRALEMENT couverte ; le reliquat (couverture partielle de la ligne
+    // suivante) est reporté dans `reversalCarry` pour le prochain reversement.
+    const prof = await trx.driverProfile.findUnique({
+      where: { userId: tx.userId },
+      select: { reversalCarry: true },
+    });
+    const dueLines = await trx.transaction.findMany({
+      where: { userId: tx.userId, type: 'commission_debt', settledAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, amount: true },
+    });
+    let pool = (prof?.reversalCarry ?? 0) + tx.amount;
+    const toSettle: string[] = [];
+    let allSettled = true;
+    for (const line of dueLines) {
+      const owed = Math.abs(line.amount);
+      if (pool >= owed) {
+        pool -= owed;
+        toSettle.push(line.id);
+      } else {
+        allSettled = false;
+        break;
+      }
+    }
+    // Si toutes les lignes dues sont soldées, un éventuel excédent est un
+    // surplus (devient solde retirable), PAS un acompte sur de futures courses.
+    const newCarry = allSettled ? 0 : pool;
+
+    if (toSettle.length > 0) {
+      await trx.transaction.updateMany({
+        where: { id: { in: toSettle } },
+        data: { settledAt: new Date() },
+      });
+    }
     await trx.driverProfile.update({
       where: { userId: tx.userId },
-      data: { walletBalance: { increment: tx.amount } },
+      data: { walletBalance: { increment: tx.amount }, reversalCarry: newCarry },
     });
     return trx.transaction.findUnique({ where: { id: tx.id } });
   });
