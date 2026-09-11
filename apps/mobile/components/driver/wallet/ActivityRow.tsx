@@ -33,6 +33,10 @@ function dateShort(iso: string): string {
     ...(isSameYear(d) ? {} : { year: 'numeric' }),
   });
 }
+/** Montant formaté sans le suffixe monnaie (pour les lignes de détail compactes). */
+function noCur(n: number): string {
+  return formatCFA(n).replace(/\s\S+$/, '');
+}
 function dateTimeShort(iso: string): string {
   const d = new Date(iso);
   const time = d.toLocaleTimeString('fr-FR', {
@@ -78,7 +82,59 @@ export function ActivityRow({
         </View>
       );
     }
-    const showPastille = item.isCash && item.commission > 0;
+    // Cash : le client remet TOUT le prix en main. On met en avant l'encaissé
+    // (part livreur + commission due = ce qui est physiquement reçu), puis on
+    // détaille « ta part » et « à reverser » pour lever toute ambiguïté.
+    if (item.isCash) {
+      const encaisse = item.gain + item.commission; // = prix payé cash par le client
+      const hasDebt = item.commission > 0;
+      return (
+        <View style={styles.row}>
+          <View style={[styles.icon, { backgroundColor: C.greenTile }]}>
+            <MaterialIcons name="two-wheeler" size={18} color={C.green} />
+          </View>
+          <View style={styles.mid}>
+            <View style={styles.line1}>
+              <View style={styles.titleWrap}>
+                <Text style={styles.label} numberOfLines={1}>
+                  Course payée en cash
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {item.reference ? `${item.reference} · ` : ''}
+                  {dateShort(item.createdAt)}
+                </Text>
+              </View>
+              <View style={styles.amountCol}>
+                <Text style={[styles.amount, { color: C.textPrim }]} numberOfLines={1}>
+                  {formatCFA(encaisse)}
+                </Text>
+                <Text style={styles.amountTag} numberOfLines={1}>
+                  encaissé
+                </Text>
+              </View>
+            </View>
+            <View style={styles.breakdown}>
+              <Text style={styles.bkPart} numberOfLines={1}>
+                Ta part <Text style={styles.bkPartVal}>{noCur(item.gain)}</Text>
+              </Text>
+              {hasDebt ? (
+                <>
+                  <Text style={styles.bkSep}>·</Text>
+                  <View style={styles.bkDebt}>
+                    <View style={[styles.pillDot, { backgroundColor: C.amberDot }]} />
+                    <Text style={styles.bkDebtVal} numberOfLines={1}>
+                      {noCur(item.commission)} à reverser
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // Wallet / mobile money : le gain est réellement crédité sur le solde.
     return (
       <View style={styles.row}>
         <View style={[styles.icon, { backgroundColor: C.greenTile }]}>
@@ -86,26 +142,16 @@ export function ActivityRow({
         </View>
         <View style={styles.mid}>
           <Text style={styles.label} numberOfLines={1}>
-            {item.isCash ? 'Course payée en cash' : 'Course versée au wallet'}
+            Course versée au wallet
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {item.reference ? `${item.reference} · ` : ''}
             {dateShort(item.createdAt)}
           </Text>
         </View>
-        <View style={styles.amountCol}>
-          <Text style={[styles.amount, { color: C.green }]} numberOfLines={1}>
-            +{formatCFA(item.gain)}
-          </Text>
-          {showPastille ? (
-            <View style={[styles.pill, { backgroundColor: C.amberTile }]}>
-              <View style={[styles.pillDot, { backgroundColor: C.amberDot }]} />
-              <Text style={[styles.pillText, { color: C.amberFg }]} numberOfLines={1}>
-                {formatCFA(item.commission)} à reverser
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        <Text style={[styles.amount, { color: C.green }]} numberOfLines={1}>
+          +{formatCFA(item.gain)}
+        </Text>
       </View>
     );
   }
@@ -182,17 +228,31 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   meta: { fontFamily: R.font.mono, fontSize: 11.5, color: C.textMuted, marginTop: 2 },
-  amountCol: { alignItems: 'flex-end', flexShrink: 0 },
+  amountCol: { alignItems: 'flex-end', flexShrink: 0, marginLeft: 8 },
   amount: { fontFamily: R.font.displayXBold, fontSize: 15, letterSpacing: -0.15, flexShrink: 0 },
-  pill: {
+  // Ligne cash : titre+réf à gauche, encaissé à droite, puis détail dessous.
+  line1: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  titleWrap: { flex: 1, minWidth: 0 },
+  amountTag: {
+    fontFamily: R.font.mono,
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+    color: C.textMuted,
+    marginTop: 1,
+  },
+  breakdown: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' },
+  bkPart: { fontFamily: R.font.body, fontSize: 12, color: C.textMuted },
+  bkPartVal: { fontFamily: R.font.bodyBold, color: C.green },
+  bkSep: { fontFamily: R.font.body, fontSize: 12, color: C.textMuted },
+  bkDebt: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     height: 20,
     borderRadius: 6,
     paddingHorizontal: 8,
-    marginTop: 6,
+    backgroundColor: C.amberTile,
   },
+  bkDebtVal: { fontFamily: R.font.bodyBold, fontSize: 11, color: C.amberFg },
   pillDot: { width: 5, height: 5, borderRadius: 3 },
-  pillText: { fontFamily: R.font.bodyBold, fontSize: 11 },
 });
