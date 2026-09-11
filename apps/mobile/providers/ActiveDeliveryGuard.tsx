@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { getActiveDelivery } from '@/services/delivery.service';
+import { getDriverFlowStep } from '@/utils/driverFlowStep';
 
 /**
  * Garde de navigation : au lancement de l'app, au retour en foreground ou
@@ -92,7 +93,22 @@ export function ActiveDeliveryGuard() {
       const topSegment = segments[0] as string | undefined;
       const currentPath = '/' + segments.join('/');
 
-      const targetPath = computeTargetPath(role, active.status);
+      let targetPath = computeTargetPath(role, active.status);
+
+      // Sous-étape cliente « code-validation » (arrivé + photo + code) : aucun
+      // statut DB ne la distingue de delivery-navigation. Si Android a tué la
+      // MainActivity pendant la caméra, on restaure cet écran au lieu de
+      // renvoyer le livreur en arrière (indice persistant).
+      if (
+        role === 'driver' &&
+        (active.status === 'picked_up' || active.status === 'delivering')
+      ) {
+        const hint = await getDriverFlowStep();
+        if (hint?.deliveryId === active.id && hint.step === 'code') {
+          targetPath = '/(driver)/code-validation';
+        }
+      }
+
       console.log('[Guard] target=', targetPath, 'current=', currentPath);
       if (!targetPath) return;
 

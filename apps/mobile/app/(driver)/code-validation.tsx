@@ -12,6 +12,10 @@ import { haptic } from '@/utils/haptics';
 import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
 import { formatCFA } from '@/utils/format';
+import {
+  setDriverFlowStep,
+  clearDriverFlowStep,
+} from '@/utils/driverFlowStep';
 
 export default function CodeValidationScreen() {
   const router = useRouter();
@@ -29,6 +33,39 @@ export default function CodeValidationScreen() {
     setAttempts(0);
     setSubmitting(false);
   }, [activeDelivery?.id]);
+
+  // Mémorise qu'on est sur la sous-étape « code » tant que l'écran est monté.
+  // Si Android tue la MainActivity pendant la caméra, l'indice survit (pas de
+  // cleanup) et le guard restaure code-validation ; en navigation normale, le
+  // cleanup l'efface.
+  useEffect(() => {
+    if (!activeDelivery?.id) return;
+    setDriverFlowStep({ deliveryId: activeDelivery.id, step: 'code' });
+    return () => {
+      clearDriverFlowStep();
+    };
+  }, [activeDelivery?.id]);
+
+  // Récupère une photo prise juste avant que la MainActivity soit tuée par
+  // Android (sinon la preuve serait perdue et à reprendre). Cf. doc expo
+  // ImagePicker.getPendingResultAsync (« handle MainActivity destruction »).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pending = await ImagePicker.getPendingResultAsync();
+        const res = Array.isArray(pending) ? pending[0] : pending;
+        if (!cancelled && res && !('code' in res) && !res.canceled && res.assets?.[0]) {
+          setPhoto(res.assets[0].uri);
+        }
+      } catch {
+        /* pas de résultat en attente : rien à faire */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const recipientName = activeDelivery?.recipientName ?? 'Destinataire';
   const recipientPhone = activeDelivery?.recipientPhone;
