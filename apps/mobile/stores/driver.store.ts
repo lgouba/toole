@@ -89,6 +89,45 @@ async function stopLocationTracking() {
   }
 }
 
+/**
+ * HEARTBEAT GPS FOREGROUND (tant qu'en ligne).
+ *
+ * ⚠️ iOS : `startLocationUpdatesAsync` (tâche background) N'honore PAS
+ * `timeInterval` — il ne livre un point QUE lorsqu'on a bougé de `distanceInterval`
+ * (15 m). Un livreur À L'ARRÊT (garé, en attente) cesse donc d'émettre sa
+ * position ; au bout de 2 min son `lastLocationUpdate` est périmé et le serveur
+ * (`findNearbyDrivers`, filtre < 2 min) l'EXCLUT → plus aucune notif de course
+ * tant qu'il n'a pas bougé (d'où "il faut toggle off/on"). Ce heartbeat pousse
+ * la position toutes les 45 s même immobile, pour rester éligible. Foreground
+ * uniquement (les timers JS gèlent en background — le background est couvert par
+ * la tâche de localisation quand le livreur roule).
+ */
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+function startHeartbeat() {
+  if (heartbeatTimer) return;
+  heartbeatTimer = setInterval(async () => {
+    try {
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const loc = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      };
+      await driverService.updateLocation(loc);
+      useDriverStore.setState({ currentLocation: loc });
+    } catch {
+      /* silencieux : réseau/GPS momentané, on retentera au prochain tick */
+    }
+  }, 45_000);
+}
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
 export const useDriverStore = create<DriverState>((set, get) => ({
   isOnline: false,
   todayDeliveries: 0,
@@ -173,12 +212,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         // Lance le suivi GPS en arrière-plan (continue écran éteint / app
         // fermée). La tâche pousse la position et met à jour currentLocation.
         void startLocationTracking();
+        // + heartbeat foreground : garde la position fraîche même à l'arrêt
+        // (sinon iOS immobile -> périmé -> plus de notifs, cf. startHeartbeat).
+        startHeartbeat();
       } catch {
         Alert.alert('Erreur', 'Impossible de passer en ligne. Réessayez.');
       }
     } else {
-      // Passer HORS LIGNE: stopper le suivi background
+      // Passer HORS LIGNE: stopper le suivi background + le heartbeat foreground
       void stopLocationTracking();
+      stopHeartbeat();
       try {
         await driverService.setOnlineStatus(false);
       } catch {
