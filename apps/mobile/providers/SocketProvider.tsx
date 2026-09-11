@@ -332,6 +332,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const { activeDelivery: driverActive } = useDriverStore.getState();
           if (driverActive && driverActive.id === delivery.id) {
             useDriverStore.setState({ activeDelivery: delivery });
+            // Course annulée (par le client) ou expirée : on PRÉVIENT le livreur
+            // avant de le renvoyer à l'accueil (sinon redirection silencieuse et
+            // déroutante — il ne comprend pas pourquoi il quitte le suivi).
+            if (delivery.status === 'cancelled' || delivery.status === 'expired') {
+              haptic.warning();
+              Alert.alert(
+                delivery.status === 'cancelled' ? 'Course annulée' : 'Course expirée',
+                delivery.status === 'cancelled'
+                  ? "Le client a annulé cette course. Vous êtes de nouveau disponible."
+                  : 'Cette course a expiré.',
+              );
+              useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+              routerRef.current.replace('/(driver)');
+            }
           }
         });
 
@@ -372,6 +386,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           if (activeDelivery && activeDelivery.id === delivery.id) {
             setActiveDelivery(delivery);
             haptic.warning();
+            // On PRÉVIENT le client avant de le renvoyer en recherche (sinon il
+            // se retrouve en "recherche" sans comprendre pourquoi).
+            Alert.alert(
+              'Livreur indisponible',
+              "Le livreur n'a pas pu assurer la course. Nous cherchons un autre livreur pour vous.",
+            );
             // Retour a l'écran de recherche (le livreur a été retire, on recherche un autre)
             routerRef.current.replace('/(client)/searching');
           }

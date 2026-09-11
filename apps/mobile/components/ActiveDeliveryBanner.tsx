@@ -110,6 +110,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
+    // Au-dessus des écrans plein écran (ex. carte cockpit du livreur) : sans
+    // ça, le bandeau « Reprendre la course » passait DERRIÈRE la carte sur
+    // Android -> impossible de revenir au suivi.
+    zIndex: 50,
+    elevation: 24,
   },
   banner: {
     flexDirection: 'row',
