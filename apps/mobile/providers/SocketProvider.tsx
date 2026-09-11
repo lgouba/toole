@@ -332,20 +332,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           const { activeDelivery: driverActive } = useDriverStore.getState();
           if (driverActive && driverActive.id === delivery.id) {
             useDriverStore.setState({ activeDelivery: delivery });
-            // Course annulée (par le client) ou expirée : on PRÉVIENT le livreur
-            // avant de le renvoyer à l'accueil (sinon redirection silencieuse et
-            // déroutante — il ne comprend pas pourquoi il quitte le suivi).
-            if (delivery.status === 'cancelled' || delivery.status === 'expired') {
-              haptic.warning();
-              Alert.alert(
-                delivery.status === 'cancelled' ? 'Course annulée' : 'Course expirée',
-                delivery.status === 'cancelled'
-                  ? "Le client a annulé cette course. Vous êtes de nouveau disponible."
-                  : 'Cette course a expiré.',
-              );
-              useDriverStore.setState({ activeDelivery: null, currentRequest: null });
-              routerRef.current.replace('/(driver)');
-            }
           }
         });
 
@@ -368,12 +354,31 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           }
         });
 
+        // Annulation définitive. Le serveur émet cet event à l'AUTRE partie :
+        //  - si le LIVREUR annule -> reçu par le client
+        //  - si le CLIENT annule une course acceptée -> reçu par le LIVREUR
+        // Il faut donc traiter les DEUX stores (avant, seul le client l'était,
+        // d'où : le livreur ne voyait rien quand le client annulait).
         socket.on('delivery:cancelled', (payload: any) => {
           const raw = payload?.delivery ?? payload;
           const delivery = normalizeDelivery(raw);
+
+          // Côté CLIENT
           const { activeDelivery, setActiveDelivery } = useDeliveryStore.getState();
           if (activeDelivery && activeDelivery.id === delivery.id) {
             setActiveDelivery(delivery);
+          }
+
+          // Côté LIVREUR : on prévient AVANT de le renvoyer à l'accueil.
+          const { activeDelivery: driverActive } = useDriverStore.getState();
+          if (driverActive && driverActive.id === delivery.id) {
+            haptic.warning();
+            Alert.alert(
+              'Course annulée',
+              'Le client a annulé cette course. Vous êtes de nouveau disponible.',
+            );
+            useDriverStore.setState({ activeDelivery: null, currentRequest: null });
+            routerRef.current.replace('/(driver)');
           }
         });
 
