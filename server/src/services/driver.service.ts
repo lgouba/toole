@@ -244,7 +244,13 @@ export async function findNearbyDrivers(
       lastLocationUpdate: { gte: activeCutoff },
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
-      verificationStatus: 'verified',
+      // Le vrai garde opérationnel est `isActive` (activation par l'admin,
+      // vérifiée aussi dans setOnline et dans la boucle ci-dessous). On ne
+      // sur-filtre PAS sur 'verified' seul : un livreur activé mais encore
+      // 'pending' côté KYC doit recevoir des courses (sinon il est en ligne
+      // sans jamais rien recevoir -> "no drivers in zone"). On exclut juste
+      // les états non exploitables (rejected/unverified) via cette liste.
+      verificationStatus: { in: ['verified', 'pending'] },
     },
     include: {
       user: {
@@ -313,7 +319,13 @@ export async function findNearbyDriversForMap(
     where: {
       currentLat: { not: null, gte: lat - latDelta, lte: lat + latDelta },
       currentLng: { not: null, gte: lng - lngDelta, lte: lng + lngDelta },
-      verificationStatus: 'verified',
+      // Le vrai garde opérationnel est `isActive` (activation par l'admin,
+      // vérifiée aussi dans setOnline et dans la boucle ci-dessous). On ne
+      // sur-filtre PAS sur 'verified' seul : un livreur activé mais encore
+      // 'pending' côté KYC doit recevoir des courses (sinon il est en ligne
+      // sans jamais rien recevoir -> "no drivers in zone"). On exclut juste
+      // les états non exploitables (rejected/unverified) via cette liste.
+      verificationStatus: { in: ['verified', 'pending'] },
       // En ligne -> toujours inclus (vert) dès qu'on a une position, même
       // ancienne. Hors ligne -> seulement si position récente (< 2h) pour le gris.
       OR: [{ isOnline: true }, { lastLocationUpdate: { gte: recentCutoff } }],
