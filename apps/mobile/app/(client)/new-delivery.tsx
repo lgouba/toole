@@ -19,6 +19,7 @@ import { TripStep2 } from '@/components/delivery/step2/TripStep2';
 import { RecipientStep3 } from '@/components/delivery/step3/RecipientStep3';
 import { isValidBF } from '@/utils/phone';
 import { formatCFA } from '@/utils/format';
+import { formatOuaga } from '@/utils/ouagaTime';
 import { ContactPickerModal } from '@/components/ContactPickerModal';
 import { PaymentStep4, type PayMethod } from '@/components/delivery/step4/PaymentStep4';
 import { colors, typography, spacing, borderRadius } from '@/theme';
@@ -198,14 +199,14 @@ export default function NewDeliveryScreen() {
       const delivery = await createDelivery(user.id);
       if (delivery?.status === 'scheduled') {
         const when = scheduledIsoBefore
-          ? new Date(scheduledIsoBefore).toLocaleString('fr-FR', {
+          ? formatOuaga(scheduledIsoBefore, {
               dateStyle: 'medium',
               timeStyle: 'short',
             })
           : 'plus tard';
         Alert.alert(
           'Livraison programmée',
-          `Votre course sera diffusée aux livreurs le ${when}. Vous recevrez une notification.`,
+          `Votre course sera diffusée aux livreurs le ${when} (heure de Ouaga). Vous recevrez une notification.`,
           [{ text: 'OK', onPress: () => router.replace('/(client)') }],
         );
         return;

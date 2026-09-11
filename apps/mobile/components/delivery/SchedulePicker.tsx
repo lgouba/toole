@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useSettingsStore } from '@/stores/settings.store';
+import { ouagaParts, ouagaWallClockToISO, formatOuaga } from '@/utils/ouagaTime';
 
 interface SchedulePickerProps {
   /** ISO datetime ou undefined */
@@ -46,16 +47,14 @@ export function SchedulePicker({
     return d;
   }, [value, minDelayMinutes]);
 
+  // Champs affichés en HEURE DE OUAGA (pas le fuseau du téléphone).
+  const ip0 = ouagaParts(initialDate);
   const [enabled, setEnabled] = useState(!!value);
-  const [day, setDay] = useState(String(initialDate.getDate()).padStart(2, '0'));
-  const [month, setMonth] = useState(
-    String(initialDate.getMonth() + 1).padStart(2, '0'),
-  );
-  const [year, setYear] = useState(String(initialDate.getFullYear()));
-  const [hour, setHour] = useState(String(initialDate.getHours()).padStart(2, '0'));
-  const [minute, setMinute] = useState(
-    String(initialDate.getMinutes()).padStart(2, '0'),
-  );
+  const [day, setDay] = useState(String(ip0.d).padStart(2, '0'));
+  const [month, setMonth] = useState(String(ip0.mo).padStart(2, '0'));
+  const [year, setYear] = useState(String(ip0.y));
+  const [hour, setHour] = useState(String(ip0.h).padStart(2, '0'));
+  const [minute, setMinute] = useState(String(ip0.mi).padStart(2, '0'));
   const [error, setError] = useState<string | null>(null);
 
   const monthRef = useRef<TextInput>(null);
@@ -95,7 +94,9 @@ export function SchedulePicker({
     if (moN < 1 || moN > 12) return reject('Mois invalide');
     if (hN < 0 || hN > 23) return reject('Heure invalide');
     if (miN < 0 || miN > 59) return reject('Minutes invalides');
-    const dt = new Date(yN, moN - 1, dN, hN, miN);
+    // Les champs saisis sont interprétés en HEURE DE OUAGA (UTC+0), pas dans le
+    // fuseau du téléphone -> l'heure est cohérente partout.
+    const dt = new Date(ouagaWallClockToISO(yN, moN, dN, hN, miN));
     if (dt.getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
       return reject(
         `La date doit être dans plus de ${minDelayMinutes} min après maintenant`,
@@ -125,7 +126,7 @@ export function SchedulePicker({
   }, []);
   const nowStr = useMemo(
     () =>
-      now.toLocaleString('fr-FR', {
+      formatOuaga(now, {
         weekday: 'short',
         day: '2-digit',
         month: 'short',
@@ -163,7 +164,7 @@ export function SchedulePicker({
         <View style={styles.fields}>
           <View style={styles.nowBanner}>
             <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.nowText}>Maintenant : {nowStr}</Text>
+            <Text style={styles.nowText}>Maintenant (Ouaga) : {nowStr}</Text>
           </View>
           <Text style={styles.fieldLabel}>Date</Text>
           <View style={styles.dateRow}>
@@ -214,7 +215,7 @@ export function SchedulePicker({
             />
           </View>
 
-          <Text style={styles.fieldLabel}>Heure</Text>
+          <Text style={styles.fieldLabel}>Heure (Ouaga)</Text>
           <View style={styles.dateRow}>
             <TextInput
               style={styles.dateBox}
@@ -259,23 +260,30 @@ export function SchedulePicker({
                 key={q.label}
                 style={styles.quickBtn}
                 onPress={() => {
-                  const d = new Date();
+                  let instant: Date;
                   if ('mins' in q && q.mins) {
-                    d.setMinutes(d.getMinutes() + q.mins);
-                  } else if ('hour' in q && q.hour != null) {
-                    if ('tomorrow' in q && q.tomorrow) d.setDate(d.getDate() + 1);
-                    d.setHours(q.hour, 0, 0, 0);
-                    if (d.getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
-                      d.setDate(d.getDate() + 1);
+                    // Offset relatif : l'instant est indépendant du fuseau.
+                    instant = new Date(Date.now() + q.mins * 60 * 1000);
+                  } else {
+                    // Heure murale de OUAGA à q.hour (aujourd'hui, ou +1 jour si
+                    // "demain" ou si l'heure est déjà passée / trop proche).
+                    const p0 = ouagaParts(new Date());
+                    const off = 'tomorrow' in q && q.tomorrow ? 1 : 0;
+                    const qHour = (q as { hour: number }).hour;
+                    let iso = ouagaWallClockToISO(p0.y, p0.mo, p0.d + off, qHour, 0);
+                    if (new Date(iso).getTime() < Date.now() + minDelayMinutes * 60 * 1000) {
+                      iso = ouagaWallClockToISO(p0.y, p0.mo, p0.d + off + 1, qHour, 0);
                     }
+                    instant = new Date(iso);
                   }
-                  setDay(String(d.getDate()).padStart(2, '0'));
-                  setMonth(String(d.getMonth() + 1).padStart(2, '0'));
-                  setYear(String(d.getFullYear()));
-                  setHour(String(d.getHours()).padStart(2, '0'));
-                  setMinute(String(d.getMinutes()).padStart(2, '0'));
+                  const p = ouagaParts(instant);
+                  setDay(String(p.d).padStart(2, '0'));
+                  setMonth(String(p.mo).padStart(2, '0'));
+                  setYear(String(p.y));
+                  setHour(String(p.h).padStart(2, '0'));
+                  setMinute(String(p.mi).padStart(2, '0'));
                   setError(null);
-                  onChange(d.toISOString());
+                  onChange(instant.toISOString());
                 }}
               >
                 <Text style={styles.quickLabel}>{q.label}</Text>
