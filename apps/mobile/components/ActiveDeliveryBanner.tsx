@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useDriverStore } from '@/stores/driver.store';
 import { computeTargetPath } from '@/providers/ActiveDeliveryGuard';
+import { isRatedLocally } from '@/utils/ratedDeliveries';
 import { colors } from '@/theme';
 
 /**
@@ -53,7 +54,28 @@ export function ActiveDeliveryBanner() {
 
   const clientDelivery = useDeliveryStore((s) => s.activeDelivery);
   const driverDelivery = useDriverStore((s) => s.activeDelivery);
+  const clearClientDelivery = useDeliveryStore((s) => s.clear);
   const active = role === 'driver' ? driverDelivery : clientDelivery;
+
+  // Une course livrée ET déjà notée est TERMINÉE : on la purge du store pour
+  // que le bandeau « Notez votre livraison » disparaisse (et ne réapparaisse
+  // pas quand l'utilisateur revient sur l'accueil après avoir noté). Le socket
+  // pose l'active en 'delivered' ; sans ça rien ne la nettoie si l'utilisateur
+  // quitte l'écran de notation par le retour au lieu du bouton de fin.
+  useEffect(() => {
+    if (role !== 'client' || active?.status !== 'delivered' || !active?.id) return;
+    // Ne pas purger tant que l'utilisateur est SUR l'écran de notation : il lit
+    // activeDelivery pour afficher le récap. On réconcilie une fois qu'il l'a
+    // quitté (retour accueil, autre onglet…).
+    if (('/' + segments.join('/')).includes('delivery-complete')) return;
+    let cancelled = false;
+    isRatedLocally(active.id).then((rated) => {
+      if (rated && !cancelled) clearClientDelivery();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, active?.status, active?.id, segments, clearClientDelivery]);
 
   if (!isAuthenticated || !user || !active) return null;
 

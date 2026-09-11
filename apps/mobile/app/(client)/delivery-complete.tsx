@@ -31,32 +31,7 @@ import { rateDelivery } from '@/services/delivery.service';
 import { getDriverById } from '@/services/driver.service';
 import { resolveUploadUrl } from '@/services/upload.service';
 import { DriverWithProfile } from '@/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Mémorise localement les courses déjà notées : une note est UNIQUE par course
-// (le serveur refuse une 2e note). On grise donc « Envoyer mon avis » si la
-// course a déjà été notée, y compris à la réouverture de l'écran.
-const RATED_KEY = 'ratedDeliveryIds';
-async function markRatedLocally(id: string) {
-  try {
-    const raw = await AsyncStorage.getItem(RATED_KEY);
-    const ids: string[] = raw ? JSON.parse(raw) : [];
-    if (!ids.includes(id)) {
-      ids.push(id);
-      await AsyncStorage.setItem(RATED_KEY, JSON.stringify(ids.slice(-200)));
-    }
-  } catch {
-    /* silencieux */
-  }
-}
-async function isRatedLocally(id: string): Promise<boolean> {
-  try {
-    const raw = await AsyncStorage.getItem(RATED_KEY);
-    return raw ? (JSON.parse(raw) as string[]).includes(id) : false;
-  } catch {
-    return false;
-  }
-}
+import { isRatedLocally, markRatedLocally } from '@/utils/ratedDeliveries';
 
 export default function DeliveryCompleteScreen() {
   const router = useRouter();
