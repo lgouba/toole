@@ -87,7 +87,7 @@ export default function Balances() {
         <div>
           <h1 className="page-title">Soldes livreurs</h1>
           <p className="muted">
-            Ce que la plateforme doit aux livreurs (gains online à verser) et ce que les livreurs doivent à la plateforme (commissions cash — reversées par le livreur via l'app, à valider dans Transactions).
+            Ce que la plateforme doit aux livreurs (gains online à verser) et ce que les livreurs doivent à la plateforme (commissions cash). Quand un livreur règle sa dette (ex. en espèces au bureau), clique « Encaisser » sur sa ligne pour l'enregistrer.
           </p>
         </div>
       </header>
@@ -246,9 +246,13 @@ export default function Balances() {
                         Verser
                       </button>
                     ) : d.cashDebt > 0 ? (
-                      <span className="muted" title="Le livreur reversera sa commission via l'app">
-                        En attente
-                      </span>
+                      <button
+                        className="btn btn-sm btn-success"
+                        onClick={() => setSettleFor(d)}
+                        title="Le livreur a payé sa commission cash (ex. au bureau)"
+                      >
+                        Encaisser
+                      </button>
                     ) : (
                       <span className="muted">À jour</span>
                     )}
@@ -318,7 +322,10 @@ function SettleModal({
 
   const [amount, setAmount] = useState(maxAmount);
   const [paymentMethod, setPaymentMethod] =
-    useState<'cash' | 'orange_money' | 'moov_money' | 'wallet'>('orange_money');
+    useState<'cash' | 'orange_money' | 'moov_money' | 'wallet'>(
+      // Collecte de dette cash = paiement au bureau → défaut espèces.
+      kind === 'collect' ? 'cash' : 'orange_money',
+    );
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);

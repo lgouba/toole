@@ -509,6 +509,56 @@ export async function listAllTransactions(params: {
 }
 
 /**
+ * Impute un montant reversé aux commissions dues (`commission_debt` non
+ * soldées), les plus ANCIENNES d'abord. Stampe `settledAt` sur celles
+ * intégralement couvertes ; reporte un reliquat partiel dans `reversalCarry` ;
+ * un excédent (tout soldé) ne se reporte pas (devient solde retirable).
+ *
+ * À appeler DANS une transaction prisma (`tx`), APRÈS avoir crédité le
+ * walletBalance. Partagé par confirmTopup (reversement app) et
+ * settleDriverBalance (collecte admin au bureau) pour un grisé cohérent.
+ */
+async function allocateReversalFifo(
+  tx: Prisma.TransactionClient,
+  driverUserId: string,
+  amount: number,
+): Promise<void> {
+  const prof = await tx.driverProfile.findUnique({
+    where: { userId: driverUserId },
+    select: { reversalCarry: true },
+  });
+  const dueLines = await tx.transaction.findMany({
+    where: { userId: driverUserId, type: 'commission_debt', settledAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, amount: true },
+  });
+  let pool = (prof?.reversalCarry ?? 0) + amount;
+  const toSettle: string[] = [];
+  let allSettled = true;
+  for (const line of dueLines) {
+    const owed = Math.abs(line.amount);
+    if (pool >= owed) {
+      pool -= owed;
+      toSettle.push(line.id);
+    } else {
+      allSettled = false;
+      break;
+    }
+  }
+  const newCarry = allSettled ? 0 : pool;
+  if (toSettle.length > 0) {
+    await tx.transaction.updateMany({
+      where: { id: { in: toSettle } },
+      data: { settledAt: new Date() },
+    });
+  }
+  await tx.driverProfile.update({
+    where: { userId: driverUserId },
+    data: { reversalCarry: newCarry },
+  });
+}
+
+/**
  * Validation admin d'un topup (livreur a verse sa dette via Mobile Money).
  * Credit le walletBalance du livreur (reduit sa dette).
  */
@@ -545,47 +595,12 @@ export async function confirmTopup(args: {
     if (claim.count !== 1) {
       throw new HttpError(409, 'ALREADY_PROCESSED', 'Cette transaction a déjà été traitée.');
     }
-
-    // Imputation FIFO : ce reversement solde les commissions dues les plus
-    // ANCIENNES d'abord. Une ligne n'est marquée `settledAt` que si elle est
-    // INTEGRALEMENT couverte ; le reliquat (couverture partielle de la ligne
-    // suivante) est reporté dans `reversalCarry` pour le prochain reversement.
-    const prof = await trx.driverProfile.findUnique({
-      where: { userId: tx.userId },
-      select: { reversalCarry: true },
-    });
-    const dueLines = await trx.transaction.findMany({
-      where: { userId: tx.userId, type: 'commission_debt', settledAt: null },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, amount: true },
-    });
-    let pool = (prof?.reversalCarry ?? 0) + tx.amount;
-    const toSettle: string[] = [];
-    let allSettled = true;
-    for (const line of dueLines) {
-      const owed = Math.abs(line.amount);
-      if (pool >= owed) {
-        pool -= owed;
-        toSettle.push(line.id);
-      } else {
-        allSettled = false;
-        break;
-      }
-    }
-    // Si toutes les lignes dues sont soldées, un éventuel excédent est un
-    // surplus (devient solde retirable), PAS un acompte sur de futures courses.
-    const newCarry = allSettled ? 0 : pool;
-
-    if (toSettle.length > 0) {
-      await trx.transaction.updateMany({
-        where: { id: { in: toSettle } },
-        data: { settledAt: new Date() },
-      });
-    }
     await trx.driverProfile.update({
       where: { userId: tx.userId },
-      data: { walletBalance: { increment: tx.amount }, reversalCarry: newCarry },
+      data: { walletBalance: { increment: tx.amount } },
     });
+    // Impute le reversement aux commissions dues (FIFO) → grisé côté livreur.
+    await allocateReversalFifo(trx, tx.userId, tx.amount);
     return trx.transaction.findUnique({ where: { id: tx.id } });
   });
 
@@ -995,6 +1010,9 @@ export async function settleDriverBalance(args: {
         where: { userId: args.driverUserId },
         data: { walletBalance: { increment: args.amount } },
       });
+      // Collecte de la dette cash (bureau) = reversement : on impute FIFO pour
+      // que les commissions soldées passent en grisé côté livreur.
+      await allocateReversalFifo(tx, args.driverUserId, args.amount);
     } else {
       // payout
       const available = Math.max(0, profile.walletBalance);
