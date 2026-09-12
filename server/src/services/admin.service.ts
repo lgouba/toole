@@ -986,11 +986,30 @@ export async function settleDriverBalance(args: {
       if (debt <= 0) {
         throw new HttpError(400, 'NO_DEBT', 'Ce livreur n\'a aucune dette');
       }
-      if (args.amount > debt) {
+      // Coexistence app (Mobile Money) ↔ bureau : un reversement initié dans
+      // l'app est un `topup` PENDING qui ne bouge pas encore le walletBalance.
+      // Si on collectait sur la dette BRUTE, on encaisserait au bureau ce que le
+      // livreur a déjà en cours de reversement → à la validation du pending,
+      // double crédit. On borne donc par la dette EFFECTIVE (dette − pendings),
+      // comme le mobile (assertTopupWithinEffectiveDebt).
+      const pendingAgg = await tx.transaction.aggregate({
+        where: { userId: args.driverUserId, type: 'topup', status: 'pending' },
+        _sum: { amount: true },
+      });
+      const pendingTopup = pendingAgg._sum.amount ?? 0;
+      const effectiveDebt = Math.max(0, debt - pendingTopup);
+      if (effectiveDebt <= 0) {
+        throw new HttpError(
+          400,
+          'PENDING_TOPUP',
+          'Un reversement de ce livreur est déjà en attente (Transactions). Validez-le ou rejetez-le avant d\'encaisser au bureau.',
+        );
+      }
+      if (args.amount > effectiveDebt) {
         throw new HttpError(
           400,
           'AMOUNT_TOO_HIGH',
-          `Dette actuelle = ${debt} FCFA, ne peut pas collecter plus`,
+          `Encaissable = ${effectiveDebt} FCFA (dette ${debt} − ${pendingTopup} en attente de validation).`,
         );
       }
       await tx.transaction.create({
