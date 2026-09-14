@@ -68,9 +68,16 @@ function hideSplash(origin: string) {
   SplashScreen.hideAsync().catch(() => {});
 }
 
+// Instant de chargement du module (≈ lancement de l'app) + durée MINIMALE
+// d'affichage du splash. Les polices se chargent souvent en < 1 s, ce qui
+// masquait le splash trop vite ; on garantit qu'il reste visible au moins
+// MIN_SPLASH_MS. Ça ne fait que RETARDER le masquage, jamais l'empêcher.
+const APP_START = Date.now();
+const MIN_SPLASH_MS = 2000;
+
 // FAILSAFE module-level : quoi qu'il arrive (polices qui traînent, erreur de
 // rendu très précoce), on masque le splash au bout de 4 s pour ne jamais rester
-// bloqué dessus.
+// bloqué dessus. Doit rester > MIN_SPLASH_MS.
 setTimeout(() => hideSplash('failsafe-4s'), 4000);
 
 function RootLayout() {
@@ -106,7 +113,16 @@ function RootLayout() {
   // sinon un échec silencieux de police laissait le fond vert affiché à vie.
   const splashReady = fontsLoaded || !!fontError;
   useEffect(() => {
-    if (splashReady) hideSplash('fonts-ready');
+    if (!splashReady) return;
+    // Respecte la durée minimale : si les polices sont prêtes avant, on attend
+    // le reliquat ; sinon on masque tout de suite. Le failsafe 4 s reste actif.
+    const wait = Math.max(0, MIN_SPLASH_MS - (Date.now() - APP_START));
+    if (wait === 0) {
+      hideSplash('fonts-ready');
+      return;
+    }
+    const t = setTimeout(() => hideSplash('fonts-ready-min'), wait);
+    return () => clearTimeout(t);
   }, [splashReady]);
 
   useEffect(() => {
