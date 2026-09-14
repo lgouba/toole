@@ -2,8 +2,10 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useDriverStore } from '@/stores/driver.store';
+import { useLocationStore } from '@/stores/location.store';
 import { stopAlert, alertRejection } from '@/utils/alerts';
 import { PACKAGE_LABELS } from '@/types';
+import { haversineDistance } from '@/utils/geo';
 import { NewCourseModal, Course } from '@/components/courses/NewCourseModal';
 
 // Durée d'expiration de la demande côté livreur (s). Identique à avant.
@@ -19,13 +21,22 @@ const TIMEOUT_SECONDS = 120;
 export function NewRequestModal() {
   const router = useRouter();
   const { currentRequest, acceptRequest, rejectRequest } = useDriverStore();
+  const driverPos = useLocationStore((s) => s.current);
 
   if (!currentRequest) return null;
 
   const r = currentRequest;
+  // Distance livreur → point de récupération (aller chercher le colis).
+  // Calcul CLIENT haversine (vol d'oiseau) ; null si position indispo.
+  const retraitKm =
+    driverPos && r.pickupLocation ? haversineDistance(driverPos, r.pickupLocation) : null;
+
   const course: Course = {
-    gain: r.driverCommission || r.price,
-    distanceKm: r.estimatedDistanceKm,
+    gain: r.driverCommission || r.price, // net livreur — INCHANGÉ
+    distanceKm: r.estimatedDistanceKm, // trajet récup → livraison
+    retraitKm, // livreur → récup (calcul client)
+    price: r.price, // prix total (affiché en petit, seulement si cash)
+    paymentMethod: r.paymentMethod, // 'cash' | 'orange_money' | 'moov_money' | undefined
     colisLabel: PACKAGE_LABELS[r.packageType] ?? 'Colis',
     pickup: r.pickupAddress,
     dropoff: r.deliveryAddress,

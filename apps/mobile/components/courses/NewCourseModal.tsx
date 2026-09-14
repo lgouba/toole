@@ -12,23 +12,30 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Circle, Rect as SvgRect } from 'react-native-svg';
 import Animated, {
   useSharedValue,
+  useDerivedValue,
+  useAnimatedStyle,
   useAnimatedReaction,
   withTiming,
+  withRepeat,
   cancelAnimation,
   runOnJS,
+  interpolateColor,
   Easing,
 } from 'react-native-reanimated';
 import { FONT } from './theme';
-import { LiquidBackground } from './LiquidBackground';
+import { GoldenHourBackground } from './GoldenHourBackground';
+import { GoldenSlider } from './GoldenSlider';
 import { GainCounter } from './GainCounter';
-import { SlideToAccept } from './SlideToAccept';
 
 export type Course = {
-  gain: number;
-  distanceKm?: number;
+  gain: number; // net livreur — INCHANGÉ
+  distanceKm?: number; // trajet récup → livraison
+  retraitKm?: number | null; // livreur → récup (calcul client), null si GPS indispo
+  price: number; // prix total (affiché en petit, seulement si cash)
+  paymentMethod?: 'cash' | 'orange_money' | 'moov_money';
   colisLabel: string;
   pickup: string;
   dropoff: string;
@@ -50,7 +57,7 @@ const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'mon
 function fmtCFA(n: number) {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
-function fmtKm(km?: number) {
+function fmtKm(km?: number | null) {
   if (km == null) return '—';
   return `${km.toFixed(1).replace('.', ',')} km`;
 }
@@ -58,21 +65,7 @@ function mmss(total: number) {
   const s = Math.max(0, total);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
-
-type Palier = 'confort' | 'compact' | 'serre';
-function tokens(p: Palier) {
-  switch (p) {
-    case 'serre':
-      return { gain: 70, addr: 15, tileVal: 14, cardH: 136, tileMode: 'line' as const };
-    case 'compact':
-      return { gain: 86, addr: 16, tileVal: 15.5, cardH: 146, tileMode: 'tiles' as const };
-    default:
-      return { gain: 104, addr: 17.5, tileVal: 17, cardH: 156, tileMode: 'tiles' as const };
-  }
-}
-
-const REFUS_H = 46;
-const CURSEUR_H = 64; // hauteur réelle de SlideToAccept
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
 export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, onTimeout }: Props) {
   const insets = useSafeAreaInsets();
@@ -81,7 +74,7 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const [secs, setSecs] = useState(durationSec);
   const [accepted, setAccepted] = useState(false);
 
-  const progress = useSharedValue(0); // 0 = plein, 1 = expiré (INCHANGÉ)
+  const progress = useSharedValue(0); // 0 = plein temps, 1 = expiré (INCHANGÉ)
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -118,203 +111,260 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
     onAccept();
   };
 
-  // ---- Palier + géométrie (dérivée, ancrée sur le bas) ----
-  let palier: Palier = H >= 800 ? 'confort' : H >= 640 ? 'compact' : 'serre';
-  if (fontScale >= 1.4) palier = 'serre';
-  const tk = tokens(palier);
-  const gutter = W >= 400 ? 24 : 20;
+  // ---- Lumière : p = temps restant (1→0), u = 0 jour → 1 nuit ----
+  const p = useDerivedValue(() => 1 - progress.value);
+  const u = useDerivedValue(() => Math.pow(1 - progress.value, 1.35));
+  // Bascule NUIT de la carte : une transition unique de 0.7 s à u > 0.66.
+  const night = useSharedValue(0);
+  useAnimatedReaction(
+    () => u.value > 0.66,
+    (isNight, prev) => {
+      if (isNight !== prev) night.value = withTiming(isNight ? 1 : 0, { duration: 700 });
+    },
+  );
 
-  // --- Haut (ancré en haut) ---
-  const enteteTop = insets.top + 16;
-  // FRAGILE / valeur déclarée : info conservée (dont sécurité). Petits chips dans
-  // la bande verte du haut ; le gain descend seulement quand ils sont présents.
-  const hasFlags = course.isFragile || (course.declaredValue != null && course.declaredValue > 0);
-  const gainTop = enteteTop + 40 + (hasFlags ? 28 : 0);
-  const gainH = tk.gain * 0.9;
-  const tilesTop = gainTop + gainH + 14;
-  const tilesH = tk.tileMode === 'tiles' ? 58 : 34;
-  const tilesBottom = tilesTop + tilesH;
+  // ---- Géométrie : facteur k, ancrée depuis le BAS ----
+  const k = clamp(H / 844, 0.84, 1.13);
+  const g = W >= 400 ? 24 : 20;
+  const useSerre = fontScale >= 1.4;
 
-  // --- Bas positionné DE HAUT EN BAS (écart vert fixe façon maquette) : évite
-  // que la hauteur en trop des grands écrans se transforme en vide vert au
-  // milieu. L'excédent part en crème SOUS « Refuser », pas au centre en vert.
-  const GREEN_ZONE = 138; // zone de retrait du liquide (tuiles → carte)
-  let cardTop = tilesBottom + GREEN_ZONE;
-  let curseurTop = cardTop + tk.cardH + 32;
-  let refusTop = curseurTop + CURSEUR_H + 12;
-  // Petits écrans : si ça dépasse le bas sûr, on remonte le bloc bas d'un bloc.
-  const bottomLimit = H - insets.bottom - 4 - REFUS_H;
-  if (refusTop > bottomLimit) {
-    const shift = refusTop - bottomLimit;
-    cardTop -= shift;
-    curseurTop -= shift;
-    refusTop -= shift;
-    if (cardTop < tilesBottom + 20) cardTop = tilesBottom + 20;
-  }
+  const refusH = 46 * k;
+  const refusTop = H - insets.bottom - 6 - refusH;
+  const boutonH = 78 * k;
+  const boutonTop = refusTop - 12 * k - boutonH;
+  const carteBas = boutonTop - 26 * k;
+  const cardH = 152 * k;
+  const carteTop = carteBas - cardH;
+  const horizon = carteTop;
 
-  const plafond = cardTop;
-  const plancher = Math.min(tilesBottom + 8, cardTop - 8);
+  const enteteTop = insets.top + 14 * k;
+  const montantTop = enteteTop + 30 * k;
+  const gainSize = (useSerre ? 82 : 104) * k;
+  const pastilleTop = montantTop + gainSize * 0.9 + 12 * k;
+  const arcY = carteTop - 86 * k;
 
-  // Gain : largeur fixe pour que FCFA reste collé sur la ligne de base (nowrap).
+  const sunTop = insets.top + 172 * k;
+  const sunBottom = carteTop - 14 * k + 112 * k;
+  const sunSize = 148 * k;
+
+  // ---- Montant (net) : largeur fixe → FCFA reste sur la ligne de base ----
   const gainStr = fmtCFA(course.gain);
-  const digits = String(Math.round(course.gain)).length;
-  const gainFont = Math.max(40, tk.gain - Math.max(0, digits - 4) * 8);
-  const gainW = Math.ceil(gainStr.length * gainFont * 0.6);
+  const gainW = Math.ceil(gainStr.length * gainSize * 0.6);
 
-  const livDotTop = tk.cardH - 46;
+  // ---- Paiement ----
+  const pm = course.paymentMethod ?? 'cash';
+  const estCash = pm === 'cash';
+  const colisUp = course.colisLabel.toUpperCase();
+  const pastilleText = estCash
+    ? `${colisUp} · ${fmtCFA(course.price)} FCFA EN ESPÈCES`
+    : `${colisUp} · DÉJÀ PAYÉ`;
+  const payDot = pm === 'moov_money' ? '#1B6BB8' : pm === 'orange_money' ? '#FF7900' : '#FFD27A';
+  const subLabel = estCash
+    ? `${fmtCFA(course.price)} FCFA à encaisser en espèces`
+    : pm === 'orange_money'
+      ? 'déjà payé · Orange Money'
+      : 'déjà payé · Moov Money';
+
+  // ---- Arc du trajet ----
+  const trajet = course.distanceKm ?? 0;
+  const retrait = course.retraitKm;
+  const showRetrait = retrait != null;
+  const x0 = g + 10;
+  const x1 = W - g - 10;
+  let f = 0.5;
+  if (showRetrait && retrait! + trajet > 0) f = Math.max(0.17, retrait! / (retrait! + trajet));
+  const xRecup = showRetrait ? x0 + f * (x1 - x0) : x0;
+  const amp1 = 46 * k * 0.42;
+  const amp2 = 46 * k;
+  const mid1 = (x0 + xRecup) / 2;
+  const mid2 = (xRecup + x1) / 2;
+  // Coords LOCALES du SVG (hauteur 60, ligne de base à y=26).
+  const baseY = 26;
+  const retraitPath = `M${x0} ${baseY} Q ${mid1} ${baseY - amp1} ${xRecup} ${baseY}`;
+  const mainPath = `M${xRecup} ${baseY} Q ${mid2} ${baseY - amp2} ${x1} ${baseY}`;
+
+  // ---- Styles animés (jour/nuit) ----
+  const cardBg = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(night.value, [0, 1], ['#FFFFFF', '#1A1F1D']),
+  }));
+  const railBg = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(night.value, [0, 1], ['#E5E0D2', 'rgba(255,255,255,0.16)']),
+  }));
+  const dropBg = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(night.value, [0, 1], ['#17241C', '#F0EBE0']),
+  }));
+  const labelCol = useAnimatedStyle(() => ({
+    color: interpolateColor(night.value, [0, 1], ['#9A9384', 'rgba(150,140,120,0.8)']),
+  }));
+  const addrCol = useAnimatedStyle(() => ({
+    color: interpolateColor(night.value, [0, 1], ['#17241C', '#F4EFE4']),
+  }));
+  const refuseCol = useAnimatedStyle(() => ({
+    color: interpolateColor(u.value, [0, 1], ['#9A8C74', 'rgba(240,228,212,0.78)']),
+  }));
+  const haloRed = useAnimatedStyle(() => {
+    // Inline (pas d'appel de fonction JS dans un worklet).
+    const t = Math.min(Math.max((u.value - 0.6) / 0.4, 0), 1);
+    return { opacity: t * 0.55 };
+  });
+
+  const livDotTop = cardH - 46 * k;
+  const addrSize = (useSerre ? 15 : 17.2) * k;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.root}>
-          <LiquidBackground
-            progress={progress}
-            reduceMotion={reduceMotion}
-            plancher={plancher}
-            plafond={plafond}
+          <GoldenHourBackground
+            u={u}
+            p={p}
+            horizon={horizon}
+            sunTop={sunTop}
+            sunBottom={sunBottom}
+            sunSize={sunSize}
             width={W}
+            height={H}
+            reduceMotion={reduceMotion}
           />
 
           {/* En-tête */}
           <View style={[styles.band, { top: enteteTop, paddingHorizontal: 26 }]}>
-            <Text maxFontSizeMultiplier={1.8} style={styles.kicker}>
+            <Text maxFontSizeMultiplier={1.8} style={[styles.kicker, { fontSize: 10.5 * k }]}>
               NOUVELLE COURSE
             </Text>
             <Text
               maxFontSizeMultiplier={1.2}
-              style={styles.timer}
+              style={[styles.timer, { fontSize: 20 * k }]}
               accessibilityLabel={`${secs} secondes restantes`}
             >
               {mmss(secs)}
             </Text>
           </View>
 
-          {/* FRAGILE / valeur déclarée (conservés, zone verte lisible) */}
-          {hasFlags ? (
-            <View style={[styles.flags, { top: enteteTop + 22, left: 26 }]}>
-              {course.isFragile ? (
-                <View style={[styles.flag, styles.flagFragile]}>
-                  <Ionicons name="warning" size={12} color="#3A1A00" />
-                  <Text maxFontSizeMultiplier={1.4} style={styles.flagFragileText}>
-                    FRAGILE
-                  </Text>
-                </View>
-              ) : null}
-              {course.declaredValue != null && course.declaredValue > 0 ? (
-                <View style={[styles.flag, styles.flagValue]}>
-                  <Text maxFontSizeMultiplier={1.4} style={styles.flagValueText}>
-                    Valeur ~{fmtCFA(course.declaredValue)} FCFA
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {/* Gain */}
-          <View style={[styles.gainRow, { top: gainTop, left: 26 }]}>
+          {/* Montant net */}
+          <View style={[styles.gainRow, { top: montantTop, left: 26 }]}>
             <GainCounter
               value={course.gain}
               reduceMotion={reduceMotion}
               style={{
                 fontFamily: FONT.disp,
                 color: '#FFFFFF',
-                fontSize: gainFont,
-                lineHeight: gainFont * 0.9,
-                height: gainFont * 0.92,
+                fontSize: gainSize,
+                lineHeight: gainSize * 0.9,
+                height: gainSize * 0.94,
                 width: gainW,
-                letterSpacing: -gainFont * 0.07,
+                letterSpacing: -gainSize * 0.07,
                 textAlign: 'right',
                 padding: 0,
                 includeFontPadding: false,
               }}
             />
-            <Text maxFontSizeMultiplier={1.2} style={styles.fcfa}>
+            <Text maxFontSizeMultiplier={1.2} style={[styles.fcfa, { fontSize: gainSize * 0.24 }]}>
               FCFA
             </Text>
           </View>
 
-          {/* Tuiles */}
-          <View style={[styles.tiles, { top: tilesTop, left: gutter, right: gutter }]}>
-            {tk.tileMode === 'tiles' ? (
-              <>
-                <Tile value={fmtKm(course.distanceKm)} label="DISTANCE" valSize={tk.tileVal} />
-                <Tile value={course.colisLabel} label="COLIS" valSize={tk.tileVal} />
-              </>
-            ) : (
-              <View style={styles.tileLineWrap}>
-                <Text maxFontSizeMultiplier={1.4} style={styles.tileLine} numberOfLines={1}>
-                  {fmtKm(course.distanceKm)} · {course.colisLabel}
-                </Text>
-              </View>
-            )}
+          {/* Pastille colis + paiement */}
+          <View style={[styles.pastille, { top: pastilleTop, left: 26 }]}>
+            <View style={[styles.payDot, { backgroundColor: payDot }]} />
+            <Text maxFontSizeMultiplier={1.4} style={styles.pastilleText} numberOfLines={1}>
+              {pastilleText}
+            </Text>
           </View>
 
-          {/* Carte blanche — HAUTEUR FIXE, repères en absolu */}
-          <View
+          {/* Arc du trajet (remplace les tuiles) */}
+          <View style={[styles.arc, { top: arcY - 26, height: 60 }]} pointerEvents="none">
+            <Svg width={W} height={60} style={StyleSheet.absoluteFill}>
+              {showRetrait ? (
+                <Path d={retraitPath} stroke="rgba(255,238,206,0.72)" strokeWidth={2} strokeDasharray="5 7" fill="none" />
+              ) : null}
+              <Path d={mainPath} stroke="rgba(255,250,238,0.96)" strokeWidth={2.6} fill="none" />
+              {showRetrait ? (
+                <Circle cx={x0} cy={baseY} r={4} stroke="rgba(255,238,206,0.9)" strokeWidth={2} fill="none" />
+              ) : null}
+              <Circle cx={xRecup} cy={baseY} r={5.5} fill="rgba(255,250,238,0.98)" />
+              <SvgRect x={x1 - 5} y={baseY - 5} width={10} height={10} rx={2.5} fill="rgba(255,250,238,0.98)" />
+            </Svg>
+            {/* distances + libellés (Text RN par-dessus, avec ombre) */}
+            {showRetrait ? (
+              <Text style={[styles.arcKm, { left: x0, width: xRecup - x0, top: 0 }]}>{`~${fmtKm(retrait)}`}</Text>
+            ) : null}
+            <Text style={[styles.arcKmMain, { left: xRecup, width: x1 - xRecup, top: 0 }]}>{fmtKm(trajet)}</Text>
+            {showRetrait ? (
+              <Text style={[styles.arcLabel, { left: x0, top: 40 }]}>VOUS</Text>
+            ) : null}
+            <Text style={[styles.arcLabel, { left: xRecup - 9, top: 40 }]}>RÉCUPÉRATION</Text>
+            <Text style={[styles.arcLabel, styles.arcLabelRight, { right: W - x1, top: 40 }]}>LIVRAISON</Text>
+          </View>
+
+          {/* Carte des adresses (jour → nuit) */}
+          <Animated.View
             style={[
               styles.card,
-              { left: gutter, right: gutter, top: cardTop, height: tk.cardH },
+              cardBg,
+              { left: g, right: g, top: carteTop, height: cardH, borderRadius: 26 * k },
             ]}
           >
-            {/* repères + trait (absolus → jamais désalignés) */}
-            <View style={[styles.link, { height: livDotTop - 42 }]} />
-            <View style={styles.pickupHalo}>
+            <Animated.View style={[styles.rail, railBg, { left: 29 * k, top: 42 * k, height: livDotTop - 42 * k }]} />
+            <View style={[styles.pickupHalo, { left: 17 * k, top: 22 * k }]}>
               <View style={styles.pickupDot} />
             </View>
-            <View style={[styles.dropDot, { top: livDotTop }]} />
+            <Animated.View style={[styles.dropDot, dropBg, { left: 23 * k, top: livDotTop }]} />
 
-            <View style={styles.routeText}>
-              <Text maxFontSizeMultiplier={1.8} style={styles.routeLabel}>
+            <View style={[styles.routeText, { paddingLeft: 54 * k, paddingRight: 21 * k, paddingVertical: 21 * k }]}>
+              <Animated.Text maxFontSizeMultiplier={1.8} style={[styles.routeLabel, labelCol]}>
                 RÉCUPÉRATION
-              </Text>
-              <Text
+              </Animated.Text>
+              <Animated.Text
                 maxFontSizeMultiplier={1.4}
-                style={[styles.addr, { fontSize: tk.addr, lineHeight: tk.addr * 1.16 }]}
-                numberOfLines={course.thirdPartyName ? 1 : 2}
+                style={[styles.addr, addrCol, { fontSize: addrSize, lineHeight: addrSize * 1.16 }]}
+                numberOfLines={2}
                 ellipsizeMode="tail"
               >
                 {course.pickup}
-              </Text>
-              {course.thirdPartyName ? (
-                <Text maxFontSizeMultiplier={1.4} style={styles.holder} numberOfLines={1}>
-                  Colis chez {course.thirdPartyName}
-                </Text>
-              ) : null}
-              <View style={{ height: 16 }} />
-              <Text maxFontSizeMultiplier={1.8} style={styles.routeLabel}>
+              </Animated.Text>
+              <View style={{ height: 14 * k }} />
+              <Animated.Text maxFontSizeMultiplier={1.8} style={[styles.routeLabel, labelCol]}>
                 LIVRAISON
-              </Text>
-              <Text
+              </Animated.Text>
+              <Animated.Text
                 maxFontSizeMultiplier={1.4}
-                style={[styles.addr, { fontSize: tk.addr, lineHeight: tk.addr * 1.16 }]}
+                style={[styles.addr, addrCol, { fontSize: addrSize, lineHeight: addrSize * 1.16 }]}
                 numberOfLines={2}
                 ellipsizeMode="tail"
               >
                 {course.dropoff}
-              </Text>
+              </Animated.Text>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Curseur (bande propre, sous la carte, sans recouvrement) */}
-          <View style={{ position: 'absolute', left: gutter, right: gutter, top: curseurTop }}>
-            <SlideToAccept
+          {/* Bouton (halo rouge + slider or→braise) */}
+          <View style={{ position: 'absolute', left: g, right: g, top: boutonTop }}>
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.redHalo, haloRed, { top: -10, bottom: -10, left: -10, right: -10, borderRadius: 30 }]}
+            />
+            <GoldenSlider
               label={accepted ? 'Course acceptée' : 'Glissez pour accepter'}
+              subLabel={subLabel}
               onAccept={handleAccept}
               reduceMotion={reduceMotion}
+              u={u}
+              height={boutonH}
             />
           </View>
 
-          {/* Refus (toujours sur le crème) */}
+          {/* Refuser */}
           <TouchableOpacity
-            style={{ position: 'absolute', left: gutter, right: gutter, top: refusTop, height: REFUS_H, alignItems: 'center', justifyContent: 'center' }}
+            style={{ position: 'absolute', left: g, right: g, top: refusTop, height: refusH, alignItems: 'center', justifyContent: 'center' }}
             onPress={onRefuse}
             disabled={accepted}
             accessibilityRole="button"
             accessibilityLabel="Refuser la course"
           >
-            <Text maxFontSizeMultiplier={1.4} style={styles.refuseText}>
+            <Animated.Text maxFontSizeMultiplier={1.4} style={[styles.refuseText, refuseCol, { fontSize: 15 * k }]}>
               Refuser la course
-            </Text>
+            </Animated.Text>
           </TouchableOpacity>
         </View>
       </GestureHandlerRootView>
@@ -322,21 +372,14 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   );
 }
 
-function Tile({ value, label, valSize }: { value: string; label: string; valSize: number }) {
-  return (
-    <View style={styles.tile}>
-      <Text maxFontSizeMultiplier={1.4} style={[styles.tileValue, { fontSize: valSize }]} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text maxFontSizeMultiplier={1.8} style={styles.tileLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
+const ARC_SHADOW = {
+  textShadowColor: 'rgba(24,48,26,0.75)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 8,
+};
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F3EFE3' },
+  root: { flex: 1, backgroundColor: '#03140E' },
 
   band: {
     position: 'absolute',
@@ -346,68 +389,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  kicker: { fontFamily: FONT.disp, fontSize: 11, letterSpacing: 2.4, color: 'rgba(255,255,255,0.82)' },
-  timer: { fontFamily: MONO, fontWeight: '700', fontSize: 20, color: '#FFFFFF', letterSpacing: 1 },
-
-  flags: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  flag: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4 },
-  flagFragile: { backgroundColor: '#FFD54F' },
-  flagFragileText: { fontFamily: FONT.bodyBold, fontSize: 11, letterSpacing: 0.8, color: '#3A1A00' },
-  flagValue: { backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
-  flagValueText: { fontFamily: FONT.body, fontSize: 11.5, color: '#EAFBF0' },
-  holder: { fontFamily: FONT.body, fontSize: 12, color: '#6B8C79', marginTop: 3 },
+  kicker: { fontFamily: FONT.disp, letterSpacing: 2, color: 'rgba(255,255,255,0.8)' },
+  timer: { fontFamily: MONO, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
 
   gainRow: { position: 'absolute', flexDirection: 'row', alignItems: 'flex-end' },
-  fcfa: { fontFamily: FONT.disp, fontSize: 25, color: 'rgba(255,255,255,0.78)', marginLeft: 11, marginBottom: 8, letterSpacing: -0.25 },
+  fcfa: { fontFamily: FONT.disp, color: 'rgba(255,255,255,0.8)', marginLeft: 8, marginBottom: 8 },
 
-  tiles: { position: 'absolute', flexDirection: 'row', gap: 10 },
-  tile: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-    backgroundColor: 'rgba(255,255,255,0.93)',
+  pastille: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    height: 30,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    shadowColor: 'rgba(6,50,28,1)',
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    borderColor: 'rgba(255,255,255,0.34)',
   },
-  tileValue: { fontFamily: FONT.disp, letterSpacing: -0.42, color: '#0B4A2A' },
-  tileLabel: { fontFamily: FONT.disp, fontSize: 9, letterSpacing: 1.44, color: '#6B8C79', marginTop: 3 },
-  tileLineWrap: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 11,
-    paddingHorizontal: 15,
-    backgroundColor: 'rgba(255,255,255,0.93)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-  },
-  tileLine: { fontFamily: FONT.bodyBold, fontSize: 13, color: '#0B4A2A' },
+  payDot: { width: 7, height: 7, borderRadius: 4 },
+  pastilleText: { fontFamily: FONT.disp, fontSize: 11, letterSpacing: 0.9, color: 'rgba(255,250,240,0.95)' },
+
+  arc: { position: 'absolute', left: 0, right: 0 },
+  arcKm: { position: 'absolute', textAlign: 'center', fontFamily: FONT.disp, fontSize: 11, color: '#FFF3DC', ...ARC_SHADOW },
+  arcKmMain: { position: 'absolute', textAlign: 'center', fontFamily: FONT.disp, fontSize: 12, color: '#FFFAF0', ...ARC_SHADOW },
+  arcLabel: { position: 'absolute', fontFamily: FONT.disp, fontSize: 9.5, letterSpacing: 1.2, color: 'rgba(255,250,240,0.92)', ...ARC_SHADOW },
+  arcLabelRight: { textAlign: 'right' },
 
   card: {
     position: 'absolute',
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    paddingTop: 24,
-    paddingRight: 22,
-    paddingBottom: 24,
-    paddingLeft: 54,
-    shadowColor: 'rgba(8,48,28,1)',
-    shadowOpacity: 0.2,
-    shadowRadius: 23,
+    shadowColor: 'rgba(24,40,20,1)',
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
     shadowOffset: { width: 0, height: 22 },
     elevation: 12,
   },
-  link: { position: 'absolute', left: 29, top: 42, width: 2, backgroundColor: '#E5E0D2' },
+  rail: { position: 'absolute', width: 2 },
   pickupHalo: {
     position: 'absolute',
-    left: 17,
-    top: 22,
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -416,10 +436,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(14,122,68,0.14)',
   },
   pickupDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#0E7A44' },
-  dropDot: { position: 'absolute', left: 23, width: 14, height: 14, borderRadius: 4, backgroundColor: '#17241C' },
+  dropDot: { position: 'absolute', width: 14, height: 14, borderRadius: 4 },
   routeText: { flex: 1, justifyContent: 'center' },
-  routeLabel: { fontFamily: FONT.disp, fontSize: 9.5, letterSpacing: 1.7, color: '#9A9384', marginBottom: 4 },
-  addr: { fontFamily: FONT.disp, letterSpacing: -0.44, color: '#17241C' },
+  routeLabel: { fontFamily: FONT.disp, fontSize: 9.5, letterSpacing: 1.7, marginBottom: 4 },
+  addr: { fontFamily: FONT.disp, letterSpacing: -0.44 },
 
-  refuseText: { fontFamily: FONT.bodyBold, fontSize: 15, color: '#8A8477' },
+  redHalo: { position: 'absolute', backgroundColor: 'rgba(255,90,40,0.55)' },
+  refuseText: { fontFamily: FONT.dispBold },
 });
