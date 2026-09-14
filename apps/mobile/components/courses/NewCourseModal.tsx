@@ -7,27 +7,23 @@ import {
   TouchableOpacity,
   BackHandler,
   AccessibilityInfo,
-  ScrollView,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
   useAnimatedReaction,
   withTiming,
-  withRepeat,
   cancelAnimation,
   runOnJS,
-  interpolate,
   Easing,
   FadeIn,
 } from 'react-native-reanimated';
-import { T, FONT, RAD } from './theme';
-import { MissionBackground } from './MissionBackground';
-import { PerimeterCountdown } from './PerimeterCountdown';
-import { RadarPulse } from './RadarPulse';
+import { FONT } from './theme';
+import { LiquidBackground } from './LiquidBackground';
 import { GainCounter } from './GainCounter';
 import { RouteTimeline } from './RouteTimeline';
 import { SlideToAccept } from './SlideToAccept';
@@ -51,6 +47,8 @@ type Props = {
   onTimeout: () => void;
 };
 
+const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })!;
+
 function fmtCFA(n: number) {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
@@ -58,27 +56,41 @@ function fmtKm(km?: number) {
   if (km == null) return '—';
   return `${km.toFixed(1).replace('.', ',')} km`;
 }
+function mmss(total: number) {
+  const s = Math.max(0, total);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
 
-export function NewCourseModal({
-  course,
-  durationSec = 120,
-  onAccept,
-  onRefuse,
-  onTimeout,
-}: Props) {
+type Palier = 'confort' | 'compact' | 'serre';
+
+/** Tokens de palier (le liquide/fond restent plein écran ; seuls 3 blocs bougent). */
+function palierTokens(p: Palier) {
+  switch (p) {
+    case 'serre':
+      return { gain: 76, floor: 220, cardTop: 248, cardBottom: 126, addr: 15.5, slider: 64, tileMode: 'line' as const };
+    case 'compact':
+      return { gain: 92, floor: 260, cardTop: 300, cardBottom: 138, addr: 16.5, slider: 72, tileMode: 'tiles' as const };
+    default:
+      return { gain: 114, floor: 300, cardTop: 352, cardBottom: 150, addr: 18, slider: 72, tileMode: 'tiles' as const };
+  }
+}
+
+export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, onTimeout }: Props) {
   const insets = useSafeAreaInsets();
+  const { height, width, fontScale } = useWindowDimensions();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [secs, setSecs] = useState(durationSec);
   const [accepted, setAccepted] = useState(false);
 
-  const progress = useSharedValue(0);
-  const pulse = useSharedValue(0);
+  const progress = useSharedValue(0); // 0 = plein, 1 = expiré (INCHANGÉ)
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
-  // Compte à rebours (périmètre + pastille). Linéaire sur la durée.
+  // Compte à rebours — LINÉAIRE sur la durée, callback timeout INCHANGÉ.
   useEffect(() => {
     progress.value = 0;
     progress.value = withTiming(
@@ -88,14 +100,11 @@ export function NewCourseModal({
         if (finished) runOnJS(onTimeout)();
       },
     );
-    if (!reduceMotion) {
-      pulse.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }), -1, false);
-    }
     return () => cancelAnimation(progress);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduceMotion]);
+  }, []);
 
-  // Pastille secondes : dérivée de progress, mise à jour 1×/seconde.
+  // Secondes affichées : dérivées de progress, maj 1×/s (texte, pas animation).
   useAnimatedReaction(
     () => Math.ceil((1 - progress.value) * durationSec),
     (cur, prev) => {
@@ -103,7 +112,6 @@ export function NewCourseModal({
     },
   );
 
-  // Bloque le retour Android tant que la demande est active.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
@@ -111,277 +119,236 @@ export function NewCourseModal({
 
   const handleAccept = () => {
     setAccepted(true);
-    cancelAnimation(progress); // fige le compte à rebours
+    cancelAnimation(progress); // fige le niveau
     onAccept();
   };
 
-  const pulseRing = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.6, 1.8]) }],
-    opacity: interpolate(pulse.value, [0, 1], [0.9, 0]),
-  }));
+  // Palier (bascule serré d'office au-delà de fontScale 1.4).
+  let palier: Palier = height >= 800 ? 'confort' : height >= 640 ? 'compact' : 'serre';
+  if (fontScale >= 1.4) palier = 'serre';
+  const tk = palierTokens(palier);
+  const gutter = width >= 400 ? 24 : 20;
+  const bandTop = Math.max(insets.top + 6, 24);
+
+  const hasFlags = course.isFragile || (course.declaredValue != null && course.declaredValue > 0);
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
-      {/* IMPORTANT (Android) : le contenu d'un <Modal> RN est une fenêtre native
-          séparée, NON couverte par le GestureHandlerRootView racine (_layout).
-          Sans ce wrapper, le geste "Glissez pour accepter" (Gesture.Pan) ne
-          reçoit aucune touche sur Android. On ré-enveloppe donc ici. */}
+      {/* Android : le contenu d'un <Modal> RN est une fenêtre native séparée, non
+          couverte par le GestureHandlerRootView racine → on ré-enveloppe ici,
+          sinon le geste "Glissez pour accepter" ne reçoit aucune touche. */}
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.root}>
-        <MissionBackground reduceMotion={reduceMotion} />
-        <PerimeterCountdown progress={progress} />
+        <View style={styles.root}>
+          {/* Fond : liquide vert qui se retire, piloté par progress */}
+          <LiquidBackground
+            progress={progress}
+            reduceMotion={reduceMotion}
+            floor={tk.floor}
+            height={height}
+            width={width}
+          />
 
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingTop: Math.max(insets.top, 14) + 6, paddingBottom: Math.max(insets.bottom, 0) + 40 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* FRAGILE + Valeur déclarée — tout en haut, centrés. Affichés si
-              l'un des deux est renseigné. */}
-          {(course.isFragile || (course.declaredValue && course.declaredValue > 0)) && (
-            <Animated.View entering={FadeIn.duration(350)} style={styles.flags}>
-              {course.isFragile && (
-                <View style={[styles.flag, styles.flagFragile]}>
-                  <Ionicons name="warning" size={15} color="#3A1A00" />
-                  <Text style={styles.flagFragileText}>FRAGILE</Text>
-                </View>
-              )}
-              {course.declaredValue && course.declaredValue > 0 ? (
-                <View style={[styles.flag, styles.flagValue]}>
-                  <Ionicons name="pricetag" size={14} color={T.mint} />
-                  <Text style={styles.flagValueText}>
-                    Valeur ~{fmtCFA(course.declaredValue)} FCFA
-                  </Text>
-                </View>
-              ) : null}
-            </Animated.View>
-          )}
-
-          {/* En-tête */}
-          <Animated.View entering={FadeIn.duration(350).delay(60)} style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.dotWrap}>
-                {!reduceMotion && <Animated.View style={[styles.pulseRing, pulseRing]} />}
-                <View style={styles.dot} />
-              </View>
-              <Text style={styles.kicker}>NOUVELLE COURSE</Text>
-            </View>
-            <View
-              style={styles.secsPill}
+          {/* Bandeau haut : NOUVELLE COURSE + mm:ss */}
+          <View style={[styles.band, { top: bandTop, paddingHorizontal: gutter }]}>
+            <Text maxFontSizeMultiplier={1.8} style={styles.kicker}>
+              NOUVELLE COURSE
+            </Text>
+            <Text
+              maxFontSizeMultiplier={1.2}
+              style={styles.timer}
               accessibilityLabel={`${secs} secondes restantes`}
             >
-              <Text style={styles.secsNum}>{secs}</Text>
-              <Text style={styles.secsUnit}>s</Text>
-            </View>
-          </Animated.View>
-
-          {/* Hero gain */}
-          <View style={styles.hero}>
-            <RadarPulse reduceMotion={reduceMotion} />
-            <Text style={styles.gainLabel}>GAIN</Text>
-            <View style={styles.gainRow}>
-              <GainCounter value={course.gain} style={styles.gainValue} reduceMotion={reduceMotion} />
-              <Text style={styles.fcfa}>FCFA</Text>
-            </View>
+              {mmss(secs)}
+            </Text>
           </View>
 
-          {/* Carte verre */}
-          <Animated.View entering={FadeIn.duration(400).delay(120)} style={styles.card}>
-            {/* Chips distance / colis */}
-            <View style={styles.chips}>
-              <Chip icon="navigate-outline" value={fmtKm(course.distanceKm)} label="DISTANCE" />
-              <Chip icon="cube-outline" value={course.colisLabel} label="COLIS" />
+          {/* Gain + tuiles */}
+          <View style={[styles.top, { top: bandTop + 40, paddingHorizontal: gutter }]}>
+            <View style={styles.gainRow}>
+              <GainCounter
+                value={course.gain}
+                reduceMotion={reduceMotion}
+                style={[styles.gain, { fontSize: tk.gain, height: tk.gain * 0.96, lineHeight: tk.gain * 0.88 }]}
+              />
+              <Text maxFontSizeMultiplier={1.2} style={styles.fcfa}>
+                FCFA
+              </Text>
             </View>
 
-            {/* Colis chez un tiers */}
-            {course.thirdPartyName ? (
-              <View style={styles.thirdParty}>
-                <Ionicons name="person" size={14} color={T.mint} />
-                <Text style={styles.thirdPartyText}>
-                  Colis chez <Text style={styles.thirdPartyName}>{course.thirdPartyName}</Text>
-                </Text>
+            {tk.tileMode === 'tiles' ? (
+              <View style={styles.tiles}>
+                <Tile value={fmtKm(course.distanceKm)} label="DISTANCE" />
+                <Tile value={course.colisLabel} label="COLIS" />
+              </View>
+            ) : (
+              <Text maxFontSizeMultiplier={1.5} style={styles.tileLine}>
+                {fmtKm(course.distanceKm)} · {course.colisLabel}
+              </Text>
+            )}
+
+            {/* Badges FRAGILE / valeur déclarée — conservés (donnée métier) */}
+            {hasFlags ? (
+              <View style={styles.flags}>
+                {course.isFragile ? (
+                  <View style={[styles.flag, styles.flagFragile]}>
+                    <Ionicons name="warning" size={13} color="#3A1A00" />
+                    <Text maxFontSizeMultiplier={1.5} style={styles.flagFragileText}>
+                      FRAGILE
+                    </Text>
+                  </View>
+                ) : null}
+                {course.declaredValue != null && course.declaredValue > 0 ? (
+                  <View style={[styles.flag, styles.flagValue]}>
+                    <Ionicons name="pricetag" size={12} color="#0B4A2A" />
+                    <Text maxFontSizeMultiplier={1.5} style={styles.flagValueText}>
+                      Valeur ~{fmtCFA(course.declaredValue)} FCFA
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
+          </View>
 
-            {/* Trajet */}
-            <RouteTimeline pickup={course.pickup} dropoff={course.dropoff} />
+          {/* Carte blanche (position FIXE, ne bouge pas pendant que le liquide descend) */}
+          <Animated.View
+            entering={FadeIn.duration(400).delay(120)}
+            style={[
+              styles.card,
+              { left: gutter, right: gutter, top: tk.cardTop, bottom: tk.cardBottom },
+            ]}
+          >
+            {course.thirdPartyName ? (
+              <View style={styles.thirdParty}>
+                <View style={styles.holderDot}>
+                  <Ionicons name="person" size={16} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text maxFontSizeMultiplier={1.8} style={styles.holderKicker}>
+                    COLIS CHEZ
+                  </Text>
+                  <Text maxFontSizeMultiplier={1.5} style={styles.holderName} numberOfLines={1}>
+                    {course.thirdPartyName}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+            <View style={styles.routeWrap}>
+              <RouteTimeline pickup={course.pickup} dropoff={course.dropoff} addrSize={tk.addr} />
+            </View>
           </Animated.View>
 
-          {/* Espace flexible : pousse le slider + refus vers le bas. */}
-          <View style={{ flex: 1, minHeight: 24 }} />
-
-          {/* Glisser pour accepter */}
-          <View style={styles.slideWrap}>
+          {/* Glisser pour accepter (logique inchangée) + Refuser */}
+          <View style={[styles.footer, { left: gutter, right: gutter, bottom: Math.max(insets.bottom, 0) + 34 }]}>
             <SlideToAccept
               label={accepted ? 'Course acceptée' : 'Glissez pour accepter'}
               onAccept={handleAccept}
               reduceMotion={reduceMotion}
             />
+            <TouchableOpacity
+              style={styles.refuse}
+              onPress={onRefuse}
+              disabled={accepted}
+              accessibilityRole="button"
+              accessibilityLabel="Refuser la course"
+            >
+              <Text maxFontSizeMultiplier={1.5} style={styles.refuseText}>
+                Refuser la course
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Refuser */}
-          <TouchableOpacity
-            style={styles.refuse}
-            onPress={onRefuse}
-            disabled={accepted}
-            accessibilityRole="button"
-            accessibilityLabel="Refuser la course"
-          >
-            <Text style={styles.refuseText}>Refuser la course</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+        </View>
       </GestureHandlerRootView>
     </Modal>
   );
 }
 
-function Chip({ icon, value, label }: { icon: any; value: string; label: string }) {
+function Tile({ value, label }: { value: string; label: string }) {
   return (
-    <View style={styles.chip}>
-      <Ionicons name={icon} size={18} color={T.vivid} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.chipValue} numberOfLines={1}>
-          {value}
-        </Text>
-        <Text style={styles.chipLabel}>{label}</Text>
-      </View>
+    <View style={styles.tile}>
+      <Text maxFontSizeMultiplier={1.5} style={styles.tileValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text maxFontSizeMultiplier={1.8} style={styles.tileLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bgEnd },
-  // flexGrow:1 + spacer interne → le contenu remplit l'écran (fragile/valeur
-  // en haut, slider + refus poussés en bas) au lieu d'être centré.
-  content: { paddingHorizontal: 24, flexGrow: 1 },
+  root: { flex: 1, backgroundColor: '#F3EFE3' },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dotWrap: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center' },
-  pulseRing: {
+  band: {
     position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: T.vivid,
-  },
-  dot: {
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: T.vivid,
-    shadowColor: T.vivid,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  kicker: {
-    fontFamily: FONT.bodyBold,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: 'rgba(255,255,255,0.82)',
-  },
-  secsPill: {
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  secsNum: { fontFamily: FONT.disp, fontSize: 16, color: T.amber },
-  secsUnit: { fontFamily: FONT.disp, fontSize: 13, color: T.white, marginLeft: 1, marginBottom: 1 },
+  kicker: { fontFamily: FONT.disp, fontSize: 11, letterSpacing: 2.4, color: 'rgba(255,255,255,0.8)' },
+  timer: { fontFamily: MONO, fontWeight: '700', fontSize: 20, color: '#FFFFFF', letterSpacing: 1 },
 
-  hero: { alignItems: 'center', marginTop: 28, marginBottom: 22, paddingVertical: 16 },
-  gainLabel: { fontFamily: FONT.bodyBold, fontSize: 12, letterSpacing: 3, color: T.mint },
-  gainRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
-  gainValue: {
+  top: { position: 'absolute', left: 0, right: 0 },
+  gainRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  gain: {
     fontFamily: FONT.disp,
-    fontSize: 60,
-    color: T.white,
-    textShadowColor: 'rgba(0,230,118,0.55)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 18,
-    height: 70,
-    textAlign: 'center',
+    color: '#FFFFFF',
+    letterSpacing: -6,
+    textAlign: 'left',
   },
-  fcfa: { fontFamily: FONT.disp, fontSize: 22, color: T.mint, marginLeft: 8, marginBottom: 10 },
+  fcfa: { fontFamily: FONT.disp, fontSize: 24, color: 'rgba(255,255,255,0.75)', marginLeft: 8, marginBottom: 12 },
+
+  tiles: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  tile: {
+    flex: 1,
+    borderRadius: 17,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  tileValue: { fontFamily: FONT.disp, fontSize: 16.5, letterSpacing: -0.4, color: '#0B4A2A' },
+  tileLabel: { fontFamily: FONT.disp, fontSize: 9, letterSpacing: 1.35, color: '#6B8C79', marginTop: 3 },
+  tileLine: { fontFamily: FONT.bodyBold, fontSize: 13, color: '#0B4A2A', marginTop: 12 },
+
+  flags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  flag: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  flagFragile: { backgroundColor: '#FFD54F' },
+  flagFragileText: { fontFamily: FONT.bodyBold, fontSize: 11.5, letterSpacing: 1, color: '#3A1A00' },
+  flagValue: { backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
+  flagValueText: { fontFamily: FONT.body, fontSize: 12.5, color: '#0B4A2A' },
 
   card: {
-    backgroundColor: T.card,
+    position: 'absolute',
+    borderRadius: 28,
+    padding: 22,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: T.cardBorder,
-    borderRadius: RAD.card,
-    padding: 16,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#0A321E',
+    shadowOpacity: 0.22,
+    shadowRadius: 27,
+    shadowOffset: { width: 0, height: 26 },
+    elevation: 12,
   },
-  chips: { flexDirection: 'row', gap: 10 },
-  chip: {
-    flex: 1,
-    flexDirection: 'row',
+  thirdParty: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  holderDot: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0E7A44',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: RAD.chip,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  chipValue: { fontFamily: FONT.disp, fontSize: 15, color: T.white },
-  chipLabel: {
-    fontFamily: FONT.bodyBold,
-    fontSize: 9.5,
-    letterSpacing: 0.8,
-    color: T.textMut,
-    marginTop: 1,
-  },
-
-  flags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
   },
-  flag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  flagFragile: { backgroundColor: T.amber },
-  flagFragileText: {
-    fontFamily: FONT.bodyBold,
-    fontSize: 12,
-    letterSpacing: 1,
-    color: '#3A1A00',
-  },
-  flagValue: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(174,244,203,0.25)',
-  },
-  flagValueText: { fontFamily: FONT.body, fontSize: 13, color: T.mint },
+  holderKicker: { fontFamily: FONT.disp, fontSize: 9.5, letterSpacing: 1.7, color: '#9A9384' },
+  holderName: { fontFamily: FONT.disp, fontSize: 15.5, color: '#17241C', marginTop: 2 },
+  routeWrap: { flex: 1, justifyContent: 'center' },
 
-  thirdParty: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  thirdPartyText: { fontFamily: FONT.body, fontSize: 13, color: T.mint },
-  thirdPartyName: { fontFamily: FONT.bodyBold, color: T.white },
-
-  slideWrap: { marginTop: 22 },
-  refuse: { alignItems: 'center', paddingVertical: 14, marginTop: 14 },
-  refuseText: { fontFamily: FONT.bodyBold, fontSize: 14, color: '#CFE8D8' },
+  footer: { position: 'absolute' },
+  refuse: { alignItems: 'center', paddingVertical: 12, marginTop: 13 },
+  refuseText: { fontFamily: FONT.bodyBold, fontSize: 14.5, color: '#8A8477' },
 });
