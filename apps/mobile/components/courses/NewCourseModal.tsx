@@ -124,10 +124,7 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const tk = tokens(palier);
   const gutter = W >= 400 ? 24 : 20;
 
-  const refusTop = H - insets.bottom - 4 - REFUS_H;
-  const curseurTop = refusTop - 12 - CURSEUR_H;
-  const cardTop = curseurTop - 32 - tk.cardH;
-
+  // --- Haut (ancré en haut) ---
   const enteteTop = insets.top + 16;
   // FRAGILE / valeur déclarée : info conservée (dont sécurité). Petits chips dans
   // la bande verte du haut ; le gain descend seulement quand ils sont présents.
@@ -137,6 +134,23 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const tilesTop = gainTop + gainH + 14;
   const tilesH = tk.tileMode === 'tiles' ? 58 : 34;
   const tilesBottom = tilesTop + tilesH;
+
+  // --- Bas positionné DE HAUT EN BAS (écart vert fixe façon maquette) : évite
+  // que la hauteur en trop des grands écrans se transforme en vide vert au
+  // milieu. L'excédent part en crème SOUS « Refuser », pas au centre en vert.
+  const GREEN_ZONE = 138; // zone de retrait du liquide (tuiles → carte)
+  let cardTop = tilesBottom + GREEN_ZONE;
+  let curseurTop = cardTop + tk.cardH + 32;
+  let refusTop = curseurTop + CURSEUR_H + 12;
+  // Petits écrans : si ça dépasse le bas sûr, on remonte le bloc bas d'un bloc.
+  const bottomLimit = H - insets.bottom - 4 - REFUS_H;
+  if (refusTop > bottomLimit) {
+    const shift = refusTop - bottomLimit;
+    cardTop -= shift;
+    curseurTop -= shift;
+    refusTop -= shift;
+    if (cardTop < tilesBottom + 20) cardTop = tilesBottom + 20;
+  }
 
   const plafond = cardTop;
   const plancher = Math.min(tilesBottom + 8, cardTop - 8);
