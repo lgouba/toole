@@ -58,11 +58,16 @@ export function LiquidBackground({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotion]);
 
-  // hauteur du liquide = position Y de la surface
-  const surfaceY = (p: number) => plancher + (1 - p) * (plafond - plancher);
-
-  const liquidStyle = useAnimatedStyle(() => ({ height: surfaceY(progress.value) }));
-  const surfaceStyle = useAnimatedStyle(() => ({ top: surfaceY(progress.value) }));
+  // hauteur du liquide = position Y de la surface. On INLINE le calcul dans
+  // chaque worklet : appeler une fonction JS normale depuis un worklet crashe
+  // le thread UI (New Architecture). plancher/plafond sont des nombres capturés,
+  // donc utilisables tels quels dans le worklet.
+  const liquidStyle = useAnimatedStyle(() => ({
+    height: plancher + (1 - progress.value) * (plafond - plancher),
+  }));
+  const surfaceStyle = useAnimatedStyle(() => ({
+    top: plancher + (1 - progress.value) * (plafond - plancher),
+  }));
   const wave1Style = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(wave1.value, [0, 1], [0, -390]) }],
   }));
