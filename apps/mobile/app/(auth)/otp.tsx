@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { OtpInput, Button } from '@/components/ui';
 import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
@@ -11,9 +11,37 @@ import { formatPhone } from '@/utils/format';
 import { api, unwrap, tokenStorage } from '@/services/api.client';
 import { isEmail } from '@/services/auth.service';
 
+/** Une ligne d'information de l'écran de confirmation d'inscription. */
+function InfoLine({
+  icon,
+  tint,
+  fg,
+  title,
+  text,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  tint: string;
+  fg: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <View style={styles.infoRow}>
+      <View style={[styles.infoIcon, { backgroundColor: tint }]}>
+        <MaterialIcons name={icon} size={18} color={fg} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.infoTitle}>{title}</Text>
+        <Text style={styles.infoText}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function OtpScreen() {
   const router = useRouter();
   const { phoneNumber, verifyOtp, sendOtp, isLoading } = useAuthStore();
+  const pending = useAuthStore((s) => s.pendingRegistration);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const { remaining, start, isActive } = useCountdown(60);
@@ -206,18 +234,56 @@ export default function OtpScreen() {
         </TouchableOpacity>
       </View>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Vérification</Text>
-          <Text style={styles.subtitle}>
-            Entrez le code à 6 chiffres envoyé à{'\n'}
-            <Text style={styles.phone}>
-              {isEmail(phoneNumber) ? phoneNumber : formatPhone(phoneNumber)}
+        {pending ? (
+          <>
+            {/* Confirmation d'inscription (la carte est « prête ») — l'OTP a
+                déjà été envoyé automatiquement à l'étape précédente. */}
+            <View style={styles.doneBadge}>
+              <MaterialIcons name="check-circle" size={50} color="#15833F" />
+            </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>Votre carte est prête</Text>
+              <Text style={styles.subtitle}>Il reste une étape : confirmer votre numéro.</Text>
+            </View>
+            <View style={styles.infoList}>
+              <InfoLine
+                icon="sms"
+                tint="#E7F5EC"
+                fg="#15833F"
+                title="Un code arrive par SMS"
+                text={`Six chiffres envoyés au ${isEmail(pending.otpIdentifier) ? pending.otpIdentifier : formatPhone(pending.phone)}.`}
+              />
+              {pending.userType === 'driver' ? (
+                <InfoLine
+                  icon="verified-user"
+                  tint="#E6EDFB"
+                  fg="#2457B4"
+                  title="Vos pièces sont en vérification"
+                  text="Notre équipe valide votre pièce d'identité sous 24 à 48 h, puis vos premières courses arrivent."
+                />
+              ) : null}
+              {pending.referralCode ? (
+                <InfoLine
+                  icon="card-giftcard"
+                  tint="#FBF1DE"
+                  fg="#A96C12"
+                  title="Code de parrainage enregistré"
+                  text={`${pending.referralCode} a été transmis avec votre inscription.`}
+                />
+              ) : null}
+            </View>
+          </>
+        ) : (
+          <View style={styles.header}>
+            <Text style={styles.title}>Vérification</Text>
+            <Text style={styles.subtitle}>
+              Entrez le code à 6 chiffres envoyé à{'\n'}
+              <Text style={styles.phone}>
+                {isEmail(phoneNumber) ? phoneNumber : formatPhone(phoneNumber)}
+              </Text>
             </Text>
-          </Text>
-          {/* Hint dev '1234' retire : on est en prod sur Aqilas (SMS reel).
-              Pour tester en dev local, le code 1234 reste valide quand
-              SMS_PROVIDER=dev cote serveur, sans affichage UI. */}
-        </View>
+          </View>
+        )}
 
         <OtpInput
           length={6}
@@ -270,6 +336,26 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
   },
+  doneBadge: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: '#E7F5EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  infoList: { gap: 12, marginBottom: spacing.xl },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  infoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoTitle: { ...typography.bodySmall, color: colors.textPrimary, fontWeight: '700', fontSize: 13.5 },
+  infoText: { ...typography.caption, color: '#8A8477', fontSize: 12.5, lineHeight: 17, marginTop: 2 },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
