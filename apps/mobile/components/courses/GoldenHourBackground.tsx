@@ -28,6 +28,7 @@ const STARS = Array.from({ length: 24 }, (_, i) => ({
 
 export function GoldenHourBackground({
   u,
+  uSol,
   p,
   horizon,
   sunTop,
@@ -38,6 +39,7 @@ export function GoldenHourBackground({
   reduceMotion,
 }: {
   u: SharedValue<number>;
+  uSol: SharedValue<number>;
   p: SharedValue<number>;
   horizon: number;
   sunTop: number;
@@ -62,16 +64,18 @@ export function GoldenHourBackground({
   const haloStyle = useAnimatedStyle(() => ({ opacity: 0.4 + 0.6 * (1 - p.value) }));
   const nightHaloStyle = useAnimatedStyle(() => ({ opacity: u.value }));
   const starsStyle = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * u.value }));
-  // Sol : couleur unie interpolée via un BRUN à mi-course → jamais de gris.
+  // Sol : progression PROPRE (uSol, décalée), milieu SABLE clair (pas brun,
+  // pas gris) → deux segments 0→0.5→1.
   const groundStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
-      u.value,
+      uSol.value,
       [0, 0.5, 1],
-      ['#F7EFDE', '#966446', '#101413'],
+      ['#F2E9D8', '#CAAE8C', '#0B0E0E'],
     ),
   }));
 
   const haloH = 220;
+  const OVER = 240; // débordement bas pour couvrir la barre de navigation
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -87,7 +91,7 @@ export function GoldenHourBackground({
             <Stop offset="1" stopColor="#E5A63C" />
           </LinearGradient>
         </Defs>
-        <Rect x={0} y={0} width={width} height={height} fill="url(#skyDay)" />
+        <Rect x={0} y={0} width={width} height={height + OVER} fill="url(#skyDay)" />
       </Svg>
       {/* Ciel NUIT (crossfade, opacité = u) */}
       <Animated.View style={[StyleSheet.absoluteFill, nightSkyStyle]}>
@@ -102,7 +106,7 @@ export function GoldenHourBackground({
               <Stop offset="1" stopColor="#4A2A1A" />
             </LinearGradient>
           </Defs>
-          <Rect x={0} y={0} width={width} height={height} fill="url(#skyNight)" />
+          <Rect x={0} y={0} width={width} height={height + OVER} fill="url(#skyNight)" />
         </Svg>
       </Animated.View>
 
@@ -116,7 +120,7 @@ export function GoldenHourBackground({
       {/* Soleil (descend ; le sol le recouvre) */}
       <Animated.View
         style={[
-          { position: 'absolute', left: 0.54 * width, width: sunSize, height: sunSize },
+          { position: 'absolute', left: 0.6 * width, width: sunSize, height: sunSize },
           sunStyle,
         ]}
       >
@@ -149,7 +153,7 @@ export function GoldenHourBackground({
 
       {/* Sol (au-dessus du soleil → coucher sans masque) */}
       <Animated.View
-        style={[{ position: 'absolute', left: 0, right: 0, top: horizon, height: height - horizon }, groundStyle]}
+        style={[{ position: 'absolute', left: 0, right: 0, top: horizon, height: height - horizon + OVER }, groundStyle]}
       />
 
       {/* Halo d'horizon (sur le sol, intensité suit p) */}

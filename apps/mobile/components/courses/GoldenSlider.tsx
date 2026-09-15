@@ -97,14 +97,14 @@ export function GoldenSlider({
   const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   const textStyle = useAnimatedStyle(() => {
     // couleur du texte sur sa propre rampe (jamais de zone de faible contraste)
-    const tt = Math.min(Math.max((u.value - 0.55) / 0.22, 0), 1);
+    const tt = Math.min(Math.max((u.value - 0.68) / 0.2, 0), 1);
     return {
       opacity: Math.min(Math.max(1 - progress.value * 1.6, 0), 1),
       color: interpolateColor(tt, [0, 1], ['#3A2607', '#FFF4EB']),
     };
   });
   const subStyle = useAnimatedStyle(() => {
-    const tt = Math.min(Math.max((u.value - 0.55) / 0.22, 0), 1);
+    const tt = Math.min(Math.max((u.value - 0.68) / 0.2, 0), 1);
     return {
       opacity: Math.min(Math.max(1 - progress.value * 1.6, 0), 1),
       color: interpolateColor(tt, [0, 1], ['rgba(58,38,7,0.72)', 'rgba(255,226,206,0.86)']),
@@ -114,10 +114,10 @@ export function GoldenSlider({
   const nightStyle = useAnimatedStyle(() => ({ opacity: u.value }));
   const shineStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(shine.value, [0, 1], [-trackW * 0.4, trackW * 1.2]) },
+      { translateX: interpolate(shine.value, [0, 1], [-90, trackW + 90]) },
       { skewX: '-20deg' },
     ],
-    opacity: reduceMotion ? 0 : 0.34,
+    opacity: reduceMotion ? 0 : 1,
   }));
 
   return (
@@ -151,9 +151,20 @@ export function GoldenSlider({
         </Animated.View>
       )}
 
-      {/* balayage de lumière */}
+      {/* balayage de lumière — dégradé horizontal (pas d'aplat → pas de bandes) */}
       {trackW > 0 && (
-        <Animated.View pointerEvents="none" style={[styles.shine, shineStyle, { height }]} />
+        <Animated.View pointerEvents="none" style={[styles.shine, shineStyle, { height }]}>
+          <Svg width={86} height={height}>
+            <Defs>
+              <LinearGradient id="gsShine" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0" />
+                <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.34" />
+                <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+              </LinearGradient>
+            </Defs>
+            <Rect x={0} y={0} width={86} height={height} fill="url(#gsShine)" />
+          </Svg>
+        </Animated.View>
       )}
 
       {/* textes (2 lignes) */}
@@ -192,8 +203,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
-    width: 80,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    width: 86,
   },
   textWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   label: { fontFamily: FONT.disp, fontSize: 16.5, letterSpacing: -0.3 },

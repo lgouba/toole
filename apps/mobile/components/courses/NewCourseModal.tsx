@@ -57,9 +57,24 @@ const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'mon
 function fmtCFA(n: number) {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
-function fmtKm(km?: number | null) {
-  if (km == null) return '—';
-  return `${km.toFixed(1).replace('.', ',')} km`;
+function kmText(km: number) {
+  return `${(Math.round(km * 10) / 10).toFixed(1).replace('.', ',')} km`;
+}
+function mText(km: number) {
+  return `${Math.round((km * 1000) / 50) * 50} m`;
+}
+// Retrait (estimé, vol d'oiseau) : « Sur place » < 100 m, mètres < 1 km, sinon km.
+function formatRetrait(km?: number | null): { t: string; approx: boolean } | null {
+  if (km == null || !Number.isFinite(km)) return null;
+  if (km < 0.1) return { t: 'Sur place', approx: false };
+  if (km < 1) return { t: mText(km), approx: true };
+  return { t: kmText(km), approx: true };
+}
+// Trajet (serveur, pas d'estimation → pas de tilde).
+function formatTrajet(km?: number | null): string {
+  if (km == null || !Number.isFinite(km)) return '—';
+  if (km < 1) return mText(km);
+  return kmText(km);
 }
 function mmss(total: number) {
   const s = Math.max(0, total);
@@ -114,10 +129,16 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   // ---- Lumière : p = temps restant (1→0), u = 0 jour → 1 nuit ----
   const p = useDerivedValue(() => 1 - progress.value);
   const u = useDerivedValue(() => Math.pow(1 - progress.value, 1.35));
-  // Bascule NUIT de la carte : une transition unique de 0.7 s à u > 0.66.
+  // Le SOL a sa propre progression, décalée et plus brève (reste crème tant
+  // qu'il reste plus de la moitié du temps, puis bascule franchement).
+  const uSol = useDerivedValue(() => {
+    const s = Math.min(Math.max((u.value - 0.38) / 0.45, 0), 1);
+    return Math.pow(s, 1.1);
+  });
+  // Bascule NUIT de la carte EN MÊME TEMPS que le sol (uSol > 0.55), 0.7 s.
   const night = useSharedValue(0);
   useAnimatedReaction(
-    () => u.value > 0.66,
+    () => uSol.value > 0.55,
     (isNight, prev) => {
       if (isNight !== prev) night.value = withTiming(isNight ? 1 : 0, { duration: 700 });
     },
@@ -141,11 +162,11 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const montantTop = enteteTop + 30 * k;
   const gainSize = (useSerre ? 82 : 104) * k;
   const pastilleTop = montantTop + gainSize * 0.9 + 12 * k;
-  const arcY = carteTop - 86 * k;
+  const arcY = carteTop - 108 * k; // arc remonté (air entre libellés et soleil)
 
-  const sunTop = insets.top + 172 * k;
-  const sunBottom = carteTop - 14 * k + 112 * k;
-  const sunSize = 148 * k;
+  const sunTop = insets.top + 186 * k;
+  const sunBottom = carteTop - 10 * k + 96 * k;
+  const sunSize = 126 * k; // réduit (ne percute plus l'arc)
 
   // ---- Montant (net) : largeur fixe → FCFA reste sur la ligne de base ----
   const gainStr = fmtCFA(course.gain);
@@ -167,12 +188,19 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
 
   // ---- Arc du trajet ----
   const trajet = course.distanceKm ?? 0;
-  const retrait = course.retraitKm;
-  const showRetrait = retrait != null;
+  const retraitInfo = formatRetrait(course.retraitKm);
+  const showRetrait = retraitInfo != null;
+  const retraitText = retraitInfo ? (retraitInfo.approx ? `~${retraitInfo.t}` : retraitInfo.t) : '';
+  const trajetText = formatTrajet(course.distanceKm);
   const x0 = g + 10;
   const x1 = W - g - 10;
-  let f = 0.5;
-  if (showRetrait && retrait! + trajet > 0) f = Math.max(0.17, retrait! / (retrait! + trajet));
+  // Proportion réelle ; plancher 0.20. Sous ce seuil (livreur ~sur place) on
+  // masque le libellé VOUS (il chevaucherait RÉCUPÉRATION), le cercle reste.
+  let fBrut = 0;
+  const retraitKm = course.retraitKm ?? 0;
+  if (showRetrait && retraitKm + trajet > 0) fBrut = retraitKm / (retraitKm + trajet);
+  const f = Math.max(0.2, fBrut);
+  const showVous = showRetrait && fBrut >= 0.2;
   const xRecup = showRetrait ? x0 + f * (x1 - x0) : x0;
   const amp1 = 46 * k * 0.42;
   const amp2 = 46 * k;
@@ -200,7 +228,8 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
     color: interpolateColor(night.value, [0, 1], ['#17241C', '#F4EFE4']),
   }));
   const refuseCol = useAnimatedStyle(() => ({
-    color: interpolateColor(u.value, [0, 1], ['#9A8C74', 'rgba(240,228,212,0.78)']),
+    // s'éclaircit AVEC le sol (uSol), reste lisible sur le sable/brun.
+    color: interpolateColor(uSol.value, [0, 1], ['#9A8C74', 'rgba(240,228,212,0.82)']),
   }));
   const haloRed = useAnimatedStyle(() => {
     // Inline (pas d'appel de fonction JS dans un worklet).
@@ -212,11 +241,19 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const addrSize = (useSerre ? 15 : 17.2) * k;
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={() => {}}
+    >
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.root}>
           <GoldenHourBackground
             u={u}
+            uSol={uSol}
             p={p}
             horizon={horizon}
             sunTop={sunTop}
@@ -287,12 +324,14 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
             </Svg>
             {/* distances + libellés (Text RN par-dessus, avec ombre) */}
             {showRetrait ? (
-              <Text style={[styles.arcKm, { left: x0, width: xRecup - x0, top: 0 }]}>{`~${fmtKm(retrait)}`}</Text>
+              <Text style={[styles.arcKm, { left: x0, width: Math.max(30, xRecup - x0), top: 0 }]} numberOfLines={1}>
+                {retraitText}
+              </Text>
             ) : null}
-            <Text style={[styles.arcKmMain, { left: xRecup, width: x1 - xRecup, top: 0 }]}>{fmtKm(trajet)}</Text>
-            {showRetrait ? (
-              <Text style={[styles.arcLabel, { left: x0, top: 40 }]}>VOUS</Text>
-            ) : null}
+            <Text style={[styles.arcKmMain, { left: xRecup, width: x1 - xRecup, top: 0 }]} numberOfLines={1}>
+              {trajetText}
+            </Text>
+            {showVous ? <Text style={[styles.arcLabel, { left: x0, top: 40 }]}>VOUS</Text> : null}
             <Text style={[styles.arcLabel, { left: xRecup - 9, top: 40 }]}>RÉCUPÉRATION</Text>
             <Text style={[styles.arcLabel, styles.arcLabelRight, { right: W - x1, top: 40 }]}>LIVRAISON</Text>
           </View>
