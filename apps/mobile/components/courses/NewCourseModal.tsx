@@ -127,8 +127,10 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   };
 
   // ---- Lumière : p = temps restant (1→0), u = 0 jour → 1 nuit ----
+  // progress = 0 au départ → 1 à l'expiration. p = restant = 1 - progress.
+  // u = (1 - p)^1.35 = progress^1.35 : 0 = PLEIN JOUR, 1 = nuit.
   const p = useDerivedValue(() => 1 - progress.value);
-  const u = useDerivedValue(() => Math.pow(1 - progress.value, 1.35));
+  const u = useDerivedValue(() => Math.pow(progress.value, 1.35));
   // Le SOL a sa propre progression, décalée et plus brève (reste crème tant
   // qu'il reste plus de la moitié du temps, puis bascule franchement).
   const uSol = useDerivedValue(() => {
@@ -162,11 +164,15 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const montantTop = enteteTop + 30 * k;
   const gainSize = (useSerre ? 82 : 104) * k;
   const pastilleTop = montantTop + gainSize * 0.9 + 12 * k;
-  const arcY = carteTop - 108 * k; // arc remonté (air entre libellés et soleil)
-
-  const sunTop = insets.top + 186 * k;
-  const sunBottom = carteTop - 10 * k + 96 * k;
-  const sunSize = 126 * k; // réduit (ne percute plus l'arc)
+  // L'arc se pose juste sous la pastille (30 = hauteur pastille, 84 = place des
+  // étiquettes de distance). Le soleil descend dans le COULOIR libre entre l'arc
+  // et l'horizon, et sa taille est bornée par ce couloir → il ne croise jamais
+  // l'arc, sur n'importe quel écran.
+  const arcY = pastilleTop + 30 * k + 84 * k;
+  const couloir = Math.max(44, carteTop - (arcY + 26 * k));
+  const sunSize = Math.min(126 * k, couloir * 1.15);
+  const sunTop = arcY + 26 * k;
+  const sunBottom = carteTop + sunSize * 0.45;
 
   // ---- Montant (net) : largeur fixe → FCFA reste sur la ligne de base ----
   const gainStr = fmtCFA(course.gain);
