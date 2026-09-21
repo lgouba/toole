@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, StyleProp, ViewStyle, LayoutChangeEvent } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Text as SvgText } from 'react-native-svg';
+import { AU, AF, kolaGlow } from '@/theme/aurora';
 
 /**
  * Direction « Aurora » : dégradé menthe → teal → kola qui coule derrière les
@@ -102,4 +104,67 @@ export function AuroraText({
   );
 }
 
-const styles = StyleSheet.create({});
+/** Bouton principal Aurora : fond dégradé kola→teal (SVG) + glow doux. */
+export function GradientButton({
+  label,
+  icon,
+  onPress,
+  disabled,
+  height = 54,
+  style,
+}: {
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
+  disabled?: boolean;
+  height?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const [w, setW] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const nw = e.nativeEvent.layout.width;
+    if (nw && Math.abs(nw - w) > 1) setW(nw);
+  };
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      onLayout={onLayout}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
+      style={({ pressed }) => [
+        { height, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+        disabled ? styles.btnOff : kolaGlow,
+        pressed && !disabled && { opacity: 0.92 },
+        style,
+      ]}
+    >
+      {!disabled && w > 0 ? (
+        <Svg width={w} height={height} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id="gbtn" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor="#0E7A44" />
+              <Stop offset="1" stopColor="#12B58A" />
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={w} height={height} fill="url(#gbtn)" />
+        </Svg>
+      ) : null}
+      {icon ? <Ionicons name={icon} size={19} color={disabled ? AU.faint : '#fff'} /> : null}
+      <Text style={{ fontFamily: AF.bold, fontSize: 15.5, color: disabled ? AU.faint : '#fff' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Carte en verre dépoli. */
+export const glassCard = {
+  backgroundColor: AU.glass,
+  borderWidth: 1,
+  borderColor: AU.glassBorder,
+  borderRadius: 20,
+} as const;
+
+const styles = StyleSheet.create({
+  btnOff: { backgroundColor: '#DDE2E6' },
+});

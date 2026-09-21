@@ -223,14 +223,16 @@ function buildHtml(
       const isPickup = m.icon === 'pickup';
       const isDelivery = m.icon === 'delivery';
       const col =
-        m.color || (isPickup ? '#C2410C' : isDelivery ? '#15803D' : colors.primary);
+        m.color || (isPickup ? '#C2410C' : isDelivery ? '#0E7A44' : colors.primary);
       const emoji = isPickup ? '📦' : isDelivery ? '🏠' : '📍';
+      // Aurora : pastille blanche « verre », anneau coloré + glow doux.
+      const glowRgba = isPickup ? 'rgba(194,65,12,0.32)' : 'rgba(18,181,138,0.38)';
       return `
         {
           const marker = L.marker([${m.coordinate.latitude}, ${m.coordinate.longitude}], {
             icon: L.divIcon({
               className: 'custom-marker',
-              html: '<div style="background:${col};width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:17px;">${emoji}</div>',
+              html: '<div style="background:#fff;width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;border:3px solid ${col};box-shadow:0 5px 14px ${glowRgba};font-size:17px;">${emoji}</div>',
               iconSize: [38, 38],
               iconAnchor: [19, 19],
             }),
@@ -250,7 +252,7 @@ function buildHtml(
     : '[]';
   const routeJs = route
     ? `renderRoute(${routeLatLngsJs});`
-    : `window._route = null; window._routeCasing = null;`;
+    : `window._route = null; window._routeCasing = null; window._routeGlow = null;`;
 
   // Halo "zone desservie" (cercle translucide), SANS pin central (le point vert
   // était pris pour un faux livreur). Seuls les vrais livreurs en ligne s'affichent.
@@ -352,33 +354,33 @@ function buildHtml(
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: #16A34A;
-      opacity: 0.22;
+      background: #12B58A;
+      opacity: 0.24;
       animation: driver-pulse-ring 2s ease-out infinite;
     }
-    /* Pastille verte = contenant du scooter (anneau vert + fond clair) */
+    /* Pastille = contenant du scooter (anneau teal Aurora + fond blanc) */
     .driver-pin-bubble {
       position: relative;
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: #FBFAF6;
-      border: 3px solid #15803D;
+      background: #FFFFFF;
+      border: 3px solid #12B58A;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.28);
+      box-shadow: 0 6px 16px rgba(18,181,138,0.35);
     }
-    /* Pointe GPS verte sous la pastille (la position exacte = bas de la pointe) */
+    /* Pointe GPS sous la pastille (la position exacte = bas de la pointe) */
     .driver-pin-tip {
       width: 0;
       height: 0;
       margin-top: -3px;
       border-left: 8px solid transparent;
       border-right: 8px solid transparent;
-      border-top: 12px solid #15803D;
-      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+      border-top: 12px solid #12B58A;
+      filter: drop-shadow(0 2px 2px rgba(18,181,138,0.4));
     }
     .driver-pin-inner {
       position: relative;
@@ -409,6 +411,7 @@ function buildHtml(
     window._markers = {};
     window._route = null;
     window._routeCasing = null;
+    window._routeGlow = null;
     window._prevPositions = {};
     const map = L.map('map', {
       zoomControl: ${interactive ? 'true' : 'false'},
@@ -496,16 +499,19 @@ function buildHtml(
     function renderRoute(points) {
       if (!points || points.length < 2) return;
       var solid = points.length >= 3; // >=3 pts = vrai itineraire routier
-      // Style "navigation" facon Uber : liseré blanc dessous + ligne noire
-      // épaisse dessus (coins arrondis). En fallback ligne directe (2 pts),
-      // la ligne noire devient pointillée pour signaler l'approximation.
+      // Style « Aurora » : halo teal diffus dessous (glow), liseré blanc, puis
+      // ligne verte kola nette dessus (coins arrondis). En fallback ligne
+      // directe (2 pts), la ligne devient pointillée pour signaler l'approx.
+      var glow = { color: '#12B58A', weight: 16, opacity: 0.16, lineJoin: 'round', lineCap: 'round' };
       var casing = { color: '#FFFFFF', weight: 9, opacity: 0.95, lineJoin: 'round', lineCap: 'round' };
-      var main = { color: '#111827', weight: 5, opacity: 0.98, lineJoin: 'round', lineCap: 'round', dashArray: solid ? null : '1, 9' };
+      var main = { color: '#0E7A44', weight: 5, opacity: 0.98, lineJoin: 'round', lineCap: 'round', dashArray: solid ? null : '1, 9' };
+      if (window._routeGlow) { window._routeGlow.setLatLngs(points); window._routeGlow.setStyle(glow); }
+      else { window._routeGlow = L.polyline(points, glow).addTo(map); }
       if (window._routeCasing) { window._routeCasing.setLatLngs(points); window._routeCasing.setStyle(casing); }
       else { window._routeCasing = L.polyline(points, casing).addTo(map); }
       if (window._route) { window._route.setLatLngs(points); window._route.setStyle(main); }
       else { window._route = L.polyline(points, main).addTo(map); }
-      try { window._routeCasing.bringToBack(); window._route.bringToFront(); } catch (e) {}
+      try { window._routeCasing.bringToBack(); window._routeGlow.bringToBack(); window._route.bringToFront(); } catch (e) {}
     }
     window.updateRoute = function(aLat, aLng, bLat, bLng) {
       try { renderRoute([[aLat, aLng], [bLat, bLng]]); } catch (e) {}

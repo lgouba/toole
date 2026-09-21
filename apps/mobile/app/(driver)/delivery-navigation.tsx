@@ -1,16 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
+import Animated, { useSharedValue, withTiming, useReducedMotion, useAnimatedStyle } from 'react-native-reanimated';
 import { useDriverStore } from '@/stores/driver.store';
 import { useMessageStore } from '@/stores/message.store';
 import { openPhone, openNavigation } from '@/utils/linking';
 import { getDeliveryById } from '@/services/delivery.service';
 import { formatEta } from '@/utils/format';
-import { BC, BF } from '@/theme/bonCourse';
-import { RetourBtn, Perforation, LignesControle, microStyle } from '@/components/driver/bonCourse/BonCourseParts';
+import { Map } from '@/components/map/Map';
+import { LatLng } from '@/types';
+import { AU, AF } from '@/theme/aurora';
+import { AuroraGlow, GradientButton } from '@/components/aurora/AuroraBits';
 
 // Distance en « bon de course » (§5.8) — LOCAL, ne touche pas formatDistance global.
 function fmtDistBon(km: number): string {
@@ -21,9 +23,10 @@ function fmtDistBon(km: number): string {
 
 export default function DeliveryNavigationScreen() {
   const router = useRouter();
-  const { height: H } = useWindowDimensions();
+  const { width: W } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { activeDelivery } = useDriverStore();
+  const currentLocation = useDriverStore((s) => s.currentLocation);
   const unread = useMessageStore((s) => s.unread[activeDelivery?.id ?? ''] ?? 0);
 
   const stepStartRef = useRef<{ id: string; init: number } | null>(null);
@@ -31,6 +34,7 @@ export default function DeliveryNavigationScreen() {
   const [pourcent, setPourcent] = useState<number | null>(null);
   const progress = useSharedValue(0);
 
+  // ---------- LOGIQUE INCHANGÉE ----------
   useEffect(() => {
     if (activeDelivery?.id) useMessageStore.getState().loadUnread(activeDelivery.id);
   }, [activeDelivery?.id]);
@@ -85,163 +89,157 @@ export default function DeliveryNavigationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDelivery?.id, restKm]);
 
-  if (!activeDelivery) return null;
+  // ---------- CARTE (affichage seulement, données existantes) ----------
   const d = activeDelivery;
-  const k = Math.min(1.12, Math.max(0.86, H / 844));
-  const g = 0; // les marges sont gérées par le padding du papier
-  const gut = H >= 900 ? 24 : 20;
-  const m = microStyle(k);
+  const markers = useMemo(() => {
+    if (!d) return [];
+    const list: any[] = [{ id: 'delivery', coordinate: d.deliveryLocation, icon: 'delivery', label: d.deliveryAddress }];
+    if (currentLocation) list.push({ id: 'driver', coordinate: currentLocation, icon: 'driver', target: d.deliveryLocation });
+    return list;
+  }, [d?.deliveryLocation, currentLocation]);
+  const routeCoords = useMemo<[LatLng, LatLng] | undefined>(
+    () => (d && currentLocation ? [currentLocation, d.deliveryLocation] : undefined),
+    [d?.deliveryLocation, currentLocation],
+  );
+
+  const barStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, Math.min(1, progress.value)) * 100}%` }));
+
+  if (!d) return null;
+  const center = currentLocation ?? d.deliveryLocation;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BC.page }}>
-      {/* LA FEUILLE (occupe tout sauf le bouton + mention) */}
-      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BC.papier }}>
-        <View style={{ flex: 1, paddingHorizontal: gut, paddingTop: 8 * k }}>
-          {/* tête */}
-          <View style={{ height: 40 * k, justifyContent: 'center' }}>
-            <RetourBtn k={k} g={gut} top={0} onPress={() => router.back()} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 40 * k }}>
-              <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.encre, letterSpacing: 3 * k }]}>TOOLÉ</Text>
-              <Text maxFontSizeMultiplier={1.4} style={m}>ÉTAPE 3 / 4</Text>
-            </View>
-          </View>
-          <View style={{ height: 4 * k, borderTopWidth: 2 * k, borderBottomWidth: 1, borderColor: BC.encre, marginTop: 10 * k }} />
+    <View style={{ flex: 1, backgroundColor: AU.ground }}>
+      <Map
+        center={center}
+        zoom={15}
+        theme="soft"
+        markers={markers}
+        routeCoordinates={routeCoords}
+        reducedMotion={reduceMotion}
+        fitToContent
+        contentInsetTop={90}
+        contentInsetBottom={330}
+      />
 
-          {/* identité */}
-          <View style={{ marginTop: 22 * k }}>
-            <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.vert }]}>COLIS À BORD</Text>
-            <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.xbold, fontSize: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 8 * k }}>
-              {d.recipientName}
-            </Text>
-            <Text maxFontSizeMultiplier={1.4} numberOfLines={2} style={{ fontFamily: BF.med, fontSize: Math.max(14.5, 15 * k), color: BC.gris, marginTop: 7 * k }}>
-              {d.deliveryAddress}
-            </Text>
-          </View>
-
-          {/* perforation + 4 lignes + perforation (flux) */}
-          <View style={{ marginTop: 20 * k }}>
-            <Perforation k={k} />
-            <View style={{ marginTop: 14 * k }}>
-              <LignesControle
-                k={k}
-                lignes={[
-                  { num: 1, libelle: 'RÉCUPÉRATION', etat: 'faite' },
-                  { num: 2, libelle: 'PREUVE DE PRISE EN CHARGE', etat: 'faite' },
-                  { num: 3, libelle: 'LIVRAISON', etat: 'encours', pourcent, progress },
-                  { num: 4, libelle: 'PREUVE DE LIVRAISON', etat: 'avenir' },
-                ]}
-              />
-            </View>
-            <View style={{ marginTop: 12 * k }}>
-              <Perforation k={k} />
-            </View>
-          </View>
-
-          {/* pied : ARRIVÉE / DISTANCE */}
-          <View style={{ marginTop: 16 * k, flexDirection: 'row' }}>
-            <PiedChiffre k={k} label="ARRIVÉE" val={d.eta ? formatEta(d.eta.durationSeconds) : '—'} />
-            <PiedChiffre k={k} label="DISTANCE" val={restKm != null ? fmtDistBon(restKm) : '—'} />
-          </View>
-
-          {/* actions (sous le pied, écart franc pour ne pas raser les chiffres) */}
-          <View style={{ marginTop: 16 * k }}>
-            <ActionsBon
-              k={k}
-              unread={unread}
-              onMaps={() => openNavigation(d.deliveryLocation.latitude, d.deliveryLocation.longitude, d.deliveryAddress)}
-              onCall={() => openPhone(d.recipientPhone)}
-              onMsg={() => router.push(`/chat/${d.id}?name=${encodeURIComponent(d.senderName ?? 'Client')}&reference=${encodeURIComponent(d.reference)}` as any)}
-              callLabel={`Appeler ${d.recipientName}`}
-            />
-          </View>
+      {/* header flottant */}
+      <SafeAreaView edges={['top']} style={styles.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
+          <Ionicons name="chevron-back" size={20} color={AU.ink} />
+        </Pressable>
+        <View style={styles.stepChip}>
+          <Text style={styles.stepChipText}>ÉTAPE 3 / 4</Text>
         </View>
+        <View style={{ width: 40 }} />
       </SafeAreaView>
 
-      {/* bouton + mention (sur la page, sous la feuille) */}
-      <View style={{ paddingHorizontal: gut, paddingTop: 14 * k, paddingBottom: 8 * k }}>
-        <Pressable
-          onPress={() => router.replace('/(driver)/code-validation')}
-          android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
-          accessibilityRole="button"
-          accessibilityLabel="Je suis arrivé"
-          style={({ pressed }) => [
-            { height: 56 * k, backgroundColor: BC.vert, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 * k },
-            pressed && { opacity: 0.9 },
-          ]}
-        >
-          <Ionicons name="checkmark" size={19 * k} color={BC.blanc} />
-          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: Math.max(14, 15 * k), letterSpacing: 1.5 * k, color: BC.blanc }}>
-            JE SUIS ARRIVÉ
-          </Text>
-        </Pressable>
-        <View style={{ height: 22 * k, marginTop: 10 * k, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 * k }}>
-          <Ionicons name="lock-closed" size={12 * k} color={BC.gris} />
-          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.semi, fontSize: Math.max(12, 12.5 * k), color: BC.gris }}>
-            Colis à bord · annulation impossible
-          </Text>
+      {/* panneau Aurora flottant */}
+      <View style={styles.panel}>
+        <AuroraGlow width={W - 24} height={360} opacity={1} style={{ position: 'absolute', top: -20, left: 0 }} />
+
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eyebrow}>COLIS À BORD · LIVRAISON</Text>
+            <Text numberOfLines={1} style={styles.name}>{d.recipientName}</Text>
+            <Text numberOfLines={1} style={styles.details}>{d.deliveryAddress}</Text>
+          </View>
+        </View>
+
+        <View style={styles.progWrap}>
+          <View style={styles.progTrack}>
+            <Animated.View style={[styles.progFill, barStyle]} />
+          </View>
+          {pourcent != null ? <Text style={styles.progPct}>{`${pourcent}%`}</Text> : null}
+        </View>
+
+        <View style={styles.statRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statK}>ARRIVÉE</Text>
+            <Text style={styles.statV}>{d.eta ? formatEta(d.eta.durationSeconds) : '—'}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statK}>DISTANCE</Text>
+            <Text style={styles.statV}>{restKm != null ? fmtDistBon(restKm) : '—'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionsRow}>
+          <RoundAction icon="navigate" label="Itinéraire" onPress={() => openNavigation(d.deliveryLocation.latitude, d.deliveryLocation.longitude, d.deliveryAddress)} />
+          <RoundAction icon="call" label="Appeler" onPress={() => openPhone(d.recipientPhone)} />
+          <RoundAction icon="chatbubble-ellipses" label="Message" badge={unread} onPress={() => router.push(`/chat/${d.id}?name=${encodeURIComponent(d.senderName ?? 'Client')}&reference=${encodeURIComponent(d.reference)}` as any)} />
+        </View>
+
+        <GradientButton label="Je suis arrivé" icon="checkmark" onPress={() => router.replace('/(driver)/code-validation')} height={52} style={{ marginTop: 14 }} />
+        <View style={styles.lockRow}>
+          <Ionicons name="lock-closed" size={12} color={AU.faint} />
+          <Text style={styles.lockText}>Colis à bord · annulation impossible</Text>
         </View>
       </View>
     </View>
   );
 }
 
-function PiedChiffre({ k, label, val }: { k: number; label: string; val: string }) {
+function RoundAction({ icon, label, onPress, badge }: { icon: any; label: string; onPress: () => void; badge?: number }) {
   return (
-    <View style={{ flex: 1 }}>
-      <Text maxFontSizeMultiplier={1.4} style={microStyle(k)}>{label}</Text>
-      <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.mono, fontSize: 28 * k, lineHeight: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 6 * k }}>
-        {val}
-      </Text>
-    </View>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.round, pressed && { opacity: 0.7 }]}>
+      <View style={styles.roundIcon}>
+        <Ionicons name={icon} size={20} color={AU.kola} />
+        {badge ? (
+          <View style={styles.roundBadge}>
+            <Text style={styles.roundBadgeText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.roundLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
-function ActionsBon({
-  k,
-  unread,
-  onMaps,
-  onCall,
-  onMsg,
-  callLabel,
-}: {
-  k: number;
-  unread: number;
-  onMaps: () => void;
-  onCall: () => void;
-  onMsg: () => void;
-  callLabel: string;
-}) {
-  const rows: { icon: any; label: string; code: string; onPress: () => void; badge?: number }[] = [
-    { icon: 'navigate-outline', label: "Ouvrir l'itinéraire", code: 'MAPS', onPress: onMaps },
-    { icon: 'call-outline', label: callLabel, code: 'TEL', onPress: onCall },
-    { icon: 'chatbubble-outline', label: 'Envoyer un message', code: 'SMS', onPress: onMsg, badge: unread },
-  ];
-  return (
-    <View>
-      {rows.map((r) => (
-        <Pressable
-          key={r.code}
-          onPress={r.onPress}
-          android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-          accessibilityRole="button"
-          accessibilityLabel={r.label}
-          style={({ pressed }) => [
-            { minHeight: 44, paddingVertical: 12 * k, borderTopWidth: 1, borderColor: BC.filetFin, flexDirection: 'row', alignItems: 'center', gap: 12 * k },
-            pressed && { opacity: 0.85 },
-          ]}
-        >
-          <Ionicons name={r.icon} size={17 * k} color={BC.encre} />
-          <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={{ flex: 1, fontFamily: BF.semi, fontSize: Math.max(15, 16 * k), color: BC.encre }}>
-            {r.label}
-          </Text>
-          {r.badge ? (
-            <View style={{ minWidth: 18 * k, height: 18 * k, borderRadius: 9 * k, backgroundColor: BC.vert, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 * k }}>
-              <Text style={{ fontFamily: BF.mono, fontSize: 10 * k, color: BC.blanc }}>{r.badge}</Text>
-            </View>
-          ) : null}
-          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: 11 * k, letterSpacing: 1 * k, color: BC.gris }}>{r.code}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
+const styles = StyleSheet.create({
+  topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8 },
+  backBtn: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', shadowColor: '#16140F', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  stepChip: { backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, shadowColor: '#16140F', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  stepChipText: { fontFamily: AF.mono, fontSize: 11, letterSpacing: 1.5, color: AU.muted },
+
+  panel: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 10,
+    backgroundColor: '#DCEFE1',
+    borderRadius: 28,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    shadowColor: '#0E3A28',
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 18,
+  },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  eyebrow: { fontFamily: AF.mono, fontSize: 10, letterSpacing: 2, color: AU.kola },
+  name: { fontFamily: AF.disp, fontSize: 25, letterSpacing: -0.8, color: AU.ink, marginTop: 5 },
+  details: { fontFamily: AF.med, fontSize: 13.5, color: AU.muted, marginTop: 3 },
+
+  progWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  progTrack: { flex: 1, height: 7, borderRadius: 4, backgroundColor: 'rgba(14,58,40,0.12)', overflow: 'hidden' },
+  progFill: { height: 7, borderRadius: 4, backgroundColor: AU.teal },
+  progPct: { fontFamily: AF.mono, fontSize: 11, letterSpacing: 0.5, color: AU.kola },
+
+  statRow: { flexDirection: 'row', marginTop: 14 },
+  statK: { fontFamily: AF.mono, fontSize: 9, letterSpacing: 1.6, color: AU.muted },
+  statV: { fontFamily: AF.disp, fontSize: 26, letterSpacing: -0.8, color: AU.ink, marginTop: 3 },
+
+  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  round: { flex: 1, alignItems: 'center', gap: 6 },
+  roundIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
+  roundBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: AU.danger, alignItems: 'center', justifyContent: 'center' },
+  roundBadgeText: { color: '#fff', fontFamily: AF.bold, fontSize: 10 },
+  roundLabel: { fontFamily: AF.semi, fontSize: 12, color: AU.ink2 },
+
+  lockRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  lockText: { color: AU.faint, fontFamily: AF.semi, fontSize: 12.5 },
+});

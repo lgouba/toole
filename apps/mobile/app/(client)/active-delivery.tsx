@@ -28,18 +28,20 @@ import { TRACKING_BASE_URL } from '@/config/api';
 import { fontFamily } from '@/theme';
 import { AuroraGlow, AuroraText } from '@/components/aurora/AuroraBits';
 
-// ---- Palette « Friendly & Local » (tokens maquette suivi v2) ----
+// ---- Palette « Aurora » (clair + tech) — direction validée par le user.
+// On garde les MÊMES clés que la maquette v2 pour ne rien casser côté styles ;
+// seules les valeurs passent en tokens Aurora (voir theme/aurora.ts).
 const D = {
-  canvas: '#F5F2EC',
-  surface: '#FBFAF6',
-  ink: '#16140F',
-  muted: '#938E80',
-  hair: '#E8E2D6',
-  greenDeep: '#15803D',
-  greenMid: '#16A34A',
-  greenBright: '#22C55E',
-  greenSoft: '#EAF5EE',
-  stepTrack: '#E4DED0',
+  canvas: '#EEF1F4',       // AU.ground
+  surface: '#FFFFFF',
+  ink: '#141A1F',          // AU.ink
+  muted: '#68727B',        // AU.muted
+  hair: '#DCE3E8',         // hairline solide (handle, filets)
+  greenDeep: '#0E7A44',    // AU.kola
+  greenMid: '#12B58A',     // AU.teal
+  greenBright: '#12B58A',  // AU.teal (chip/halo)
+  greenSoft: 'rgba(18,181,138,0.12)', // tint teal
+  stepTrack: 'rgba(20,40,50,0.10)',
 };
 
 // Polices : UNIQUEMENT des familles déjà embarquées dans le build natif
@@ -63,6 +65,27 @@ const FONT = {
 const SCREEN_H = Dimensions.get('window').height;
 const SCREEN_W = Dimensions.get('window').width;
 const SHEET_MAX_H = Math.min(SCREEN_H * 0.55, 460);
+// Panneau Aurora flottant (marges latérales, coins arrondis, dégradé vert→teal).
+const PANEL_MARGIN = 12;
+const PANEL_W = SCREEN_W - PANEL_MARGIN * 2;
+
+/** Progression grossière du trajet selon le statut (présentation seulement). */
+function tripProgress(status: string): number {
+  switch (status) {
+    case 'accepted':
+      return 0.14;
+    case 'picking_up':
+      return 0.34;
+    case 'picked_up':
+      return 0.62;
+    case 'delivering':
+      return 0.85;
+    case 'delivered':
+      return 1;
+    default:
+      return 0.1;
+  }
+}
 
 const VEHICLE_LABEL: Record<string, string> = {
   moto: 'Moto',
@@ -420,6 +443,18 @@ export default function ActiveDeliveryScreen() {
     }
   };
 
+  // ----- Panneau Aurora : héros (distance restante) + arrivée -----
+  const bigDist = distLabel ?? fallbackDist; // "5,6 km" | "550 m" | null
+  const [dNum, dUnit] = bigDist ? bigDist.split(' ') : [null, null];
+  const etaShort =
+    etaMin != null ? (etaMin < 60 ? `${etaMin}′` : formatEta(etaSeconds!)) : null;
+  // Héros = distance si connue, sinon l'ETA en repli.
+  const heroLabel = bigDist ? 'DISTANCE RESTANTE' : 'ARRIVÉE ESTIMÉE';
+  const heroNum = bigDist ? dNum! : etaShort ?? '—';
+  const heroUnit = bigDist ? dUnit ?? '' : bigDist ? '' : etaShort ? '' : '';
+  const heroW = Math.max(120, String(heroNum).length * 42 + 12);
+  const pct = Math.round(tripProgress(status) * 100);
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -427,6 +462,7 @@ export default function ActiveDeliveryScreen() {
         ref={mapRef}
         center={mapCenter}
         zoom={14}
+        theme="soft"
         markers={mapMarkers}
         routeCoordinates={routeCoords}
         routePath={routePath ?? undefined}
@@ -475,16 +511,14 @@ export default function ActiveDeliveryScreen() {
         </View>
       )}
 
-      {/* Bottom sheet */}
+      {/* Panneau Aurora flottant (mockup validé) */}
       <View style={styles.sheet}>
-        {/* Aurora : nuage dégradé en fond du panneau (direction validée) */}
-        <AuroraGlow width={SCREEN_W} height={170} opacity={0.5} style={{ position: 'absolute', top: 0, left: 0 }} />
-        <View style={styles.handle} />
+        {/* fond dégradé aurore vert→teal, clippé aux coins arrondis */}
+        <AuroraGlow width={PANEL_W} height={380} opacity={1} style={{ position: 'absolute', top: -20, left: 0 }} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.sheetContent}
         >
-          {/* a) Hero ETA */}
           {isDelivered ? (
             <View style={styles.heroDone}>
               <View style={styles.heroDoneBadge}>
@@ -496,112 +530,57 @@ export default function ActiveDeliveryScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.hero}>
-              <Text style={styles.eyebrow}>
-                {etaMin != null
-                  ? 'ARRIVÉE ESTIMÉE'
-                  : fallbackDist
-                    ? 'DISTANCE RESTANTE'
-                    : 'ARRIVÉE ESTIMÉE'}
-              </Text>
-              {etaMin != null ? (
-                etaMin < 60 ? (
-                  <View style={styles.etaRow}>
-                    <Text style={styles.etaValue}>{etaMin}</Text>
-                    <Text style={styles.etaUnit}>min</Text>
-                    {distLabel && <Text style={styles.etaDist}>· {distLabel}</Text>}
+            <>
+              {/* a) Héros : distance restante (dégradé) + arrivée */}
+              <View style={styles.heroRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.eyebrow}>{heroLabel}</Text>
+                  <View style={styles.heroNumRow}>
+                    <AuroraText
+                      id="heroBig"
+                      width={heroW}
+                      height={58}
+                      fontSize={52}
+                      fontFamily={FONT.eta}
+                      align="left"
+                      letterSpacing={-2}
+                    >
+                      {String(heroNum)}
+                    </AuroraText>
+                    {heroUnit ? <Text style={styles.heroUnit}>{heroUnit}</Text> : null}
                   </View>
-                ) : (
-                  <View style={styles.etaRow}>
-                    <Text style={styles.etaValue}>{formatEta(etaSeconds!)}</Text>
-                    {distLabel && <Text style={styles.etaDist}>· {distLabel}</Text>}
+                </View>
+                {bigDist && etaShort ? (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.eyebrow}>ARRIVÉE</Text>
+                    <Text style={styles.etaSide}>{etaShort}</Text>
                   </View>
-                )
-              ) : fallbackDist ? (
-                <View style={styles.etaRow}>
-                  <Text style={styles.etaValue}>{fallbackDist}</Text>
-                </View>
-              ) : (
-                <View style={styles.etaRow}>
-                  <Text style={styles.etaPending}>Calcul en cours…</Text>
-                </View>
-              )}
-            </View>
+                ) : null}
+              </View>
+
+              {/* b) Barre de progression */}
+              <View style={styles.progTrack}>
+                <View style={[styles.progFill, { width: `${pct}%` }]} />
+              </View>
+            </>
           )}
 
-          {/* b) Stepper horizontal */}
-          <View style={styles.stepper}>
-            {steps.map((label, i) => {
-              const done = i < activeStep || isDelivered;
-              const active = i === activeStep && !isDelivered;
-              const reached = done || active;
-              return (
-                <React.Fragment key={label}>
-                  <View style={styles.stepCol}>
-                    <View style={styles.stepDotWrap}>
-                      {active && !reduceMotion && (
-                        <View style={styles.stepHalo} />
-                      )}
-                      <View
-                        style={[
-                          styles.stepDot,
-                          active && styles.stepDotActive,
-                          done && styles.stepDotDone,
-                        ]}
-                      >
-                        {done ? (
-                          <Ionicons name="checkmark" size={13} color="#fff" />
-                        ) : active ? (
-                          <View style={styles.stepDotInner} />
-                        ) : null}
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.stepLabel,
-                        reached && styles.stepLabelActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {label}
-                    </Text>
-                  </View>
-                  {i < steps.length - 1 && (
-                    <View style={styles.stepTrack}>
-                      <View
-                        style={[
-                          styles.stepTrackFill,
-                          { width: i < activeStep || isDelivered ? '100%' : '0%' },
-                        ]}
-                      />
-                    </View>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </View>
-
-          {/* c) filet */}
-          <View style={styles.hairline} />
-
-          {/* d) Ligne livreur */}
+          {/* c) Ligne livreur */}
           {driver ? (
             <View style={styles.driverRow}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {initialsOf(driver.fullName)}
-                </Text>
+                <Text style={styles.avatarText}>{initialsOf(driver.fullName)}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.driverName} numberOfLines={1}>
                   {driver.fullName}
                 </Text>
                 <Text style={styles.driverSub} numberOfLines={1}>
-                  Votre livreur · {vehicleLabel}
+                  Ton livreur · {vehicleLabel}
                 </Text>
               </View>
               <TouchableOpacity
-                style={styles.iconBtnOutline}
+                style={styles.iconBtnGlass}
                 onPress={() =>
                   router.push(
                     `/chat/${delivery.id}?name=${encodeURIComponent(
@@ -636,7 +615,7 @@ export default function ActiveDeliveryScreen() {
             <SheetSkeleton />
           )}
 
-          {/* e) filet + f) code */}
+          {/* d) Code */}
           {showCode && !isDelivered ? (
             <>
               <View style={styles.hairline} />
@@ -647,9 +626,9 @@ export default function ActiveDeliveryScreen() {
                 </View>
                 <AuroraText
                   id="codeGrad"
-                  width={Math.max(96, String(codeValue ?? '').length * 24 + 16)}
-                  height={44}
-                  fontSize={36}
+                  width={Math.max(110, String(codeValue ?? '').length * 28 + 16)}
+                  height={50}
+                  fontSize={42}
                   fontFamily={FONT.code}
                   align="right"
                   letterSpacing={4}
@@ -660,42 +639,47 @@ export default function ActiveDeliveryScreen() {
             </>
           ) : null}
 
-          {/* g) CTA */}
-          <View style={styles.hairline} />
+          {/* e) Actions secondaires (compactes) */}
           {isDelivered ? (
             <TouchableOpacity
-              style={styles.ctaOutline}
+              style={styles.ctaGhost}
               activeOpacity={0.88}
               onPress={() => router.replace('/(client)/delivery-complete')}
             >
-              <Ionicons name="receipt-outline" size={19} color={D.greenDeep} />
+              <Ionicons name="receipt-outline" size={18} color={D.greenDeep} />
               <Text style={styles.ctaText}>Voir le récapitulatif</Text>
             </TouchableOpacity>
-          ) : canShare ? (
-            <TouchableOpacity
-              style={styles.ctaOutline}
-              activeOpacity={0.88}
-              onPress={onShare}
-            >
-              <Ionicons name="share-social-outline" size={19} color={D.greenDeep} />
-              <Text style={styles.ctaText}>Partager le suivi</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {canCancel ? (
-            <TouchableOpacity
-              style={styles.cancelLink}
-              activeOpacity={0.7}
-              onPress={handleCancel}
-              disabled={cancelling}
-              accessibilityRole="button"
-              accessibilityLabel="Annuler la course"
-            >
-              <Text style={styles.cancelLinkText}>
-                {cancelling ? 'Annulation…' : 'Annuler la course'}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+          ) : (
+            <View style={styles.footerRow}>
+              {canShare ? (
+                <TouchableOpacity
+                  style={styles.footerLink}
+                  activeOpacity={0.7}
+                  onPress={onShare}
+                  accessibilityRole="button"
+                  accessibilityLabel="Partager le suivi"
+                >
+                  <Ionicons name="share-social-outline" size={16} color={D.greenDeep} />
+                  <Text style={styles.footerLinkText}>Partager</Text>
+                </TouchableOpacity>
+              ) : (
+                <View />
+              )}
+              {canCancel ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleCancel}
+                  disabled={cancelling}
+                  accessibilityRole="button"
+                  accessibilityLabel="Annuler la course"
+                >
+                  <Text style={styles.cancelLinkText}>
+                    {cancelling ? 'Annulation…' : 'Annuler la course'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -818,32 +802,86 @@ const styles = StyleSheet.create({
   },
   staleText: { color: D.muted, fontFamily: FONT.medium, fontSize: 12 },
 
-  // ---- bottom sheet ----
+  // ---- panneau Aurora flottant ----
   sheet: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: D.canvas,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    bottom: 10,
+    left: PANEL_MARGIN,
+    right: PANEL_MARGIN,
+    backgroundColor: '#DCEFE1',
+    borderRadius: 28,
     overflow: 'hidden',
-    paddingTop: 10,
     maxHeight: SHEET_MAX_H,
-    shadowColor: '#16140F',
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    shadowColor: '#0E3A28',
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 18,
   },
-  sheetContent: { paddingHorizontal: 22, paddingBottom: 22 },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: D.hair,
-    alignSelf: 'center',
-    marginBottom: 14,
+  sheetContent: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 20 },
+
+  // ---- héros distance ----
+  heroRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  heroNumRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
+  heroUnit: {
+    color: D.greenDeep,
+    fontFamily: FONT.bold,
+    fontSize: 20,
+    lineHeight: 30,
+    marginLeft: 4,
+    marginBottom: 6,
+  },
+  etaSide: {
+    color: D.ink,
+    fontFamily: FONT.eta,
+    fontSize: 26,
+    lineHeight: 34,
+    marginTop: 2,
+  },
+
+  // ---- barre de progression ----
+  progTrack: {
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: 'rgba(14,58,40,0.12)',
+    overflow: 'hidden',
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  progFill: { height: 7, borderRadius: 4, backgroundColor: D.greenMid },
+
+  // ---- actions compactes ----
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  footerLink: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footerLinkText: { color: D.greenDeep, fontFamily: FONT.semiBold, fontSize: 13.5 },
+  ctaGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 16,
+    paddingVertical: 13,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  iconBtnGlass: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
 
   // ---- a) hero ETA ----
@@ -946,16 +984,16 @@ const styles = StyleSheet.create({
   hairline: { height: 1, backgroundColor: D.hair, marginVertical: 16 },
 
   // ---- d) driver row ----
-  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18 },
   avatar: {
     width: 46,
     height: 46,
-    borderRadius: 14,
-    backgroundColor: D.greenSoft,
+    borderRadius: 23,
+    backgroundColor: D.greenDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: D.greenDeep, fontFamily: FONT.bold, fontSize: 16 },
+  avatarText: { color: '#fff', fontFamily: FONT.bold, fontSize: 16 },
   driverName: { color: D.ink, fontFamily: FONT.bold, fontSize: 16 },
   driverSub: { color: D.muted, fontFamily: FONT.medium, fontSize: 13, marginTop: 2 },
   iconBtnOutline: {

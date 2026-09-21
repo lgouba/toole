@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Alert, LayoutChangeEvent, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Alert, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,12 +13,12 @@ import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
 import { formatCFA } from '@/utils/format';
 import { setDriverFlowStep, clearDriverFlowStep } from '@/utils/driverFlowStep';
-import { BC, BF } from '@/theme/bonCourse';
-import { RetourBtn, Perforation, microStyle } from '@/components/driver/bonCourse/BonCourseParts';
+import { AU, AF, glassShadow } from '@/theme/aurora';
+import { AuroraGlow, AuroraText, GradientButton } from '@/components/aurora/AuroraBits';
 
 export default function CodeValidationScreen() {
   const router = useRouter();
-  const { height: H } = useWindowDimensions();
+  const { width: W } = useWindowDimensions();
   const { validateCode, activeDelivery } = useDriverStore();
   const [code, setCode] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function CodeValidationScreen() {
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  // ---- LOGIQUE INCHANGÉE ----
+  // ---------- LOGIQUE INCHANGÉE ----------
   useEffect(() => {
     setCode('');
     setPhoto(null);
@@ -49,9 +49,7 @@ export default function CodeValidationScreen() {
       try {
         const pending = await ImagePicker.getPendingResultAsync();
         const res = Array.isArray(pending) ? pending[0] : pending;
-        if (!cancelled && res && !('code' in res) && !res.canceled && res.assets?.[0]) {
-          setPhoto(res.assets[0].uri);
-        }
+        if (!cancelled && res && !('code' in res) && !res.canceled && res.assets?.[0]) setPhoto(res.assets[0].uri);
       } catch {
         /* rien */
       }
@@ -66,8 +64,7 @@ export default function CodeValidationScreen() {
   const codeDone = code.length === 4;
   const photoDone = !!photo;
   const blocked = attempts >= 3;
-  const prepaid =
-    activeDelivery?.paymentMethod === 'orange_money' || activeDelivery?.paymentMethod === 'moov_money';
+  const prepaid = activeDelivery?.paymentMethod === 'orange_money' || activeDelivery?.paymentMethod === 'moov_money';
 
   const takePhoto = async () => {
     try {
@@ -89,14 +86,8 @@ export default function CodeValidationScreen() {
 
   const handleSubmit = async () => {
     if (submitting || blocked) return;
-    if (!photoDone) {
-      setError('Prenez une photo de preuve de remise.');
-      return;
-    }
-    if (!codeDone) {
-      setError('Saisissez le code à 4 chiffres du destinataire.');
-      return;
-    }
+    if (!photoDone) return setError('Prenez une photo de preuve de remise.');
+    if (!codeDone) return setError('Saisissez le code à 4 chiffres du destinataire.');
     setSubmitting(true);
     setError('');
     try {
@@ -113,220 +104,171 @@ export default function CodeValidationScreen() {
       } else {
         haptic.error();
         setCode('');
-        const newAttempts = attempts + 1;
-        setAttempts(newAttempts);
-        setError(newAttempts >= 3 ? 'Trop de tentatives. Contactez le support.' : `Code incorrect (${3 - newAttempts} tentative(s) restante(s))`);
+        const n = attempts + 1;
+        setAttempts(n);
+        setError(n >= 3 ? 'Trop de tentatives. Contactez le support.' : `Code incorrect (${3 - n} tentative(s) restante(s))`);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ---- DESIGN ----
-  const k = Math.min(1.12, Math.max(0.86, H / 844));
-  const gut = H >= 900 ? 24 : 20;
-  const m = microStyle(k);
+  // ---------- DESIGN AURORA ----------
   const actif = photoDone && codeDone && !blocked && !submitting;
+  const amt = formatCFA(activeDelivery?.price ?? 0);
 
   return (
-    <View style={{ flex: 1, backgroundColor: BC.page }}>
-      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BC.papier }}>
-        <View style={{ flex: 1, paddingHorizontal: gut, paddingTop: 8 * k }}>
-          {/* tête */}
-          <View style={{ height: 40 * k, justifyContent: 'center' }}>
-            <RetourBtn k={k} g={gut} top={0} onPress={() => router.back()} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 40 * k }}>
-              <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.encre, letterSpacing: 3 * k }]}>TOOLÉ</Text>
-              <Text maxFontSizeMultiplier={1.4} style={m}>ÉTAPE 4 / 4</Text>
+    <View style={{ flex: 1, backgroundColor: AU.ground }}>
+      <AuroraGlow width={W} height={220} opacity={0.7} style={{ position: 'absolute', top: 0, left: 0 }} />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        {/* header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={8} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}>
+            <Ionicons name="chevron-back" size={20} color={AU.ink} />
+          </Pressable>
+          <Text style={styles.stepText}>ÉTAPE 4 / 4</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* panneau plein Aurora — remplit tout l'espace, zéro vide gris */}
+        <View style={styles.panel}>
+          <AuroraGlow width={W - 24} height={520} opacity={1} style={{ position: 'absolute', top: -30, left: 0 }} />
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={styles.eyebrow}>DESTINATAIRE</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.name}>{recipientName}</Text>
+
+            <View style={styles.contactRow}>
+              <ContactBtn icon="call-outline" label="Appeler" a11y={`Appeler ${recipientName}`} disabled={!recipientPhone} onPress={() => recipientPhone && openPhone(recipientPhone)} />
+              <ContactBtn icon="chatbubble-outline" label="Message" a11y="Envoyer un message" onPress={() => activeDelivery && router.push(`/chat/${activeDelivery.id}?name=${encodeURIComponent(activeDelivery.senderName ?? 'Client')}&reference=${encodeURIComponent(activeDelivery.reference)}` as any)} />
             </View>
-          </View>
-          <View style={{ height: 4 * k, borderTopWidth: 2 * k, borderBottomWidth: 1, borderColor: BC.encre, marginTop: 10 * k }} />
 
-          {/* identité destinataire */}
-          <View style={{ marginTop: 22 * k }}>
-            <Text maxFontSizeMultiplier={1.4} style={m}>DESTINATAIRE</Text>
-            <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.xbold, fontSize: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 8 * k }}>
-              {recipientName}
-            </Text>
-          </View>
+            {/* à encaisser */}
+            <View style={styles.amountCard}>
+              {prepaid ? (
+                <>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.amountK}>DÉJÀ PAYÉ</Text>
+                    <Text style={styles.amountHint}>Rien à encaisser</Text>
+                  </View>
+                  <Ionicons name="checkmark-circle" size={26} color={AU.teal} />
+                </>
+              ) : (
+                <>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.amountK}>À ENCAISSER</Text>
+                    <Text style={styles.amountHint}>Paiement à la livraison</Text>
+                  </View>
+                  <AuroraText id="encAmt" width={Math.max(120, amt.length * 15 + 10)} height={34} fontSize={27} fontFamily={AF.disp} align="right" letterSpacing={-0.5}>
+                    {amt}
+                  </AuroraText>
+                </>
+              )}
+            </View>
 
-          {/* contact (uniforme avec le 3/4 et l'écran client : appeler / message) */}
-          <View style={{ flexDirection: 'row', gap: 10 * k, marginTop: 14 * k }}>
-            <ContactBtn
-              k={k}
-              icon="call-outline"
-              label="Appeler"
-              a11y={`Appeler ${recipientName}`}
-              onPress={() => recipientPhone && openPhone(recipientPhone)}
-              disabled={!recipientPhone}
-            />
-            <ContactBtn
-              k={k}
-              icon="chatbubble-outline"
-              label="Message"
-              a11y="Envoyer un message"
-              onPress={() =>
-                activeDelivery &&
-                router.push(
-                  `/chat/${activeDelivery.id}?name=${encodeURIComponent(activeDelivery.senderName ?? 'Client')}&reference=${encodeURIComponent(activeDelivery.reference)}` as any,
-                )
-              }
-            />
-          </View>
-
-          <View style={{ marginTop: 18 * k }}>
-            <Perforation k={k} />
-          </View>
-
-          {/* bandeau à encaisser (§6.1) — montant INCHANGÉ (formatCFA(price)) */}
-          <View style={{ marginTop: 14 * k, height: 70 * k, borderBottomWidth: 1, borderColor: BC.filetFin, flexDirection: 'row', alignItems: 'center' }}>
-            {prepaid ? (
-              <>
-                <View style={{ flex: 1 }}>
-                  <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.vertProfond }]}>DÉJÀ PAYÉ</Text>
-                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: BC.gris, marginTop: 3 * k }}>Rien à encaisser</Text>
-                </View>
-                <Ionicons name="checkmark-circle" size={24 * k} color={BC.vert} />
-              </>
-            ) : (
-              <>
-                <View style={{ flex: 1 }}>
-                  <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.vertProfond }]}>À ENCAISSER</Text>
-                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: BC.gris, marginTop: 3 * k }}>Paiement à la livraison</Text>
-                </View>
-                <Text
-                  maxFontSizeMultiplier={1.4}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  accessibilityLabel={`À encaisser : ${formatCFA(activeDelivery?.price ?? 0)}`}
-                  style={{ fontFamily: BF.mono, fontSize: 28 * k, letterSpacing: -0.9 * k, color: BC.vertProfond, maxWidth: '55%' }}
-                >
-                  {formatCFA(activeDelivery?.price ?? 0)}
-                </Text>
-              </>
-            )}
-          </View>
-
-          {/* photo + code (scrollable → reste accessible clavier levé) */}
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 16 * k, paddingBottom: 8 * k }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {/* photo */}
             {photo ? (
-              <View style={{ height: 120 * k, position: 'relative' }}>
+              <View style={{ height: 120, borderRadius: 18, overflow: 'hidden', marginTop: 16 }}>
                 <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                <Pressable onPress={takePhoto} style={{ position: 'absolute', right: 8 * k, bottom: 8 * k, flexDirection: 'row', alignItems: 'center', gap: 5 * k, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10 * k, paddingVertical: 6 * k }}>
-                  <Ionicons name="camera" size={15 * k} color={BC.blanc} />
-                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: 11 * k, color: BC.blanc }}>REPRENDRE</Text>
+                <Pressable onPress={takePhoto} style={styles.retake}>
+                  <Ionicons name="camera" size={15} color="#fff" />
+                  <Text style={styles.retakeText}>Reprendre</Text>
                 </Pressable>
               </View>
             ) : (
-              <DashedPhoto k={k} onPress={takePhoto} />
+              <DashedPhoto W={W - 64} onPress={takePhoto} label="Prendre la photo" caption="PREUVE DE LIVRAISON" />
             )}
 
-            <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.bold, fontSize: 21 * k, letterSpacing: -0.5 * k, color: BC.encre, marginTop: 22 * k }}>
-              Code du destinataire
-            </Text>
-            <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(13, 13.5 * k), color: BC.gris, marginTop: 4 * k }}>
-              {`Demandez à ${recipientName} son code à 4 chiffres.`}
-            </Text>
-            <View style={{ marginTop: 14 * k }}>
-              <OtpInput
-                length={4}
-                value={code}
-                onChange={(v) => {
-                  setError('');
-                  setCode(v);
-                }}
-                variant="driver"
-              />
+            {/* code */}
+            <Text style={styles.codeTitle}>Code du destinataire</Text>
+            <Text style={styles.codeHint}>{`Demandez à ${recipientName} son code à 4 chiffres.`}</Text>
+            <View style={{ marginTop: 12 }}>
+              <OtpInput length={4} value={code} onChange={(v) => { setError(''); setCode(v); }} variant="driver" />
             </View>
             {error ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 * k, marginTop: 12 * k }}>
-                <Ionicons name="alert-circle" size={17 * k} color="#DC2626" />
-                <Text maxFontSizeMultiplier={1.4} style={{ flex: 1, fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: '#DC2626' }}>{error}</Text>
+              <View style={styles.errorRow}>
+                <Ionicons name="alert-circle" size={17} color={AU.danger} />
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
+
+            <View style={{ flex: 1, minHeight: 12 }} />
+            <GradientButton label={blocked ? 'Bloqué' : submitting ? 'Validation…' : 'Confirmer la livraison'} icon={actif ? 'checkmark' : undefined} disabled={!actif} onPress={handleSubmit} height={54} style={{ marginTop: 8 }} />
           </ScrollView>
         </View>
       </SafeAreaView>
-
-      {/* bouton Confirmer (page, sous la feuille) */}
-      <View style={{ paddingHorizontal: gut, paddingTop: 12 * k, paddingBottom: 8 * k }}>
-        <Pressable
-          onPress={handleSubmit}
-          disabled={!actif}
-          android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
-          accessibilityRole="button"
-          accessibilityLabel="Confirmer la livraison"
-          style={({ pressed }) => [
-            { height: 56 * k, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 * k },
-            actif ? { backgroundColor: BC.vert } : { borderWidth: 1.5 * k, borderColor: BC.filet },
-            pressed && actif && { opacity: 0.9 },
-          ]}
-        >
-          {actif ? <Ionicons name="checkmark" size={19 * k} color={BC.blanc} /> : null}
-          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: Math.max(13.5, 14.5 * k), letterSpacing: 1 * k, color: actif ? BC.blanc : BC.gris }}>
-            {blocked ? 'BLOQUÉ' : submitting ? 'VALIDATION…' : 'CONFIRMER LA LIVRAISON'}
-          </Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
 
-/** Bouton contact (Appeler / Message) — style « bon de course ». */
-function ContactBtn({
-  k,
-  icon,
-  label,
-  a11y,
-  onPress,
-  disabled,
-}: {
-  k: number;
-  icon: any;
-  label: string;
-  a11y: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
+function ContactBtn({ icon, label, a11y, onPress, disabled }: { icon: any; label: string; a11y: string; onPress: () => void; disabled?: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={a11y}
-      android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-      style={({ pressed }) => [
-        { flex: 1, height: 46 * k, borderWidth: 1.5 * k, borderColor: BC.filet, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 * k },
-        disabled && { opacity: 0.4 },
-        pressed && !disabled && { opacity: 0.7 },
-      ]}
+      android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+      style={({ pressed }) => [styles.contactBtn, disabled && { opacity: 0.4 }, pressed && !disabled && { opacity: 0.7 }]}
     >
-      <Ionicons name={icon} size={17 * k} color={BC.encre} />
-      <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.semi, fontSize: Math.max(14, 15 * k), color: BC.encre }}>
-        {label}
-      </Text>
+      <Ionicons name={icon} size={17} color={AU.kola} />
+      <Text style={styles.contactLabel}>{label}</Text>
     </Pressable>
   );
 }
 
-/** Zone photo vide : rectangle pointillé SVG (largeur mesurée). */
-function DashedPhoto({ k, onPress }: { k: number; onPress: () => void }) {
-  const [w, setW] = useState(0);
-  const h = 120 * k;
-  const onLayout = (e: LayoutChangeEvent) => {
-    const nw = e.nativeEvent.layout.width;
-    if (nw && Math.abs(nw - w) > 1) setW(nw);
-  };
+function DashedPhoto({ W, onPress, label, caption }: { W: number; onPress: () => void; label: string; caption: string }) {
+  const h = 120;
   return (
-    <Pressable onPress={onPress} onLayout={onLayout} accessibilityRole="button" accessibilityLabel="Prendre la photo de preuve de livraison" style={({ pressed }) => [{ height: h, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.85 }]}>
-      {w > 0 ? (
-        <Svg width={w} height={h} style={{ position: 'absolute', left: 0, top: 0 }}>
-          <Rect x={0.75 * k} y={0.75 * k} width={w - 1.5 * k} height={h - 1.5 * k} fill="none" stroke={BC.filet} strokeWidth={1.5 * k} strokeDasharray={`${6 * k} ${5 * k}`} />
-        </Svg>
-      ) : null}
-      <Ionicons name="camera-outline" size={30 * k} color={BC.gris} />
-      <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.bold, fontSize: Math.max(15, 16 * k), color: BC.encre, marginTop: 8 * k }}>Prendre la photo</Text>
-      <Text maxFontSizeMultiplier={1.4} style={[microStyle(k), { color: BC.attente, marginTop: 4 * k }]}>PREUVE DE LIVRAISON</Text>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [{ height: h, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.5)', marginTop: 16 }, pressed && { opacity: 0.85 }]}>
+      <Svg width={W} height={h} style={{ position: 'absolute', left: 0, top: 0 }}>
+        <Rect x={1} y={1} width={W - 2} height={h - 2} rx={18} fill="none" stroke={AU.teal} strokeOpacity={0.6} strokeWidth={1.5} strokeDasharray="7 6" />
+      </Svg>
+      <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', ...glassShadow }}>
+        <Ionicons name="camera-outline" size={22} color={AU.kola} />
+      </View>
+      <Text style={{ fontFamily: AF.bold, fontSize: 14, color: AU.ink, marginTop: 8 }}>{label}</Text>
+      <Text style={{ fontFamily: AF.mono, fontSize: 9, letterSpacing: 1.6, color: AU.faint, marginTop: 4 }}>{caption}</Text>
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, height: 44 },
+  backBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: AU.glass, borderWidth: 1, borderColor: AU.glassBorder, alignItems: 'center', justifyContent: 'center' },
+  stepText: { fontFamily: AF.mono, fontSize: 10.5, letterSpacing: 2, color: AU.muted },
+
+  panel: {
+    flex: 1,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 10,
+    backgroundColor: '#DCEFE1',
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+    shadowColor: '#0E3A28',
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 14,
+  },
+  eyebrow: { fontFamily: AF.mono, fontSize: 10, letterSpacing: 2.2, color: AU.kola },
+  name: { fontFamily: AF.disp, fontSize: 30, letterSpacing: -1, color: AU.ink, marginTop: 4 },
+
+  contactRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  contactBtn: { flex: 1, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
+  contactLabel: { fontFamily: AF.semi, fontSize: 15, color: AU.ink },
+
+  amountCard: { marginTop: 16, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 18, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)' },
+  amountK: { fontFamily: AF.mono, fontSize: 9, letterSpacing: 1.8, color: AU.kola },
+  amountHint: { fontFamily: AF.med, fontSize: 12.5, color: AU.muted, marginTop: 2 },
+
+  retake: { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  retakeText: { fontFamily: AF.semi, fontSize: 11, color: '#fff' },
+
+  codeTitle: { fontFamily: AF.disp, fontSize: 20, letterSpacing: -0.4, color: AU.ink, marginTop: 20 },
+  codeHint: { fontFamily: AF.med, fontSize: 13.5, color: AU.muted, marginTop: 4 },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 },
+  errorText: { flex: 1, fontFamily: AF.med, fontSize: 13, color: AU.danger },
+});
