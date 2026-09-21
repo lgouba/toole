@@ -26,6 +26,7 @@ import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
 import { fontFamily } from '@/theme';
+import { AuroraGlow, AuroraText } from '@/components/aurora/AuroraBits';
 
 // ---- Palette « Friendly & Local » (tokens maquette suivi v2) ----
 const D = {
@@ -60,6 +61,7 @@ const FONT = {
 // Hauteur du bottom sheet (≈ moitié basse). Sert aussi de marge basse au
 // cadrage de la carte (livreur + destination restent visibles au-dessus).
 const SCREEN_H = Dimensions.get('window').height;
+const SCREEN_W = Dimensions.get('window').width;
 const SHEET_MAX_H = Math.min(SCREEN_H * 0.55, 460);
 
 const VEHICLE_LABEL: Record<string, string> = {
@@ -475,6 +477,8 @@ export default function ActiveDeliveryScreen() {
 
       {/* Bottom sheet */}
       <View style={styles.sheet}>
+        {/* Aurora : nuage dégradé en fond du panneau (direction validée) */}
+        <AuroraGlow width={SCREEN_W} height={170} opacity={0.5} style={{ position: 'absolute', top: 0, left: 0 }} />
         <View style={styles.handle} />
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -641,7 +645,17 @@ export default function ActiveDeliveryScreen() {
                   <Text style={styles.codeLabel}>{codeTitle}</Text>
                   <Text style={styles.codeHint}>{codeHint}</Text>
                 </View>
-                <Text style={styles.codeValue}>{codeValue}</Text>
+                <AuroraText
+                  id="codeGrad"
+                  width={Math.max(96, String(codeValue ?? '').length * 24 + 16)}
+                  height={44}
+                  fontSize={36}
+                  fontFamily={FONT.code}
+                  align="right"
+                  letterSpacing={4}
+                >
+                  {String(codeValue ?? '')}
+                </AuroraText>
               </View>
             </>
           ) : null}
@@ -813,6 +827,7 @@ const styles = StyleSheet.create({
     backgroundColor: D.canvas,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
+    overflow: 'hidden',
     paddingTop: 10,
     maxHeight: SHEET_MAX_H,
     shadowColor: '#16140F',
