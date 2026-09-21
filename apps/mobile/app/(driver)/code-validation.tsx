@@ -142,29 +142,39 @@ export default function CodeValidationScreen() {
           </View>
           <View style={{ height: 4 * k, borderTopWidth: 2 * k, borderBottomWidth: 1, borderColor: BC.encre, marginTop: 10 * k }} />
 
-          {/* identité destinataire (+ appel, action existante conservée) */}
-          <View style={{ marginTop: 22 * k, flexDirection: 'row', alignItems: 'flex-end' }}>
-            <View style={{ flex: 1 }}>
-              <Text maxFontSizeMultiplier={1.4} style={m}>DESTINATAIRE</Text>
-              <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.xbold, fontSize: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 8 * k }}>
-                {recipientName}
-              </Text>
-            </View>
-            {recipientPhone ? (
-              <Pressable
-                onPress={() => openPhone(recipientPhone)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Appeler ${recipientName}`}
-                android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
-                style={({ pressed }) => [{ width: 40 * k, height: 40 * k, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.6 }]}
-              >
-                <Ionicons name="call-outline" size={20 * k} color={BC.vert} />
-              </Pressable>
-            ) : null}
+          {/* identité destinataire */}
+          <View style={{ marginTop: 22 * k }}>
+            <Text maxFontSizeMultiplier={1.4} style={m}>DESTINATAIRE</Text>
+            <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.xbold, fontSize: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 8 * k }}>
+              {recipientName}
+            </Text>
           </View>
 
-          <View style={{ marginTop: 20 * k }}>
+          {/* contact (uniforme avec le 3/4 et l'écran client : appeler / message) */}
+          <View style={{ flexDirection: 'row', gap: 10 * k, marginTop: 14 * k }}>
+            <ContactBtn
+              k={k}
+              icon="call-outline"
+              label="Appeler"
+              a11y={`Appeler ${recipientName}`}
+              onPress={() => recipientPhone && openPhone(recipientPhone)}
+              disabled={!recipientPhone}
+            />
+            <ContactBtn
+              k={k}
+              icon="chatbubble-outline"
+              label="Message"
+              a11y="Envoyer un message"
+              onPress={() =>
+                activeDelivery &&
+                router.push(
+                  `/chat/${activeDelivery.id}?name=${encodeURIComponent(activeDelivery.senderName ?? 'Client')}&reference=${encodeURIComponent(activeDelivery.reference)}` as any,
+                )
+              }
+            />
+          </View>
+
+          <View style={{ marginTop: 18 * k }}>
             <Perforation k={k} />
           </View>
 
@@ -259,6 +269,43 @@ export default function CodeValidationScreen() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+/** Bouton contact (Appeler / Message) — style « bon de course ». */
+function ContactBtn({
+  k,
+  icon,
+  label,
+  a11y,
+  onPress,
+  disabled,
+}: {
+  k: number;
+  icon: any;
+  label: string;
+  a11y: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
+      style={({ pressed }) => [
+        { flex: 1, height: 46 * k, borderWidth: 1.5 * k, borderColor: BC.filet, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 * k },
+        disabled && { opacity: 0.4 },
+        pressed && !disabled && { opacity: 0.7 },
+      ]}
+    >
+      <Ionicons name={icon} size={17 * k} color={BC.encre} />
+      <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.semi, fontSize: Math.max(14, 15 * k), color: BC.encre }}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

@@ -161,7 +161,9 @@ export function NewCourseModal({ course, durationSec = 120, onAccept, onRefuse, 
   const horizon = carteTop;
 
   const enteteTop = insets.top + 14 * k;
-  const montantTop = enteteTop + 30 * k;
+  // + de garde sous l'eyebrow : le grand chiffre (mono/display) déborde vers le
+  // haut de sa boîte, il chevauchait « NOUVELLE COURSE ».
+  const montantTop = enteteTop + 56 * k;
   const gainSize = (useSerre ? 82 : 104) * k;
   const pastilleTop = montantTop + gainSize * 0.9 + 12 * k;
   // L'arc se pose juste sous la pastille (30 = hauteur pastille, 84 = place des

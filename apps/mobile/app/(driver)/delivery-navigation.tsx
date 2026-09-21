@@ -143,8 +143,8 @@ export default function DeliveryNavigationScreen() {
             <PiedChiffre k={k} label="DISTANCE" val={restKm != null ? fmtDistBon(restKm) : '—'} />
           </View>
 
-          {/* actions (occupe le reste) */}
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          {/* actions (sous le pied, écart franc pour ne pas raser les chiffres) */}
+          <View style={{ marginTop: 16 * k }}>
             <ActionsBon
               k={k}
               unread={unread}
@@ -189,7 +189,7 @@ function PiedChiffre({ k, label, val }: { k: number; label: string; val: string 
   return (
     <View style={{ flex: 1 }}>
       <Text maxFontSizeMultiplier={1.4} style={microStyle(k)}>{label}</Text>
-      <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.mono, fontSize: 28 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 6 * k }}>
+      <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.mono, fontSize: 28 * k, lineHeight: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 6 * k }}>
         {val}
       </Text>
     </View>
