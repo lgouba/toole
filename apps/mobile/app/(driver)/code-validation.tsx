@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Alert, LayoutChangeEvent, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { DriverHood } from '@/components/driver/flow/DriverHood';
-import { C, F } from '@/components/driver/flow/tokens';
+import Svg, { Rect } from 'react-native-svg';
 import { OtpInput } from '@/components/ui';
 import { useDriverStore } from '@/stores/driver.store';
 import { uploadImage } from '@/services/upload.service';
@@ -12,13 +12,13 @@ import { haptic } from '@/utils/haptics';
 import { alertConfirmSuccess } from '@/utils/alerts';
 import { openPhone } from '@/utils/linking';
 import { formatCFA } from '@/utils/format';
-import {
-  setDriverFlowStep,
-  clearDriverFlowStep,
-} from '@/utils/driverFlowStep';
+import { setDriverFlowStep, clearDriverFlowStep } from '@/utils/driverFlowStep';
+import { BC, BF } from '@/theme/bonCourse';
+import { RetourBtn, Perforation, microStyle } from '@/components/driver/bonCourse/BonCourseParts';
 
 export default function CodeValidationScreen() {
   const router = useRouter();
+  const { height: H } = useWindowDimensions();
   const { validateCode, activeDelivery } = useDriverStore();
   const [code, setCode] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -26,6 +26,7 @@ export default function CodeValidationScreen() {
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
+  // ---- LOGIQUE INCHANGÉE ----
   useEffect(() => {
     setCode('');
     setPhoto(null);
@@ -34,10 +35,6 @@ export default function CodeValidationScreen() {
     setSubmitting(false);
   }, [activeDelivery?.id]);
 
-  // Mémorise qu'on est sur la sous-étape « code » tant que l'écran est monté.
-  // Si Android tue la MainActivity pendant la caméra, l'indice survit (pas de
-  // cleanup) et le guard restaure code-validation ; en navigation normale, le
-  // cleanup l'efface.
   useEffect(() => {
     if (!activeDelivery?.id) return;
     setDriverFlowStep({ deliveryId: activeDelivery.id, step: 'code' });
@@ -46,9 +43,6 @@ export default function CodeValidationScreen() {
     };
   }, [activeDelivery?.id]);
 
-  // Récupère une photo prise juste avant que la MainActivity soit tuée par
-  // Android (sinon la preuve serait perdue et à reprendre). Cf. doc expo
-  // ImagePicker.getPendingResultAsync (« handle MainActivity destruction »).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -59,7 +53,7 @@ export default function CodeValidationScreen() {
           setPhoto(res.assets[0].uri);
         }
       } catch {
-        /* pas de résultat en attente : rien à faire */
+        /* rien */
       }
     })();
     return () => {
@@ -72,25 +66,17 @@ export default function CodeValidationScreen() {
   const codeDone = code.length === 4;
   const photoDone = !!photo;
   const blocked = attempts >= 3;
-
   const prepaid =
-    activeDelivery?.paymentMethod === 'orange_money' ||
-    activeDelivery?.paymentMethod === 'moov_money';
+    activeDelivery?.paymentMethod === 'orange_money' || activeDelivery?.paymentMethod === 'moov_money';
 
   const takePhoto = async () => {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
-          'Permission caméra refusée',
-          "Autorisez l'accès à l'appareil photo pour prendre la preuve de remise du colis.",
-        );
+        Alert.alert('Permission caméra refusée', "Autorisez l'accès à l'appareil photo pour prendre la preuve de remise du colis.");
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.7,
-      });
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
       if (!result.canceled && result.assets[0]) {
         setPhoto(result.assets[0].uri);
         setError('');
@@ -114,14 +100,12 @@ export default function CodeValidationScreen() {
     setSubmitting(true);
     setError('');
     try {
-      // 1) Upload de la preuve de remise (obligatoire) avant de valider le code.
       const uploaded = await uploadImage(photo!, 'packages');
       if (!uploaded) {
         haptic.error();
         setError("Impossible d'envoyer la photo. Vérifiez votre réseau et réessayez.");
         return;
       }
-      // 2) Validation du code + rattachement de la photo à la course.
       const success = await validateCode(code, uploaded.url);
       if (success) {
         alertConfirmSuccess();
@@ -131,235 +115,171 @@ export default function CodeValidationScreen() {
         setCode('');
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        setError(
-          newAttempts >= 3
-            ? 'Trop de tentatives. Contactez le support.'
-            : `Code incorrect (${3 - newAttempts} tentative(s) restante(s))`,
-        );
+        setError(newAttempts >= 3 ? 'Trop de tentatives. Contactez le support.' : `Code incorrect (${3 - newAttempts} tentative(s) restante(s))`);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ---- DESIGN ----
+  const k = Math.min(1.12, Math.max(0.86, H / 844));
+  const gut = H >= 900 ? 24 : 20;
+  const m = microStyle(k);
+  const actif = photoDone && codeDone && !blocked && !submitting;
+
   return (
-    <View style={styles.container}>
-      <DriverHood height={252} step={4} onBack={() => router.back()}>
-        <View style={styles.who}>
-          <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={26} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.role}>DESTINATAIRE</Text>
-            <Text style={styles.name} numberOfLines={1}>
-              {recipientName}
-            </Text>
-          </View>
-          {recipientPhone ? (
-            <TouchableOpacity
-              style={styles.callBig}
-              onPress={() => openPhone(recipientPhone)}
-              accessibilityLabel="Appeler le destinataire"
-            >
-              <Ionicons name="call" size={20} color={C.gDark} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Bloc paiement adaptatif */}
-        <View style={styles.payChip}>
-          {prepaid ? (
-            <>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.payLbl}>Déjà payé</Text>
-                <Text style={styles.paySub}>Rien à encaisser</Text>
-              </View>
-              <Ionicons name="checkmark-circle" size={26} color={C.lime} />
-            </>
-          ) : (
-            <>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.payLbl}>À ENCAISSER</Text>
-                <Text style={styles.paySub}>Paiement à la livraison</Text>
-              </View>
-              <Text style={styles.payAmt}>{formatCFA(activeDelivery?.price ?? 0)}</Text>
-            </>
-          )}
-        </View>
-      </DriverHood>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.h}>Photo de remise</Text>
-        <Text style={styles.hint}>Preuve que le colis a bien été remis.</Text>
-        {photo ? (
-          <View style={styles.photoBox}>
-            <Image source={{ uri: photo }} style={styles.photoImg} />
-            <TouchableOpacity style={styles.retake} onPress={takePhoto}>
-              <Ionicons name="camera" size={16} color="#fff" />
-              <Text style={styles.retakeText}>Reprendre</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.photo} onPress={takePhoto} activeOpacity={0.85}>
-            <View style={styles.photoCircle}>
-              <Ionicons name="camera-outline" size={26} color={C.gDark} />
+    <View style={{ flex: 1, backgroundColor: BC.page }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: BC.papier }}>
+        <View style={{ flex: 1, paddingHorizontal: gut, paddingTop: 8 * k }}>
+          {/* tête */}
+          <View style={{ height: 40 * k, justifyContent: 'center' }}>
+            <RetourBtn k={k} g={gut} top={0} onPress={() => router.back()} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 40 * k }}>
+              <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.encre, letterSpacing: 3 * k }]}>TOOLÉ</Text>
+              <Text maxFontSizeMultiplier={1.4} style={m}>ÉTAPE 4 / 4</Text>
             </View>
-            <Text style={styles.photoText}>Prendre la photo</Text>
-          </TouchableOpacity>
-        )}
-
-        <Text style={[styles.h, { marginTop: 22 }]}>Code du destinataire</Text>
-        <Text style={styles.hint}>{`Demandez à ${recipientName} son code à 4 chiffres.`}</Text>
-        <View style={styles.codeWrap}>
-          <OtpInput
-            length={4}
-            value={code}
-            onChange={(v) => {
-              setError('');
-              setCode(v);
-            }}
-            variant="driver"
-          />
-        </View>
-        {error ? (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color="#DC2626" />
-            <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : null}
-      </ScrollView>
+          <View style={{ height: 4 * k, borderTopWidth: 2 * k, borderBottomWidth: 1, borderColor: BC.encre, marginTop: 10 * k }} />
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.cta, (!photoDone || !codeDone || blocked || submitting) && styles.ctaOff]}
-          activeOpacity={0.9}
-          disabled={!photoDone || !codeDone || blocked || submitting}
+          {/* identité destinataire (+ appel, action existante conservée) */}
+          <View style={{ marginTop: 22 * k, flexDirection: 'row', alignItems: 'flex-end' }}>
+            <View style={{ flex: 1 }}>
+              <Text maxFontSizeMultiplier={1.4} style={m}>DESTINATAIRE</Text>
+              <Text maxFontSizeMultiplier={1.4} numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: BF.xbold, fontSize: 32 * k, letterSpacing: -1.1 * k, color: BC.encre, marginTop: 8 * k }}>
+                {recipientName}
+              </Text>
+            </View>
+            {recipientPhone ? (
+              <Pressable
+                onPress={() => openPhone(recipientPhone)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Appeler ${recipientName}`}
+                android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: true }}
+                style={({ pressed }) => [{ width: 40 * k, height: 40 * k, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="call-outline" size={20 * k} color={BC.vert} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View style={{ marginTop: 20 * k }}>
+            <Perforation k={k} />
+          </View>
+
+          {/* bandeau à encaisser (§6.1) — montant INCHANGÉ (formatCFA(price)) */}
+          <View style={{ marginTop: 14 * k, height: 70 * k, borderBottomWidth: 1, borderColor: BC.filetFin, flexDirection: 'row', alignItems: 'center' }}>
+            {prepaid ? (
+              <>
+                <View style={{ flex: 1 }}>
+                  <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.vertProfond }]}>DÉJÀ PAYÉ</Text>
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: BC.gris, marginTop: 3 * k }}>Rien à encaisser</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={24 * k} color={BC.vert} />
+              </>
+            ) : (
+              <>
+                <View style={{ flex: 1 }}>
+                  <Text maxFontSizeMultiplier={1.4} style={[m, { color: BC.vertProfond }]}>À ENCAISSER</Text>
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: BC.gris, marginTop: 3 * k }}>Paiement à la livraison</Text>
+                </View>
+                <Text
+                  maxFontSizeMultiplier={1.4}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  accessibilityLabel={`À encaisser : ${formatCFA(activeDelivery?.price ?? 0)}`}
+                  style={{ fontFamily: BF.mono, fontSize: 28 * k, letterSpacing: -0.9 * k, color: BC.vertProfond, maxWidth: '55%' }}
+                >
+                  {formatCFA(activeDelivery?.price ?? 0)}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* photo + code (scrollable → reste accessible clavier levé) */}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 16 * k, paddingBottom: 8 * k }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {photo ? (
+              <View style={{ height: 120 * k, position: 'relative' }}>
+                <Image source={{ uri: photo }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                <Pressable onPress={takePhoto} style={{ position: 'absolute', right: 8 * k, bottom: 8 * k, flexDirection: 'row', alignItems: 'center', gap: 5 * k, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10 * k, paddingVertical: 6 * k }}>
+                  <Ionicons name="camera" size={15 * k} color={BC.blanc} />
+                  <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: 11 * k, color: BC.blanc }}>REPRENDRE</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <DashedPhoto k={k} onPress={takePhoto} />
+            )}
+
+            <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.bold, fontSize: 21 * k, letterSpacing: -0.5 * k, color: BC.encre, marginTop: 22 * k }}>
+              Code du destinataire
+            </Text>
+            <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.med, fontSize: Math.max(13, 13.5 * k), color: BC.gris, marginTop: 4 * k }}>
+              {`Demandez à ${recipientName} son code à 4 chiffres.`}
+            </Text>
+            <View style={{ marginTop: 14 * k }}>
+              <OtpInput
+                length={4}
+                value={code}
+                onChange={(v) => {
+                  setError('');
+                  setCode(v);
+                }}
+                variant="driver"
+              />
+            </View>
+            {error ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 * k, marginTop: 12 * k }}>
+                <Ionicons name="alert-circle" size={17 * k} color="#DC2626" />
+                <Text maxFontSizeMultiplier={1.4} style={{ flex: 1, fontFamily: BF.med, fontSize: Math.max(12.5, 13 * k), color: '#DC2626' }}>{error}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+
+      {/* bouton Confirmer (page, sous la feuille) */}
+      <View style={{ paddingHorizontal: gut, paddingTop: 12 * k, paddingBottom: 8 * k }}>
+        <Pressable
           onPress={handleSubmit}
+          disabled={!actif}
+          android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
+          accessibilityRole="button"
+          accessibilityLabel="Confirmer la livraison"
+          style={({ pressed }) => [
+            { height: 56 * k, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 * k },
+            actif ? { backgroundColor: BC.vert } : { borderWidth: 1.5 * k, borderColor: BC.filet },
+            pressed && actif && { opacity: 0.9 },
+          ]}
         >
-          <Text style={styles.ctaText}>
-            {blocked ? 'Bloqué' : submitting ? 'Validation…' : 'Confirmer la livraison'}
+          {actif ? <Ionicons name="checkmark" size={19 * k} color={BC.blanc} /> : null}
+          <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.mono, fontSize: Math.max(13.5, 14.5 * k), letterSpacing: 1 * k, color: actif ? BC.blanc : BC.gris }}>
+            {blocked ? 'BLOQUÉ' : submitting ? 'VALIDATION…' : 'CONFIRMER LA LIVRAISON'}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.paper },
-
-  who: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  role: { color: C.lime, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 0.6 },
-  name: { color: '#fff', fontFamily: F.uiBold, fontSize: 24, marginTop: 2 },
-  callBig: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  payChip: {
-    marginTop: 16,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  payLbl: { color: C.amberSoft, fontFamily: F.uiBold, fontSize: 11, letterSpacing: 0.5 },
-  paySub: { color: 'rgba(255,255,255,0.8)', fontFamily: F.ui, fontSize: 11, marginTop: 2 },
-  payAmt: { color: '#fff', fontFamily: F.display, fontSize: 22 },
-
-  content: { padding: 20, paddingBottom: 28 },
-  h: { fontFamily: F.display, fontSize: 20, color: C.ink },
-  hint: { fontFamily: F.ui, fontSize: 13, color: C.muted, marginTop: 6, marginBottom: 14 },
-  codeWrap: { alignItems: 'center', paddingVertical: 4 },
-
-  photo: {
-    borderRadius: 20,
-    backgroundColor: '#F1FAF4',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#A6DBB8',
-    height: 150,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  photoCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: C.gDark,
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  photoText: { color: C.gDark, fontFamily: F.uiBold, fontSize: 14 },
-  photoBox: { height: 170, borderRadius: 20, overflow: 'hidden' },
-  photoImg: { flex: 1 },
-  retake: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  retakeText: { color: '#fff', fontFamily: F.uiSemi, fontSize: 12 },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  errorText: { color: '#DC2626', fontFamily: F.uiMed, fontSize: 13, flex: 1 },
-
-  footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: C.hair,
-    backgroundColor: C.paper,
-  },
-  cta: {
-    backgroundColor: C.gDark,
-    borderRadius: 18,
-    paddingVertical: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaOff: { opacity: 0.4 },
-  ctaText: { color: '#fff', fontFamily: F.uiBold, fontSize: 16 },
-});
+/** Zone photo vide : rectangle pointillé SVG (largeur mesurée). */
+function DashedPhoto({ k, onPress }: { k: number; onPress: () => void }) {
+  const [w, setW] = useState(0);
+  const h = 120 * k;
+  const onLayout = (e: LayoutChangeEvent) => {
+    const nw = e.nativeEvent.layout.width;
+    if (nw && Math.abs(nw - w) > 1) setW(nw);
+  };
+  return (
+    <Pressable onPress={onPress} onLayout={onLayout} accessibilityRole="button" accessibilityLabel="Prendre la photo de preuve de livraison" style={({ pressed }) => [{ height: h, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.85 }]}>
+      {w > 0 ? (
+        <Svg width={w} height={h} style={{ position: 'absolute', left: 0, top: 0 }}>
+          <Rect x={0.75 * k} y={0.75 * k} width={w - 1.5 * k} height={h - 1.5 * k} fill="none" stroke={BC.filet} strokeWidth={1.5 * k} strokeDasharray={`${6 * k} ${5 * k}`} />
+        </Svg>
+      ) : null}
+      <Ionicons name="camera-outline" size={30 * k} color={BC.gris} />
+      <Text maxFontSizeMultiplier={1.4} style={{ fontFamily: BF.bold, fontSize: Math.max(15, 16 * k), color: BC.encre, marginTop: 8 * k }}>Prendre la photo</Text>
+      <Text maxFontSizeMultiplier={1.4} style={[microStyle(k), { color: BC.attente, marginTop: 4 * k }]}>PREUVE DE LIVRAISON</Text>
+    </Pressable>
+  );
+}
