@@ -111,3 +111,56 @@ export function ownerLabel(v: Pick<VehicleRow, 'ownerType' | 'shareholder'>): st
 export function fmtFcfa(n: number): string {
   return `${Math.round(n).toLocaleString('fr-FR').replace(/ /g, ' ')} FCFA`;
 }
+
+// ---------------------------------------------------------------------------
+// Reporting (Lot 2)
+// ---------------------------------------------------------------------------
+
+export type Granularity = 'day' | 'month' | 'year';
+
+export interface ReportBucket {
+  period: string; // 'YYYY-MM-DD'
+  courses: number;
+  totalGenere: number;
+  gainsLivreur: number;
+}
+
+export interface VehicleReport {
+  series: ReportBucket[];
+  totals: ActivityTotals;
+}
+
+export interface ShareholderReport {
+  series: ReportBucket[];
+  totals: ActivityTotals;
+  vehicles: Array<{ id: string; label: string; plate: string | null; totals: ActivityTotals }>;
+}
+
+export const GRANULARITY_LABEL: Record<Granularity, string> = {
+  day: 'Jour',
+  month: 'Mois',
+  year: 'Année',
+};
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Plage par défaut selon la granularité (30 jours / 12 mois / 5 ans). */
+export function defaultRange(g: Granularity): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date(to);
+  if (g === 'year') from.setUTCFullYear(from.getUTCFullYear() - 5);
+  else if (g === 'month') from.setUTCMonth(from.getUTCMonth() - 12);
+  else from.setUTCDate(from.getUTCDate() - 30);
+  return { from: ymd(from), to: ymd(to) };
+}
+
+/** Libellé d'axe selon la granularité. */
+export function periodLabel(period: string, g: Granularity): string {
+  const d = new Date(period);
+  if (g === 'year') return String(d.getUTCFullYear());
+  if (g === 'month')
+    return d.toLocaleDateString('fr-FR', { month: '2-digit', year: '2-digit', timeZone: 'UTC' });
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+}

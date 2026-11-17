@@ -7,13 +7,17 @@ import {
   VehicleDetail as VehicleDetailData,
   AssignableDriver,
   VehicleStatus,
+  Granularity,
+  VehicleReport,
   VEHICLE_TYPE_LABEL,
   VEHICLE_STATUS_LABEL,
   statusBadgeClass,
   ownerLabel,
   vehicleLabel,
   fmtFcfa,
+  defaultRange,
 } from './fleetTypes';
+import { ReportCharts, ReportControls } from './ReportCharts';
 
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +31,35 @@ export default function VehicleDetail() {
   const [drivers, setDrivers] = useState<AssignableDriver[]>([]);
   const [driverId, setDriverId] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const [granularity, setGranularity] = useState<Granularity>('day');
+  const [range, setRange] = useState(defaultRange('day'));
+  const [report, setReport] = useState<VehicleReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const loadReport = async () => {
+    setReportLoading(true);
+    try {
+      const res = await api.get(`/admin/fleet/vehicles/${id}/report`, {
+        params: { granularity, from: range.from, to: range.to },
+      });
+      setReport(unwrap<VehicleReport>(res));
+    } catch {
+      setReport(null);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, granularity, range.from, range.to]);
+
+  const onGranularity = (g: Granularity) => {
+    setGranularity(g);
+    setRange(defaultRange(g));
+  };
 
   const load = async () => {
     setLoading(true);
@@ -272,6 +305,31 @@ export default function VehicleDetail() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Activité ventilée (Lot 2) */}
+      <div className="dashboard-section-title" style={{ marginTop: 24 }}>
+        Activité
+      </div>
+      <div className="card" style={{ padding: 20 }}>
+        <ReportControls
+          granularity={granularity}
+          from={range.from}
+          to={range.to}
+          onGranularity={onGranularity}
+          onFrom={(v) => setRange((r) => ({ ...r, from: v }))}
+          onTo={(v) => setRange((r) => ({ ...r, to: v }))}
+        />
+        {reportLoading ? (
+          <div className="loading-wrap">
+            <div className="spinner"></div>
+            Chargement...
+          </div>
+        ) : report ? (
+          <ReportCharts series={report.series} granularity={granularity} />
+        ) : (
+          <div className="empty">Impossible de charger l’activité.</div>
         )}
       </div>
 
