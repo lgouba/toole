@@ -290,11 +290,29 @@ export async function getUserDetail(userId: string) {
     },
   });
 
+  // Parc Auto : engin actuellement affecté au livreur (affectation active), s'il y en a un.
+  const activeAssignment = await prisma.vehicleAssignment.findFirst({
+    where: { driverId: userId, endedAt: null },
+    include: {
+      vehicle: { include: { shareholder: { select: { fullName: true } } } },
+    },
+  });
+  const activeVehicle = activeAssignment
+    ? {
+        id: activeAssignment.vehicle.id,
+        plate: activeAssignment.vehicle.plate,
+        brand: activeAssignment.vehicle.brand,
+        model: activeAssignment.vehicle.model,
+        vehicleType: activeAssignment.vehicle.vehicleType,
+        shareholderName: activeAssignment.vehicle.shareholder?.fullName ?? null,
+      }
+    : null;
+
   // Ne jamais exposer passwordHash dans les reponses (meme admin).
   const { passwordHash: _ph, ...safeUser } = user;
   // Signe les URLs KYC (pièces d'identité) pour que l'admin puisse les afficher
   // en <img> via une URL signée à durée limitée (fichiers non publics).
-  return { user: signKycFields(safeUser), recentDeliveries };
+  return { user: signKycFields(safeUser), recentDeliveries, activeVehicle };
 }
 
 /**
