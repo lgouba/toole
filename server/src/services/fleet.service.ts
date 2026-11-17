@@ -473,3 +473,162 @@ export async function getVehicleDetail(id: string): Promise<VehicleDetail> {
 
   return { ...base, totals, history };
 }
+
+// ---------------------------------------------------------------------------
+// Reporting Lot 2 — séries temporelles (lecture seule)
+// ---------------------------------------------------------------------------
+
+export type Granularity = 'day' | 'month' | 'year';
+
+export interface ReportBucket {
+  period: string; // 'YYYY-MM-DD' (début du bucket, UTC)
+  courses: number;
+  totalGenere: number;
+  gainsLivreur: number;
+}
+
+type BucketVal = { courses: number; totalGenere: number; gainsLivreur: number };
+
+/** Début de bucket en UTC (aligne le remplissage des trous sur date_trunc). */
+function truncUTC(d: Date, g: Granularity): Date {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  if (g === 'year') return new Date(Date.UTC(y, 0, 1));
+  if (g === 'month') return new Date(Date.UTC(y, m, 1));
+  return new Date(Date.UTC(y, m, day));
+}
+
+function advanceUTC(d: Date, g: Granularity): Date {
+  const n = new Date(d);
+  if (g === 'year') n.setUTCFullYear(n.getUTCFullYear() + 1);
+  else if (g === 'month') n.setUTCMonth(n.getUTCMonth() + 1);
+  else n.setUTCDate(n.getUTCDate() + 1);
+  return n;
+}
+
+function bucketKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function addBucket(a: BucketVal, b: BucketVal): BucketVal {
+  return {
+    courses: a.courses + b.courses,
+    totalGenere: a.totalGenere + b.totalGenere,
+    gainsLivreur: a.gainsLivreur + b.gainsLivreur,
+  };
+}
+
+/** Courses livrées d'un livreur groupées par bucket (date_trunc) sur [from,to). */
+async function seriesForDriverWindow(
+  driverId: string,
+  from: Date,
+  to: Date,
+  granularity: Granularity,
+): Promise<Map<string, BucketVal>> {
+  const rows = await prisma.$queryRaw<
+    { bucket: Date; courses: bigint; total: bigint | null; gains: bigint | null }[]
+  >`
+    SELECT
+      date_trunc(${granularity}, "deliveredAt") AS bucket,
+      COUNT(*) AS courses,
+      SUM("price") AS total,
+      SUM("driverCommission") AS gains
+    FROM "Delivery"
+    WHERE "driverId" = ${driverId}::uuid
+      AND status = 'delivered'
+      AND "deliveredAt" >= ${from}
+      AND "deliveredAt" < ${to}
+    GROUP BY 1
+  `;
+  const map = new Map<string, BucketVal>();
+  for (const r of rows) {
+    map.set(bucketKey(new Date(r.bucket)), {
+      courses: Number(r.courses),
+      totalGenere: Number(r.total ?? 0),
+      gainsLivreur: Number(r.gains ?? 0),
+    });
+  }
+  return map;
+}
+
+/** Map de buckets pour un engin : fusion de ses affectations bornées à [from,to). */
+async function vehicleBucketMap(
+  vehicleId: string,
+  from: Date,
+  to: Date,
+  granularity: Granularity,
+): Promise<Map<string, BucketVal>> {
+  const assignments = await prisma.vehicleAssignment.findMany({
+    where: { vehicleId, startedAt: { lt: to }, OR: [{ endedAt: null }, { endedAt: { gt: from } }] },
+  });
+  const now = new Date();
+  const merged = new Map<string, BucketVal>();
+  for (const a of assignments) {
+    const wFrom = a.startedAt > from ? a.startedAt : from;
+    const end = a.endedAt ?? now;
+    const wTo = end < to ? end : to;
+    if (wFrom >= wTo) continue;
+    const part = await seriesForDriverWindow(a.driverId, wFrom, wTo, granularity);
+    for (const [k, v] of part) merged.set(k, merged.has(k) ? addBucket(merged.get(k)!, v) : v);
+  }
+  return merged;
+}
+
+/** Comble tous les buckets de [from,to) à 0 et trie croissant. */
+function fillSeries(map: Map<string, BucketVal>, from: Date, to: Date, g: Granularity): ReportBucket[] {
+  const series: ReportBucket[] = [];
+  let cur = truncUTC(from, g);
+  const end = to;
+  while (cur < end) {
+    const key = bucketKey(cur);
+    const v = map.get(key) ?? { courses: 0, totalGenere: 0, gainsLivreur: 0 };
+    series.push({ period: key, ...v });
+    cur = advanceUTC(cur, g);
+  }
+  return series;
+}
+
+function sumBuckets(map: Map<string, BucketVal>): ActivityTotals {
+  let t: ActivityTotals = { courses: 0, totalGenere: 0, gainsLivreur: 0 };
+  for (const v of map.values()) t = addTotals(t, v);
+  return t;
+}
+
+export async function getVehicleReport(
+  vehicleId: string,
+  granularity: Granularity,
+  from: Date,
+  to: Date,
+): Promise<{ series: ReportBucket[]; totals: ActivityTotals }> {
+  const map = await vehicleBucketMap(vehicleId, from, to, granularity);
+  return { series: fillSeries(map, from, to, granularity), totals: sumBuckets(map) };
+}
+
+export async function getShareholderReport(
+  shareholderId: string,
+  granularity: Granularity,
+  from: Date,
+  to: Date,
+): Promise<{
+  series: ReportBucket[];
+  totals: ActivityTotals;
+  vehicles: Array<{ id: string; label: string; plate: string | null; totals: ActivityTotals }>;
+}> {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { shareholderId },
+    select: { id: true, brand: true, model: true, plate: true },
+  });
+  const merged = new Map<string, BucketVal>();
+  const perVehicle: Array<{ id: string; label: string; plate: string | null; totals: ActivityTotals }> = [];
+  for (const v of vehicles) {
+    const map = await vehicleBucketMap(v.id, from, to, granularity);
+    for (const [k, val] of map) merged.set(k, merged.has(k) ? addBucket(merged.get(k)!, val) : val);
+    perVehicle.push({ id: v.id, label: vehicleLabel(v), plate: v.plate, totals: sumBuckets(map) });
+  }
+  return {
+    series: fillSeries(merged, from, to, granularity),
+    totals: sumBuckets(merged),
+    vehicles: perVehicle,
+  };
+}
