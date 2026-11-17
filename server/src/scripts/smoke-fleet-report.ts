@@ -10,6 +10,7 @@
 import 'dotenv/config';
 import { prisma } from '../lib/prisma.js';
 import { getVehicleReport } from '../services/fleet.service.js';
+import { resolveReportRange } from '../controllers/fleet.controller.js';
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(`ASSERT FAILED: ${msg}`);
@@ -24,6 +25,9 @@ function monthsAgoUTC(n: number): Date {
 }
 function monthKey(d: Date): string {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
+}
+function dateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
 let ref = 0;
@@ -61,27 +65,35 @@ async function main() {
 
   const created: string[] = [];
   try {
+    const now = new Date();
     const m2 = monthsAgoUTC(2);
     const m1 = monthsAgoUTC(1);
     const outside = monthsAgoUTC(4); // avant startedAt → hors fenêtre
     const d2 = await delivery(sender.id, driver.id, m2, 1000, tag);
     const d1 = await delivery(sender.id, driver.id, m1, 1500, tag);
+    const dToday = await delivery(sender.id, driver.id, now, 500, tag); // AUJOURD'HUI
     const dOut = await delivery(sender.id, driver.id, outside, 9999, tag);
-    created.push(d2.id, d1.id, dOut.id);
+    created.push(d2.id, d1.id, dToday.id, dOut.id);
 
-    const from = monthsAgoUTC(5); // couvre outside ET la fenêtre
-    const to = new Date();
+    // Plage résolue comme le controller : `to` en date seule = inclusif (jour en cours).
+    const { from, to } = resolveReportRange({
+      granularity: 'month',
+      from: dateOnly(monthsAgoUTC(5)),
+      to: dateOnly(now),
+    });
     const { series, totals } = await getVehicleReport(vehicle.id, 'month', from, to);
 
     const byKey = new Map(series.map((b) => [b.period, b]));
     assert(byKey.get(monthKey(m2))?.courses === 1, 'bucket M-2 = 1 course');
     assert(byKey.get(monthKey(m1))?.courses === 1, 'bucket M-1 = 1 course');
     assert(byKey.get(monthKey(m1))?.totalGenere === 1500, 'bucket M-1 total = 1500');
+    // Régression #1 : la course d'AUJOURD'HUI doit compter (to date-seule = inclusif).
+    assert((byKey.get(monthKey(now))?.courses ?? 0) >= 1, 'course du jour en cours comptée (bucket mois courant)');
     // mois d'il y a 4 mois : la course "outside" est avant startedAt → exclue → 0
     assert(byKey.get(monthKey(outside))?.courses === 0, 'course hors fenêtre exclue (bucket M-4 = 0)');
     // un bucket sans course existe bien (comblé à 0)
     assert(series.every((b) => typeof b.courses === 'number'), 'tous les buckets présents');
-    assert(totals.courses === 2 && totals.totalGenere === 2500, `totals 2/2500 (eu ${totals.courses}/${totals.totalGenere})`);
+    assert(totals.courses === 3 && totals.totalGenere === 3000, `totals 3/3000 (eu ${totals.courses}/${totals.totalGenere})`);
 
     console.log('SMOKE_OK');
   } finally {

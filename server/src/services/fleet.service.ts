@@ -519,7 +519,13 @@ function addBucket(a: BucketVal, b: BucketVal): BucketVal {
   };
 }
 
-/** Courses livrées d'un livreur groupées par bucket (date_trunc) sur [from,to). */
+/**
+ * Courses livrées d'un livreur groupées par bucket (date_trunc) sur [from,to).
+ * NB : `Delivery.deliveredAt` est un `timestamp without time zone` et Prisma
+ * normalise ces valeurs en UTC. `date_trunc` ignore donc le fuseau de session,
+ * et les clés de bucket (ISO/UTC) s'alignent avec le comblage JS (truncUTC).
+ * Si un jour `deliveredAt` passe en `@db.Timestamptz`, revérifier cet alignement.
+ */
 async function seriesForDriverWindow(
   driverId: string,
   from: Date,

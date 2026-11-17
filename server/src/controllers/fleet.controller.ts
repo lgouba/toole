@@ -164,16 +164,36 @@ const reportQuery = z.object({
   to: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
 });
 
-/** Résout granularité + plage [from,to), avec défauts selon la granularité. */
-function parseRange(raw: unknown): { granularity: 'day' | 'month' | 'year'; from: Date; to: Date } {
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Résout granularité + plage [from, to) (borne haute EXCLUSIVE), avec défauts
+ * selon la granularité. Un `to` donné en date seule (YYYY-MM-DD) est traité comme
+ * **inclusif** : on avance d'un jour pour que les courses du jour `to` (jusqu'à
+ * minuit suivant) comptent — sinon la journée en cours serait masquée, l'admin
+ * envoyant toujours une date sans heure.
+ */
+export function resolveReportRange(raw: unknown): {
+  granularity: 'day' | 'month' | 'year';
+  from: Date;
+  to: Date;
+} {
   const q = reportQuery.parse(raw);
   const granularity = q.granularity ?? 'day';
-  const to = q.to ? new Date(q.to) : new Date();
+
+  let to: Date;
+  if (q.to) {
+    to = new Date(q.to);
+    if (DATE_ONLY.test(q.to)) to.setUTCDate(to.getUTCDate() + 1); // date seule = inclusive
+  } else {
+    to = new Date();
+  }
+
   let from: Date;
   if (q.from) {
     from = new Date(q.from);
   } else {
-    from = new Date(to);
+    from = new Date();
     if (granularity === 'year') from.setUTCFullYear(from.getUTCFullYear() - 5);
     else if (granularity === 'month') from.setUTCMonth(from.getUTCMonth() - 12);
     else from.setUTCDate(from.getUTCDate() - 30);
@@ -183,7 +203,7 @@ function parseRange(raw: unknown): { granularity: 'day' | 'month' | 'year'; from
 
 export async function getVehicleReportCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
-    const { granularity, from, to } = parseRange(req.query);
+    const { granularity, from, to } = resolveReportRange(req.query);
     return success(res, await fleet.getVehicleReport(req.params.id, granularity, from, to));
   } catch (err) {
     next(err);
@@ -192,7 +212,7 @@ export async function getVehicleReportCtrl(req: AuthedRequest, res: Response, ne
 
 export async function getShareholderReportCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
-    const { granularity, from, to } = parseRange(req.query);
+    const { granularity, from, to } = resolveReportRange(req.query);
     return success(res, await fleet.getShareholderReport(req.params.id, granularity, from, to));
   } catch (err) {
     next(err);
@@ -207,7 +227,7 @@ function csvField(v: string | number): string {
 
 export async function getShareholderReportCsvCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
-    const { granularity, from, to } = parseRange(req.query);
+    const { granularity, from, to } = resolveReportRange(req.query);
     const report = await fleet.getShareholderReport(req.params.id, granularity, from, to);
     const header = ['periode', 'courses', 'total_genere', 'gains_livreur'];
     const lines = [header.join(',')];
