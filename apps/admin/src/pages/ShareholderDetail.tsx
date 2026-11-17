@@ -7,11 +7,15 @@ import {
   Shareholder,
   VehicleRow,
   ActivityTotals,
+  Granularity,
+  ShareholderReport,
   VEHICLE_TYPE_LABEL,
   VEHICLE_STATUS_LABEL,
   statusBadgeClass,
   fmtFcfa,
+  defaultRange,
 } from './fleetTypes';
+import { ReportCharts, ReportControls } from './ReportCharts';
 
 interface VehicleWithTotals extends VehicleRow {
   totals: ActivityTotals;
@@ -27,6 +31,58 @@ export default function ShareholderDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [granularity, setGranularity] = useState<Granularity>('month');
+  const [range, setRange] = useState(defaultRange('month'));
+  const [report, setReport] = useState<ShareholderReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const loadReport = async () => {
+    setReportLoading(true);
+    try {
+      const res = await api.get(`/admin/fleet/shareholders/${id}/report`, {
+        params: { granularity, from: range.from, to: range.to },
+      });
+      setReport(unwrap<ShareholderReport>(res));
+    } catch {
+      setReport(null);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, granularity, range.from, range.to]);
+
+  const onGranularity = (g: Granularity) => {
+    setGranularity(g);
+    setRange(defaultRange(g));
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const res = await api.get(`/admin/fleet/shareholders/${id}/report.csv`, {
+        params: { granularity, from: range.from, to: range.to },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `releve-${(shareholder?.fullName ?? 'actionnaire').replace(/\s+/g, '-')}-${granularity}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setToast('Export impossible.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -184,6 +240,69 @@ export default function ShareholderDetail() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Relevé ventilé (Lot 2) */}
+      <div
+        className="dashboard-section-title"
+        style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <span>Relevé</span>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-outline btn-sm" onClick={exportCsv} disabled={exporting}>
+            {exporting ? 'Export…' : 'Exporter CSV'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>
+            Imprimer
+          </button>
+        </span>
+      </div>
+      <div className="card" style={{ padding: 20 }}>
+        <ReportControls
+          granularity={granularity}
+          from={range.from}
+          to={range.to}
+          onGranularity={onGranularity}
+          onFrom={(v) => setRange((r) => ({ ...r, from: v }))}
+          onTo={(v) => setRange((r) => ({ ...r, to: v }))}
+        />
+        {reportLoading ? (
+          <div className="loading-wrap">
+            <div className="spinner"></div>
+            Chargement...
+          </div>
+        ) : report ? (
+          <>
+            <div className="muted" style={{ marginBottom: 12 }}>
+              Sur la période : <strong>{report.totals.courses}</strong> course
+              {report.totals.courses > 1 ? 's' : ''} livrée{report.totals.courses > 1 ? 's' : ''} ·{' '}
+              <strong>{fmtFcfa(report.totals.totalGenere)}</strong> générés.
+            </div>
+            <ReportCharts series={report.series} granularity={granularity} />
+            {report.vehicles.length > 0 && (
+              <table className="users-table" style={{ marginTop: 16 }}>
+                <thead>
+                  <tr>
+                    <th>Engin</th>
+                    <th style={{ textAlign: 'right' }}>Courses</th>
+                    <th style={{ textAlign: 'right' }}>Total généré</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.vehicles.map((v) => (
+                    <tr key={v.id}>
+                      <td>{v.label}</td>
+                      <td style={{ textAlign: 'right' }}>{v.totals.courses}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtFcfa(v.totals.totalGenere)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        ) : (
+          <div className="empty">Impossible de charger le relevé.</div>
         )}
       </div>
 
