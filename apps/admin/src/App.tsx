@@ -15,6 +15,10 @@ import Transactions from './pages/Transactions';
 import Balances from './pages/Balances';
 import Notifications from './pages/Notifications';
 import PromoCodes from './pages/PromoCodes';
+import Fleet from './pages/Fleet';
+import VehicleDetail from './pages/VehicleDetail';
+import Shareholders from './pages/Shareholders';
+import ShareholderDetail from './pages/ShareholderDetail';
 import PublicTracking from './pages/PublicTracking';
 import NotificationProvider from './components/NotificationProvider';
 import DialogProvider from './components/DialogProvider';
@@ -68,6 +72,10 @@ function AdminApp({ loading, user }: { loading: boolean; user: any }) {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/promo-codes" element={<PromoCodes />} />
+          <Route path="/fleet" element={<Fleet />} />
+          <Route path="/fleet/vehicles/:id" element={<VehicleDetail />} />
+          <Route path="/fleet/shareholders" element={<Shareholders />} />
+          <Route path="/fleet/shareholders/:id" element={<ShareholderDetail />} />
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/deliveries/:id" element={<DeliveryDetail />} />
           <Route path="*" element={<Navigate to="/" replace />} />

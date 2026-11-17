@@ -109,7 +109,9 @@ export interface VehicleFilter {
   assigned?: boolean;
 }
 
-export async function listVehicles(filter: VehicleFilter = {}): Promise<VehicleListRow[]> {
+export async function listVehicles(
+  filter: VehicleFilter = {},
+): Promise<Array<VehicleListRow & { totals: ActivityTotals }>> {
   const where: Prisma.VehicleWhereInput = {};
   if (filter.status) where.status = filter.status;
   if (filter.ownerType) where.ownerType = filter.ownerType;
@@ -121,7 +123,14 @@ export async function listVehicles(filter: VehicleFilter = {}): Promise<VehicleL
     orderBy: { createdAt: 'desc' },
     include: { shareholder: true, ...activeAssignmentInclude },
   });
-  return rows.map((r) => toListRow(r as VehicleWithActive));
+
+  // Cumul à vie attaché à chaque engin (N+1 assumé : parc de taille modeste).
+  const out: Array<VehicleListRow & { totals: ActivityTotals }> = [];
+  for (const r of rows) {
+    const base = toListRow(r as VehicleWithActive);
+    out.push({ ...base, totals: await getVehicleActivity(base.id) });
+  }
+  return out;
 }
 
 export interface VehicleInput {
