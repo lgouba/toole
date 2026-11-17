@@ -215,3 +215,114 @@ export async function updateVehicle(
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Affectations
+// ---------------------------------------------------------------------------
+
+function vehicleLabel(v: { brand: string | null; model: string | null; plate: string | null }): string {
+  const name = [v.brand, v.model].filter(Boolean).join(' ').trim();
+  if (name && v.plate) return `${name} · ${v.plate}`;
+  return name || v.plate || 'engin';
+}
+
+/**
+ * Affecte un engin `en_service` à un livreur. Clôt (dans une transaction)
+ * toute affectation active de cet engin ET toute affectation active du livreur,
+ * puis crée la nouvelle. Garantit l'invariant « au plus une affectation active
+ * par engin et par livreur ».
+ */
+export async function assignVehicle(
+  vehicleId: string,
+  driverId: string,
+  note?: string,
+  adminId?: string,
+) {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+  if (!vehicle) throw new HttpError(404, 'NOT_FOUND', 'Engin introuvable');
+  if (vehicle.status !== 'en_service') {
+    throw new HttpError(
+      409,
+      'VEHICLE_NOT_ASSIGNABLE',
+      'Seul un engin en service peut être affecté.',
+    );
+  }
+
+  const driver = await prisma.user.findUnique({
+    where: { id: driverId },
+    select: { id: true, userType: true },
+  });
+  if (!driver || driver.userType !== 'driver') {
+    throw new HttpError(404, 'NOT_FOUND', 'Livreur introuvable');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const now = new Date();
+    await tx.vehicleAssignment.updateMany({
+      where: { vehicleId, endedAt: null },
+      data: { endedAt: now, endedBy: adminId ?? null },
+    });
+    await tx.vehicleAssignment.updateMany({
+      where: { driverId, endedAt: null },
+      data: { endedAt: now, endedBy: adminId ?? null },
+    });
+    return tx.vehicleAssignment.create({
+      data: { vehicleId, driverId, note: note ?? null },
+      include: { driver: { select: { id: true, fullName: true } } },
+    });
+  });
+}
+
+/** Clôt l'affectation active d'un engin. 404 si aucune. */
+export async function unassignVehicle(vehicleId: string, adminId?: string) {
+  const active = await prisma.vehicleAssignment.findFirst({
+    where: { vehicleId, endedAt: null },
+  });
+  if (!active) throw new HttpError(404, 'NO_ACTIVE_ASSIGNMENT', 'Aucune affectation active sur cet engin.');
+  return prisma.vehicleAssignment.update({
+    where: { id: active.id },
+    data: { endedAt: new Date(), endedBy: adminId ?? null },
+  });
+}
+
+export interface AssignableDriver {
+  id: string;
+  fullName: string;
+  phone: string;
+  hasActiveVehicle: boolean;
+  activeVehicleLabel: string | null;
+}
+
+/** Livreurs affectables : vérifiés, actifs, non suspendus. */
+export async function listAssignableDrivers(): Promise<AssignableDriver[]> {
+  const drivers = await prisma.user.findMany({
+    where: {
+      userType: 'driver',
+      isActive: true,
+      suspendedAt: null,
+      driverProfile: { verificationStatus: 'verified' },
+    },
+    orderBy: { fullName: 'asc' },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      vehicleAssignments: {
+        where: { endedAt: null },
+        take: 1,
+        include: { vehicle: { select: { brand: true, model: true, plate: true } } },
+      },
+    },
+  });
+
+  return drivers.map((d) => {
+    const active = d.vehicleAssignments[0];
+    return {
+      id: d.id,
+      fullName: d.fullName,
+      phone: d.phone,
+      hasActiveVehicle: Boolean(active),
+      activeVehicleLabel: active ? vehicleLabel(active.vehicle) : null,
+    };
+  });
+}
