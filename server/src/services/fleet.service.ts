@@ -326,3 +326,116 @@ export async function listAssignableDrivers(): Promise<AssignableDriver[]> {
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Activité (lecture seule — agrégation des Delivery existantes)
+// ---------------------------------------------------------------------------
+
+export interface ActivityTotals {
+  courses: number;
+  totalGenere: number; // Σ price des courses livrées
+  gainsLivreur: number; // Σ driverCommission (contexte)
+}
+
+const EMPTY: ActivityTotals = { courses: 0, totalGenere: 0, gainsLivreur: 0 };
+
+function addTotals(a: ActivityTotals, b: ActivityTotals): ActivityTotals {
+  return {
+    courses: a.courses + b.courses,
+    totalGenere: a.totalGenere + b.totalGenere,
+    gainsLivreur: a.gainsLivreur + b.gainsLivreur,
+  };
+}
+
+/** Agrège les courses LIVRÉES d'un livreur sur une fenêtre [from, to). */
+async function aggregateForDriverWindow(
+  driverId: string,
+  from: Date,
+  to: Date,
+): Promise<ActivityTotals> {
+  const r = await prisma.delivery.aggregate({
+    where: { driverId, status: 'delivered', deliveredAt: { gte: from, lt: to } },
+    _count: { _all: true },
+    _sum: { price: true, driverCommission: true },
+  });
+  return {
+    courses: r._count._all,
+    totalGenere: r._sum.price ?? 0,
+    gainsLivreur: r._sum.driverCommission ?? 0,
+  };
+}
+
+/** Totaux d'une affectation précise (fenêtre [startedAt, endedAt ?? now)). */
+export async function getAssignmentActivity(assignmentId: string): Promise<ActivityTotals> {
+  const a = await prisma.vehicleAssignment.findUnique({ where: { id: assignmentId } });
+  if (!a) throw new HttpError(404, 'NOT_FOUND', 'Affectation introuvable');
+  return aggregateForDriverWindow(a.driverId, a.startedAt, a.endedAt ?? new Date());
+}
+
+/** Cumul à vie d'un engin : somme sur toutes ses affectations. */
+export async function getVehicleActivity(vehicleId: string): Promise<ActivityTotals> {
+  const assignments = await prisma.vehicleAssignment.findMany({ where: { vehicleId } });
+  const now = new Date();
+  let totals = EMPTY;
+  for (const a of assignments) {
+    const t = await aggregateForDriverWindow(a.driverId, a.startedAt, a.endedAt ?? now);
+    totals = addTotals(totals, t);
+  }
+  return totals;
+}
+
+/** Cumul d'un actionnaire : somme sur ses engins. */
+export async function getShareholderActivity(shareholderId: string): Promise<ActivityTotals> {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { shareholderId },
+    select: { id: true },
+  });
+  let totals = EMPTY;
+  for (const v of vehicles) {
+    totals = addTotals(totals, await getVehicleActivity(v.id));
+  }
+  return totals;
+}
+
+export type VehicleDetail = VehicleListRow & {
+  totals: ActivityTotals;
+  history: Array<{
+    id: string;
+    driverId: string;
+    driverName: string | null;
+    startedAt: Date;
+    endedAt: Date | null;
+    note: string | null;
+    totals: ActivityTotals;
+  }>;
+};
+
+/** Fiche engin complète : infos + proprio + affectation active + historique
+ *  (avec totaux par affectation) + cumul à vie. */
+export async function getVehicleDetail(id: string): Promise<VehicleDetail> {
+  const base = await getVehicle(id); // 404 si absent, inclut shareholder + activeAssignment
+  const assignments = await prisma.vehicleAssignment.findMany({
+    where: { vehicleId: id },
+    orderBy: { startedAt: 'desc' },
+    include: { driver: { select: { id: true, fullName: true } } },
+  });
+
+  const now = new Date();
+  const history = [];
+  let totals = EMPTY;
+  for (const a of assignments) {
+    const t = await aggregateForDriverWindow(a.driverId, a.startedAt, a.endedAt ?? now);
+    totals = addTotals(totals, t);
+    history.push({
+      id: a.id,
+      driverId: a.driverId,
+      driverName: a.driver?.fullName ?? null,
+      startedAt: a.startedAt,
+      endedAt: a.endedAt,
+      note: a.note,
+      totals: t,
+    });
+  }
+
+  return { ...base, totals, history };
+}
