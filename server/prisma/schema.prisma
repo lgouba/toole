@@ -131,6 +131,7 @@ model User {
   locationLogs     DriverLocationLog[]
   sentMessages     Message[]           @relation("MessageSender")
   receivedMessages Message[]           @relation("MessageRecipient")
+  vehicleAssignments VehicleAssignment[]
 
   @@index([phone])
   @@index([userType])
@@ -575,4 +576,82 @@ model Transaction {
   @@index([deliveryId])
   @@index([status])
   @@index([type])
+}
+
+// ============================================================================
+// Parc Auto — actionnaires, engins autonomes, affectations (additif, lecture
+// seule des revenus). Ne touche pas DriverProfile.vehicle* (déclaratif KYC).
+// ============================================================================
+
+enum VehicleStatus {
+  en_service
+  en_panne
+  retire
+}
+
+enum VehicleOwnerType {
+  actionnaire
+  toole
+}
+
+/// Actionnaire : personne qui possède un ou plusieurs engins mis sur Toolé.
+/// Géré uniquement depuis l'admin (pas d'accès applicatif).
+model Shareholder {
+  id        String   @id @default(uuid()) @db.Uuid
+  fullName  String
+  phone     String?
+  email     String?
+  note      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles Vehicle[]
+
+  @@index([fullName])
+}
+
+/// Engin du parc (moto/vélo/voiture/tricycle). Vit indépendamment d'un livreur.
+/// Propriétaire = un actionnaire, ou Toolé (parc propre, shareholderId null).
+model Vehicle {
+  id            String           @id @default(uuid()) @db.Uuid
+  vehicleType   VehicleType
+  brand         String?
+  model         String?
+  plate         String?
+  photoUrl      String?
+  status        VehicleStatus    @default(en_service)
+  ownerType     VehicleOwnerType @default(toole)
+  shareholderId String?          @db.Uuid
+  note          String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  shareholder Shareholder?        @relation(fields: [shareholderId], references: [id])
+  assignments VehicleAssignment[]
+
+  @@index([status])
+  @@index([shareholderId])
+  @@index([plate])
+}
+
+/// Affectation d'un engin à un livreur. endedAt null = affectation active.
+/// Invariant applicatif : au plus une affectation active par engin et par livreur.
+model VehicleAssignment {
+  id        String    @id @default(uuid()) @db.Uuid
+  vehicleId String    @db.Uuid
+  driverId  String    @db.Uuid
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  endedBy   String?   @db.Uuid
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  driver  User    @relation(fields: [driverId], references: [id])
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([endedAt])
 }

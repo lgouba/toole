@@ -24,6 +24,7 @@ import deliveriesRoutes from './routes/deliveries.routes.js';
 import trackRoutes from './routes/track.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import fleetRoutes from './routes/fleet.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
 import promoRoutes from './routes/promo.routes.js';
@@ -134,6 +135,7 @@ app.use('/api/drivers', driversRoutes);
 app.use('/api/deliveries', deliveriesRoutes);
 app.use('/api/track', trackRoutes); // public, no auth
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/admin/fleet', fleetRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/wallet', walletRoutes);

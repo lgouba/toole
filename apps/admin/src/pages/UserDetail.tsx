@@ -49,6 +49,14 @@ interface UserDetailData {
     sender: { fullName: string };
     driver: { fullName: string } | null;
   }>;
+  activeVehicle: {
+    id: string;
+    plate: string | null;
+    brand: string | null;
+    model: string | null;
+    vehicleType: string;
+    shareholderName: string | null;
+  } | null;
 }
 
 /**
@@ -354,6 +362,27 @@ export default function UserDetail() {
           </div>
         )}
       </div>
+
+      {isDriver && data.activeVehicle ? (
+        <div className="card">
+          <div className="card-header">
+            <h2>Engin affecté (Parc Auto)</h2>
+          </div>
+          <div style={{ padding: 18 }}>
+            <Link className="cl-link" to={`/fleet/vehicles/${data.activeVehicle.id}`}>
+              {[data.activeVehicle.brand, data.activeVehicle.model].filter(Boolean).join(' ') ||
+                'Engin'}
+              {data.activeVehicle.plate ? ` · ${data.activeVehicle.plate}` : ''}
+            </Link>
+            <div className="muted" style={{ marginTop: 4 }}>
+              {data.activeVehicle.vehicleType}
+              {data.activeVehicle.shareholderName
+                ? ` · Actionnaire : ${data.activeVehicle.shareholderName}`
+                : ' · Parc Toolé'}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isDriver && user.driverProfile ? (
         <div className="card">

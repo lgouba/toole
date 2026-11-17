@@ -38,6 +38,14 @@ function Icon({ name }: { name: string }) {
         <path d="M12 11v10" />
       </>
     ),
+    fleet: (
+      <>
+        <circle cx="6" cy="17" r="3" />
+        <circle cx="18" cy="17" r="3" />
+        <path d="M6 17h7l4-6h3" />
+        <path d="M13 11l-2-4H8" />
+      </>
+    ),
     logout: (
       <>
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -260,6 +268,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           >
             <span className="nav-icon">🎟️</span>
             <span>Codes promo</span>
+          </NavLink>
+
+          <div className="nav-section">Parc Auto</div>
+          <NavLink
+            to="/fleet"
+            end
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Icon name="fleet" />
+            </span>
+            <span>Engins</span>
+          </NavLink>
+          <NavLink
+            to="/fleet/shareholders"
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="nav-icon">
+              <Icon name="users" />
+            </span>
+            <span>Actionnaires</span>
           </NavLink>
 
           <div className="nav-section">Configuration</div>
