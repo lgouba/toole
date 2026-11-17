@@ -154,3 +154,74 @@ export async function listAssignableDriversCtrl(req: AuthedRequest, res: Respons
     next(err);
   }
 }
+
+// ---------- Reporting (Lot 2) ----------
+
+const granularityEnum = z.enum(['day', 'month', 'year']);
+const reportQuery = z.object({
+  granularity: granularityEnum.optional(),
+  from: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+  to: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+});
+
+/** Résout granularité + plage [from,to), avec défauts selon la granularité. */
+function parseRange(raw: unknown): { granularity: 'day' | 'month' | 'year'; from: Date; to: Date } {
+  const q = reportQuery.parse(raw);
+  const granularity = q.granularity ?? 'day';
+  const to = q.to ? new Date(q.to) : new Date();
+  let from: Date;
+  if (q.from) {
+    from = new Date(q.from);
+  } else {
+    from = new Date(to);
+    if (granularity === 'year') from.setUTCFullYear(from.getUTCFullYear() - 5);
+    else if (granularity === 'month') from.setUTCMonth(from.getUTCMonth() - 12);
+    else from.setUTCDate(from.getUTCDate() - 30);
+  }
+  return { granularity, from, to };
+}
+
+export async function getVehicleReportCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const { granularity, from, to } = parseRange(req.query);
+    return success(res, await fleet.getVehicleReport(req.params.id, granularity, from, to));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getShareholderReportCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const { granularity, from, to } = parseRange(req.query);
+    return success(res, await fleet.getShareholderReport(req.params.id, granularity, from, to));
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Échappe un champ CSV (guillemets + séparateur + retours ligne). */
+function csvField(v: string | number): string {
+  const s = String(v);
+  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export async function getShareholderReportCsvCtrl(req: AuthedRequest, res: Response, next: NextFunction) {
+  try {
+    const { granularity, from, to } = parseRange(req.query);
+    const report = await fleet.getShareholderReport(req.params.id, granularity, from, to);
+    const header = ['periode', 'courses', 'total_genere', 'gains_livreur'];
+    const lines = [header.join(',')];
+    for (const b of report.series) {
+      lines.push([csvField(b.period), b.courses, b.totalGenere, b.gainsLivreur].join(','));
+    }
+    const csv = lines.join('\n') + '\n';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="releve-${req.params.id}-${granularity}.csv"`,
+    );
+    return res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+}
