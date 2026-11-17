@@ -18,10 +18,31 @@ function assert(cond: boolean, msg: string): void {
 async function main() {
   const tag = `smoke-${Date.now()}`;
   const d1 = await prisma.user.create({
-    data: { phone: `${tag}-d1`, fullName: 'Smoke Driver 1', userType: 'driver' },
+    data: {
+      phone: `${tag}-d1`,
+      fullName: 'Smoke Driver 1',
+      userType: 'driver',
+      driverProfile: { create: { vehicleType: 'moto', verificationStatus: 'verified' } },
+    },
   });
   const d2 = await prisma.user.create({
-    data: { phone: `${tag}-d2`, fullName: 'Smoke Driver 2', userType: 'driver' },
+    data: {
+      phone: `${tag}-d2`,
+      fullName: 'Smoke Driver 2',
+      userType: 'driver',
+      driverProfile: { create: { vehicleType: 'moto', verificationStatus: 'verified' } },
+    },
+  });
+  // Livreur suspendu → non affectable (éligibilité re-vérifiée côté service).
+  const dSusp = await prisma.user.create({
+    data: {
+      phone: `${tag}-ds`,
+      fullName: 'Smoke Driver Suspendu',
+      userType: 'driver',
+      isActive: false,
+      suspendedAt: new Date(),
+      driverProfile: { create: { vehicleType: 'moto', verificationStatus: 'verified' } },
+    },
   });
   const vehicle = await prisma.vehicle.create({
     data: { vehicleType: 'moto', plate: `${tag}-PL`, status: 'en_service', ownerType: 'toole' },
@@ -53,11 +74,20 @@ async function main() {
     }
     assert(threw, 'engin en panne non affectable (VEHICLE_NOT_ASSIGNABLE)');
 
+    let threwDriver = false;
+    try {
+      await assignVehicle(vehicle.id, dSusp.id);
+    } catch (e: any) {
+      threwDriver = e?.code === 'DRIVER_NOT_ASSIGNABLE';
+    }
+    assert(threwDriver, 'livreur suspendu non affectable (DRIVER_NOT_ASSIGNABLE)');
+
     console.log('SMOKE_OK');
   } finally {
     await prisma.vehicleAssignment.deleteMany({ where: { vehicleId: { in: [vehicle.id, broken.id] } } });
     await prisma.vehicle.deleteMany({ where: { id: { in: [vehicle.id, broken.id] } } });
-    await prisma.user.deleteMany({ where: { id: { in: [d1.id, d2.id] } } });
+    await prisma.driverProfile.deleteMany({ where: { userId: { in: [d1.id, d2.id, dSusp.id] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [d1.id, d2.id, dSusp.id] } } });
   }
 }
 

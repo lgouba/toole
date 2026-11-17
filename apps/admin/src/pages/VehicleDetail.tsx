@@ -76,7 +76,13 @@ export default function VehicleDetail() {
       load();
     } catch (e: any) {
       const code = e?.response?.data?.error?.code;
-      setToast(code === 'VEHICLE_NOT_ASSIGNABLE' ? 'Seul un engin en service peut être affecté.' : 'Affectation impossible.');
+      setToast(
+        code === 'VEHICLE_NOT_ASSIGNABLE'
+          ? 'Seul un engin en service peut être affecté.'
+          : code === 'DRIVER_NOT_ASSIGNABLE'
+            ? 'Ce livreur n’est plus affectable (non vérifié, inactif ou suspendu).'
+            : 'Affectation impossible.',
+      );
     } finally {
       setBusy(false);
     }

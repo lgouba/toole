@@ -259,27 +259,52 @@ export async function assignVehicle(
 
   const driver = await prisma.user.findUnique({
     where: { id: driverId },
-    select: { id: true, userType: true },
+    select: {
+      id: true,
+      userType: true,
+      isActive: true,
+      suspendedAt: true,
+      driverProfile: { select: { verificationStatus: true } },
+    },
   });
   if (!driver || driver.userType !== 'driver') {
     throw new HttpError(404, 'NOT_FOUND', 'Livreur introuvable');
   }
+  // L'invariant d'éligibilité vit dans le service (le filtre UI ne suffit pas :
+  // appel API direct, ou livreur suspendu entre le listing et l'affectation).
+  if (
+    !driver.isActive ||
+    driver.suspendedAt ||
+    driver.driverProfile?.verificationStatus !== 'verified'
+  ) {
+    throw new HttpError(
+      409,
+      'DRIVER_NOT_ASSIGNABLE',
+      'Ce livreur n’est pas affectable (non vérifié, inactif ou suspendu).',
+    );
+  }
 
-  return prisma.$transaction(async (tx) => {
-    const now = new Date();
-    await tx.vehicleAssignment.updateMany({
-      where: { vehicleId, endedAt: null },
-      data: { endedAt: now, endedBy: adminId ?? null },
-    });
-    await tx.vehicleAssignment.updateMany({
-      where: { driverId, endedAt: null },
-      data: { endedAt: now, endedBy: adminId ?? null },
-    });
-    return tx.vehicleAssignment.create({
-      data: { vehicleId, driverId, note: note ?? null },
-      include: { driver: { select: { id: true, fullName: true } } },
-    });
-  });
+  // Serializable : empêche deux `assign` concurrents de créer chacun une
+  // affectation active (updateMany ne voit pas le create non committé de l'autre
+  // sous Read Committed). L'une des deux transactions échouera et sera à rejouer.
+  return prisma.$transaction(
+    async (tx) => {
+      const now = new Date();
+      await tx.vehicleAssignment.updateMany({
+        where: { vehicleId, endedAt: null },
+        data: { endedAt: now, endedBy: adminId ?? null },
+      });
+      await tx.vehicleAssignment.updateMany({
+        where: { driverId, endedAt: null },
+        data: { endedAt: now, endedBy: adminId ?? null },
+      });
+      return tx.vehicleAssignment.create({
+        data: { vehicleId, driverId, note: note ?? null },
+        include: { driver: { select: { id: true, fullName: true } } },
+      });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 }
 
 /** Clôt l'affectation active d'un engin. 404 si aucune. */
