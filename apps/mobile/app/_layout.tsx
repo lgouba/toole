@@ -26,6 +26,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import '@/utils/globalErrorHandler';
 import { initSentry, Sentry } from '@/services/sentry';
+import { initAnalytics } from '@/services/analytics';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSettingsStore } from '@/stores/settings.store';
 import { useLocationStore } from '@/stores/location.store';
@@ -48,6 +49,9 @@ export { ErrorBoundary } from 'expo-router';
 // Initialise Sentry des le chargement du module (avant meme le 1er render).
 // Comme ca, meme un crash dans le tout premier rendu est capture.
 initSentry();
+
+// Initialise l'analytics PostHog (prod/preview seulement, no-op en dev).
+initAnalytics();
 
 // On retient le splash jusqu'à ce que l'app soit prête, puis on le masque via
 // SplashScreen.hideAsync (cf. effet). Le splash = logo Toolé centré sur fond vert,
