@@ -3,9 +3,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Button } from '@/components/ui';
 import { Map } from '@/components/map/Map';
-import { GradientButton } from '@/components/aurora/AuroraBits';
-import { AU, AF, glassShadow } from '@/theme/aurora';
+import { HowItWorks } from '@/components/home/HowItWorks';
+import { Reassurance } from '@/components/home/Reassurance';
+import { recap as R, home as H } from '@/theme/recapTokens';
 import { useAuthStore } from '@/stores/auth.store';
 import { useDeliveryStore } from '@/stores/delivery.store';
 import { useLocationStore } from '@/stores/location.store';
@@ -13,39 +15,19 @@ import { getNearbyDriversForMap, MapDriver } from '@/services/driver.service';
 
 const REFRESH_MS = 20_000;
 const ACTIVE_STATUSES = ['accepted', 'picking_up', 'picked_up', 'delivering'];
-const MAP_ZOOM = 13;
-// Décalage (en degrés de latitude) du CENTRE de la carte vers le sud, pour que le
-// halo "zone desservie" (dessiné à la vraie position) REMONTE dans la bande visible
-// entre la carte de salutation (haut) et la feuille lanceur (bas), au lieu d'être
-// masqué par celle-ci. Calibré pour le zoom 13 (~18 m/px → ~0.018° ≈ 100 px de lift).
-const MAP_LIFT_LAT = 0.018;
 
-const STEPS: { title: string }[] = [
-  { title: 'Décris ton colis' },
-  { title: 'Indique le trajet' },
-  { title: "Un livreur s'en charge" },
-];
-
-const REASSURANCE: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { icon: 'flash-outline', label: 'Rapide' },
-  { icon: 'cash-outline', label: 'Paiement à la livraison' },
-  { icon: 'navigate-outline', label: 'Suivi temps réel' },
-];
-
-// Livreurs fictifs (états mélangés) autour de la position — fallback DEV quand le
-// flux réel /drivers/map ne renvoie rien. Jamais en prod (ne pas induire en erreur).
+// Livreurs fictifs (états mélangés) autour de la position — fallback quand le
+// flux réel /drivers/map ne renvoie encore rien (avant déploiement serveur ou
+// zone sans livreur). Reproduit la maquette (motos vertes + grises).
 function mockCouriers(center: { latitude: number; longitude: number }): MapDriver[] {
-  // Étalement resserré au nord du point (dy positif = nord) pour que les motos
-  // décoratives restent dans la bande visible AU-DESSUS de la feuille lanceur,
-  // cohérent avec le halo remonté (MAP_LIFT_LAT).
   const offs = [
-    { dx: 0.012, dy: 0.012, online: true },
-    { dx: -0.015, dy: 0.009, online: true },
-    { dx: 0.006, dy: -0.004, online: false },
-    { dx: -0.009, dy: 0.002, online: true },
-    { dx: 0.018, dy: 0.006, online: false },
-    { dx: -0.004, dy: 0.016, online: true },
-    { dx: 0.01, dy: 0.018, online: false },
+    { dx: 0.012, dy: 0.008, online: true },
+    { dx: -0.015, dy: 0.004, online: true },
+    { dx: 0.006, dy: -0.013, online: false },
+    { dx: -0.009, dy: -0.01, online: true },
+    { dx: 0.018, dy: -0.002, online: false },
+    { dx: -0.004, dy: 0.015, online: true },
+    { dx: 0.01, dy: 0.016, online: false },
   ];
   return offs.map((o, i) => ({
     id: `mock-${i}`,
@@ -55,10 +37,9 @@ function mockCouriers(center: { latitude: number; longitude: number }): MapDrive
 }
 
 /**
- * Accueil client (direction « Aurora », variante « carte héros + feuille basse »).
- * = LANCEUR + surface d'état. Aucune saisie d'adresse : la carte est décorative
- * (livreurs en ligne + zone desservie). Le CTA ouvre l'étape 1 du flux. Logique
- * métier identique à l'ancienne version — seul l'habillage change.
+ * Accueil client = LANCEUR + surface d'état. Aucune saisie d'adresse ici : la
+ * carte est décorative et montre les livreurs en ligne (moto verte). Le CTA
+ * ouvre l'étape 1 du flux ; il ne réutilise aucun composant de saisie.
  */
 export default function ClientHomeScreen() {
   const router = useRouter();
@@ -74,15 +55,8 @@ export default function ClientHomeScreen() {
   const hasActiveDelivery =
     !!activeDelivery && ACTIVE_STATUSES.includes(activeDelivery.status);
 
-  // Vraie position (halo + marqueurs) et centre de carte abaissé (halo remonté).
-  const anchor = getCenter();
-  const mapCenter = useMemo(
-    () => ({ latitude: anchor.latitude - MAP_LIFT_LAT, longitude: anchor.longitude }),
-    [anchor.latitude, anchor.longitude],
-  );
-
-  // Rafraîchit les livreurs proches au focus + toutes les 20s ; coupe le polling
-  // quand l'écran perd le focus (perf / batterie).
+  // Rafraîchit les livreurs (en ligne + hors ligne) proches au focus + toutes
+  // les 20s ; on coupe le polling quand l'écran perd le focus (perf / batterie).
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
     useCallback(() => {
@@ -90,6 +64,9 @@ export default function ClientHomeScreen() {
       const load = async (pos: { latitude: number; longitude: number }) => {
         const drivers = await getNearbyDriversForMap(pos);
         if (cancelled) return;
+        // En PROD on n'affiche que les vrais livreurs (pas de faux qui induisent
+        // en erreur). Le mock (états mélangés) ne sert qu'en développement pour
+        // reproduire la maquette sans backend.
         if (drivers.length > 0) setMapDrivers(drivers);
         else setMapDrivers(__DEV__ ? mockCouriers(pos) : []);
       };
@@ -108,6 +85,7 @@ export default function ClientHomeScreen() {
     }, []),
   );
 
+  // Marqueurs moto : vert (en ligne) / gris (hors ligne).
   const markers = useMemo(
     () =>
       mapDrivers.map((d) => ({
@@ -119,23 +97,20 @@ export default function ClientHomeScreen() {
     [mapDrivers],
   );
 
-  const goPrimary = () =>
-    router.push(hasActiveDelivery ? '/(client)/active-delivery' : '/(client)/new-delivery');
-
   return (
     <View style={styles.container}>
       <Map
-        center={mapCenter}
-        zoom={MAP_ZOOM}
+        center={getCenter()}
+        zoom={13}
         markers={markers}
         theme="soft"
         interactive
-        coverage={{ center: anchor, radiusKm: 6 }}
+        coverage={{ center: getCenter(), radiusKm: 6 }}
       />
 
-      {/* Carte de salutation flottante (haut) */}
+      {/* Salutation flottante */}
       <SafeAreaView edges={['top']} style={styles.topOverlay} pointerEvents="box-none">
-        <View style={styles.greetCard}>
+        <View style={styles.greetingCard}>
           <Text style={styles.greeting}>Bienvenue, {firstName} 👋</Text>
           <Text style={styles.greetingSub}>
             {hasActiveDelivery
@@ -145,41 +120,32 @@ export default function ClientHomeScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Feuille lanceur (bas) */}
+      {/* Panneau onboarding / lanceur */}
       <SafeAreaView edges={['bottom']} style={styles.bottomSafe} pointerEvents="box-none">
-        <View style={styles.sheet}>
-          <GradientButton
-            label={hasActiveDelivery ? 'Suivre ma livraison' : 'Envoyer un colis'}
-            icon={hasActiveDelivery ? 'navigate' : 'cube-outline'}
-            onPress={goPrimary}
+        <View style={styles.panel}>
+          <Button
+            title={hasActiveDelivery ? 'Suivre ma livraison' : 'Envoyer un colis'}
+            onPress={() =>
+              router.push(
+                hasActiveDelivery ? '/(client)/active-delivery' : '/(client)/new-delivery',
+              )
+            }
+            icon={
+              <Ionicons
+                name={hasActiveDelivery ? 'navigate' : 'cube-outline'}
+                size={20}
+                color={H.surface}
+              />
+            }
           />
 
           {!hasActiveDelivery && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.eyebrow}>COMMENT ÇA MARCHE</Text>
-              <View style={styles.steps}>
-                {STEPS.map((s, i) => (
-                  <View key={s.title} style={styles.step}>
-                    <View style={styles.stepNum}>
-                      <Text style={styles.stepNumText}>{i + 1}</Text>
-                    </View>
-                    <Text style={styles.stepTitle} numberOfLines={2}>
-                      {s.title}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.reassurance}>
-                {REASSURANCE.map((r) => (
-                  <View key={r.label} style={styles.reassItem}>
-                    <Ionicons name={r.icon} size={15} color={AU.kola} />
-                    <Text style={styles.reassLabel} numberOfLines={2}>
-                      {r.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.sectionLabel}>COMMENT ÇA MARCHE</Text>
+              <HowItWorks />
+              <View style={styles.divider} />
+              <Reassurance />
             </>
           )}
         </View>
@@ -189,69 +155,46 @@ export default function ClientHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: AU.ground },
-
+  container: { flex: 1, backgroundColor: H.canvas },
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
-  greetCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    backgroundColor: AU.white,
-    borderRadius: 20,
+  greetingCard: {
+    marginHorizontal: R.space.lg,
+    marginTop: R.space.sm,
+    backgroundColor: H.surface,
+    borderRadius: H.radius.card,
     borderWidth: 1,
-    borderColor: AU.hairline,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    ...glassShadow,
+    borderColor: H.border,
+    paddingVertical: R.space.lg,
+    paddingHorizontal: R.space.gut,
+    shadowColor: '#503C0A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  greeting: { fontFamily: AF.dispB, fontSize: 19, color: AU.ink, letterSpacing: -0.3 },
-  greetingSub: { fontFamily: AF.med, fontSize: 12.5, color: AU.muted, marginTop: 2 },
-
+  greeting: { fontFamily: R.font.display, fontSize: 19, color: H.textPrim },
+  greetingSub: { fontFamily: R.font.body, fontSize: 13, color: H.textSec, marginTop: 2 },
   bottomSafe: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  sheet: {
-    marginHorizontal: 10,
-    marginBottom: 8,
-    backgroundColor: AU.white,
-    borderRadius: 28,
+  panel: {
+    marginHorizontal: R.space.md,
+    marginBottom: R.space.sm,
+    backgroundColor: H.surface,
+    borderRadius: H.radius.sheet,
     borderWidth: 1,
-    borderColor: AU.hairline,
-    padding: 16,
-    gap: 13,
-    ...glassShadow,
+    borderColor: H.border,
+    padding: R.space.gut,
+    gap: R.space.md,
+    shadowColor: '#503C0A',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  divider: { height: 1, backgroundColor: AU.hairline },
-  eyebrow: {
-    fontFamily: AF.mono,
+  divider: { height: 1, backgroundColor: H.border },
+  sectionLabel: {
+    fontFamily: R.font.mono,
     fontSize: 9.5,
-    letterSpacing: 1.8,
-    color: AU.faint,
+    letterSpacing: 1.4,
+    color: H.textMuted,
   },
-
-  steps: { flexDirection: 'row', gap: 8 },
-  step: { flex: 1, alignItems: 'center', gap: 5 },
-  stepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E9F2EC',
-    borderWidth: 1,
-    borderColor: '#D4E6DA',
-  },
-  stepNumText: { fontFamily: AF.dispB, fontSize: 12, color: AU.kola },
-  stepTitle: { fontFamily: AF.bold, fontSize: 11, color: AU.ink, textAlign: 'center', lineHeight: 14 },
-
-  reassurance: { flexDirection: 'row', gap: 6 },
-  reassItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F2F5F7',
-    borderWidth: 1,
-    borderColor: AU.hairline,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  reassLabel: { fontFamily: AF.med, fontSize: 9.5, color: AU.muted, textAlign: 'center' },
 });
