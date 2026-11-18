@@ -6,6 +6,16 @@ import * as adminService from '../services/admin.service.js';
 import { prisma } from '../lib/prisma.js';
 import { broadcastPush, type BroadcastTarget } from '../services/push.service.js';
 import { logger } from '../lib/logger.js';
+import { env } from '../config/env.js';
+import {
+  ACCESS_COOKIE_NAME,
+  accessCookieOptions,
+  durationToMs,
+} from '../lib/authToken.js';
+
+const isProd = env.NODE_ENV === 'production';
+// maxAge du cookie = durée de vie de l'access token (repli 15 min).
+const accessMaxAgeMs = durationToMs(env.JWT_ACCESS_EXPIRES_IN, 15 * 60 * 1000);
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -20,6 +30,15 @@ export async function adminLoginCtrl(
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await adminService.adminLogin(email, password);
+    // Socle cookie admin (compat ascendante) : on POSE le cookie HttpOnly EN PLUS
+    // de renvoyer l'accessToken dans le body. L'admin continue d'utiliser le
+    // header Bearer (localStorage) ; le cookie n'est pas encore requis. Cf.
+    // lib/authToken.ts et la bascule future (CORS_ORIGIN + retrait du header).
+    res.cookie(
+      ACCESS_COOKIE_NAME,
+      result.accessToken,
+      accessCookieOptions(isProd, accessMaxAgeMs),
+    );
     return success(res, {
       user: {
         id: result.user.id,
@@ -30,6 +49,25 @@ export async function adminLoginCtrl(
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Logout admin : efface le cookie HttpOnly. Idempotent (toujours 200).
+ * Le client efface de son côté le token localStorage (compat). clearCookie doit
+ * recevoir les MÊMES attributs (sauf maxAge) que le cookie posé, sinon certains
+ * navigateurs ne l'effacent pas.
+ */
+export async function adminLogoutCtrl(
+  _req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    res.clearCookie(ACCESS_COOKIE_NAME, accessCookieOptions(isProd));
+    return success(res, { ok: true });
   } catch (err) {
     next(err);
   }

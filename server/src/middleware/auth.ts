@@ -3,6 +3,7 @@ import { verifyAccessToken } from '../lib/jwt.js';
 import { HttpError } from '../utils/response.js';
 import { prisma } from '../lib/prisma.js';
 import { User } from '@prisma/client';
+import { extractAuthToken } from '../lib/authToken.js';
 
 export interface AuthedRequest extends Request {
   user?: User;
@@ -15,11 +16,13 @@ export async function authRequired(
   next: NextFunction,
 ) {
   try {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) {
+    // Compat ascendante : header `Authorization: Bearer` PRIORITAIRE, sinon
+    // cookie HttpOnly `toole_admin_token`. Tant que l'admin envoie le header,
+    // le cookie n'est jamais utilisé. Cf. lib/authToken.ts.
+    const token = extractAuthToken(req.headers.authorization, req.cookies);
+    if (!token) {
       throw new HttpError(401, 'UNAUTHORIZED', 'Missing Authorization header');
     }
-    const token = header.slice('Bearer '.length);
     const payload = verifyAccessToken(token);
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (!user || !user.isActive) {

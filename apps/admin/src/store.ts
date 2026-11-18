@@ -71,6 +71,9 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    // Efface le cookie HttpOnly côté serveur (best-effort, non bloquant) en plus
+    // du token localStorage. Cf. server/src/lib/authToken.ts.
+    api.post('/admin/logout').catch(() => {});
     tokenStorage.clear();
     Sentry.setUser(null);
     set({ user: null });

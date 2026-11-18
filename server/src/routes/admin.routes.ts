@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authRequired, requireRole } from '../middleware/auth.js';
 import {
   adminLoginCtrl,
+  adminLogoutCtrl,
   getMeAdminCtrl,
   statsCtrl,
   listUsersCtrl,
@@ -43,6 +44,10 @@ const router = Router();
 
 // Public login (admin) — rate-limited contre le brute-force du password
 router.post('/login', adminLoginLimiter, adminLoginCtrl);
+
+// Logout : public et idempotent (efface le cookie HttpOnly même si le token a
+// expiré). Ne nécessite pas d'être derrière le mur authRequired.
+router.post('/logout', adminLogoutCtrl);
 
 // Toutes les autres routes exigent role admin
 router.use(authRequired, requireRole('admin'));

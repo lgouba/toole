@@ -13,6 +13,13 @@ export const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
+  // ⚠️ BASCULE COOKIE (NE PAS activer isolément) : décommenter `withCredentials`
+  // UNIQUEMENT en même temps que, côté serveur, `CORS_ORIGIN=https://admin-toole.qalitylabs.fr`
+  // (→ credentials:true). Sinon, avec CORS_ORIGIN='*', le serveur renvoie
+  // credentials:false : le navigateur rejette toute requête withCredentials et
+  // ignore le Set-Cookie → l'admin casse. Tant que le header Bearer est envoyé,
+  // l'auth fonctionne sans cookie. Cf. server/src/lib/authToken.ts.
+  // withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
