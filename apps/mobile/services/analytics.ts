@@ -16,10 +16,10 @@ import {
   sanitizeProps,
 } from './analytics.events';
 
-// Clé projet PostHog (publique, comme le DSN Sentry) + host Cloud EU.
-// ⚠️ PLACEHOLDER : remplacer par la vraie clé `phc_...` fournie par le projet
-// PostHog Cloud EU. Tant que c'est le placeholder, l'init est skippée (no-op).
-const POSTHOG_KEY = 'phc_PLACEHOLDER';
+// Clé projet PostHog (publique/écriture seule, comme le DSN Sentry) + host Cloud EU.
+// Projet 357345 (eu.posthog.com). Cette clé ne peut qu'ENVOYER des events, pas
+// lire les données ni administrer.
+const POSTHOG_KEY = 'phc_xCwCtPyoUnFqngFqbVD3LjzmpLbiDjVY7duSM32Hh2NS';
 const POSTHOG_HOST = 'https://eu.i.posthog.com';
 
 let posthog: PostHog | null = null;
