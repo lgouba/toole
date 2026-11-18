@@ -18,6 +18,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { Delivery, PACKAGE_LABELS } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
+import { track } from '@/services/analytics';
 import { resolveUploadUrl } from '@/services/upload.service';
 import { formatCFA, formatDateTime, formatDistance } from '@/utils/format';
 import { openPhone } from '@/utils/linking';
@@ -92,7 +93,13 @@ export default function DeliveryDetailScreen() {
             isSender ? 'client_cancelled' : 'driver_unavailable',
           );
           setCancelling(false);
-          if (updated) setDelivery(updated);
+          if (updated) {
+            track('delivery_cancelled', {
+              delivery_id: delivery.id,
+              by: isSender ? 'client' : 'driver',
+            });
+            setDelivery(updated);
+          }
         },
       },
     ]);
