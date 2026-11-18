@@ -288,6 +288,23 @@ export async function findNearbyDrivers(
   return results;
 }
 
+/**
+ * Nombre de livreurs OPÉRATIONNELS EN LIGNE, indépendamment de leur position
+ * et de la fraîcheur de celle-ci. Sert au diagnostic de matching : distinguer
+ * « personne en ligne » (attendu) de « des livreurs en ligne mais tous filtrés »
+ * (position périmée / hors zone) dans findNearbyDrivers. Mêmes gardes que le
+ * matching (isOnline + activation admin + KYC exploitable), SANS filtre géo/récence.
+ */
+export async function countOperationalOnlineDrivers(): Promise<number> {
+  return prisma.driverProfile.count({
+    where: {
+      isOnline: true,
+      verificationStatus: { in: ['verified', 'pending'] },
+      user: { isActive: true },
+    },
+  });
+}
+
 export interface MapDriver {
   id: string;
   lat: number;

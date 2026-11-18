@@ -16,7 +16,13 @@ import {
 import { calculatePrice } from '../utils/pricing.js';
 import { HttpError } from '../utils/response.js';
 import { emitToUser, emitToUsers } from './notification.service.js';
-import { findNearbyDrivers, notifyPendingDeliveriesToDriver } from './driver.service.js';
+import {
+  findNearbyDrivers,
+  notifyPendingDeliveriesToDriver,
+  countOperationalOnlineDrivers,
+} from './driver.service.js';
+import { classifyNoMatch, type NoMatchInput } from './matching-diagnostics.js';
+import { Sentry } from '../lib/sentry.js';
 import { sendPushToUser } from './push.service.js';
 import { logger } from '../lib/logger.js';
 import { logDriverLocation } from './location-log.service.js';
@@ -363,6 +369,40 @@ export async function processScheduledDeliveries() {
   }
 }
 
+/**
+ * Observabilité prod : remonte à Sentry (niveau warning) le fait qu'une course
+ * n'a trouvé aucun livreur à notifier, avec la RAISON (personne en ligne /
+ * en ligne mais filtrés / tous occupés). Groupé par raison via fingerprint →
+ * 3 issues max dans Sentry, pas une par course. Ne jette jamais : l'observabilité
+ * ne doit pas casser le matching. No-op en dev (Sentry non initialisé).
+ */
+function reportNoMatch(delivery: Delivery, input: NoMatchInput): void {
+  try {
+    const verdict = classifyNoMatch(input);
+    if (!verdict?.report) return;
+
+    const round = (n: number) => Math.round(n * 100) / 100; // ~1 km, jamais la position exacte
+    Sentry.withScope((scope) => {
+      scope.setLevel('warning');
+      scope.setTag('matching', 'no_driver');
+      scope.setTag('reason', verdict.reason);
+      scope.setContext('matching', {
+        deliveryId: delivery.id,
+        reason: verdict.reason,
+        nearbyCount: input.nearbyCount,
+        onlineCount: input.onlineCount,
+        eligibleCount: input.eligibleCount,
+        pickupLatApprox: round(delivery.pickupLat),
+        pickupLngApprox: round(delivery.pickupLng),
+      });
+      scope.setFingerprint(['no-driver-matched', verdict.reason]);
+      Sentry.captureMessage('Aucun livreur notifié pour une course');
+    });
+  } catch (err) {
+    logger.error({ err, deliveryId: delivery.id }, 'reportNoMatch failed (non bloquant)');
+  }
+}
+
 async function notifyNearbyDrivers(
   delivery: Delivery,
   options: { excludeDriverIds?: string[] } = {},
@@ -375,10 +415,12 @@ async function notifyNearbyDrivers(
     radiusKm,
   );
   if (drivers.length === 0) {
+    const onlineCount = await countOperationalOnlineDrivers();
     logger.info(
-      { deliveryId: delivery.id },
+      { deliveryId: delivery.id, onlineCount },
       'Notified nearby drivers (no drivers in zone)',
     );
+    reportNoMatch(delivery, { nearbyCount: 0, onlineCount, eligibleCount: 0 });
     return;
   }
 
@@ -456,6 +498,11 @@ async function notifyNearbyDrivers(
       { deliveryId: delivery.id, nearby: drivers.length },
       'Notified nearby drivers (all currently busy beyond chaining threshold)',
     );
+    reportNoMatch(delivery, {
+      nearbyCount: drivers.length,
+      onlineCount: drivers.length,
+      eligibleCount: 0,
+    });
     return;
   }
 
