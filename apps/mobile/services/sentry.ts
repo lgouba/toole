@@ -59,6 +59,11 @@ export function initSentry() {
     // Si le volume devient gros plus tard, descendre a 0.5 ou 0.1.
     sampleRate: 1.0,
 
+    // Release health : suivi de sessions -> taux de sessions/users SANS crash
+    // (crash-free rate) par release dans Sentry. KPI de stabilite pour piloter
+    // les ameliorations sans degrader l'app. (Defaut v8, rendu explicite.)
+    enableAutoSessionTracking: true,
+
     // Tracing : capture les performances (HTTP, navigation) sur 20% des sessions.
     // 1.0 serait trop verbeux et consumerait le quota gratuit Sentry trop vite.
     tracesSampleRate: 0.2,
