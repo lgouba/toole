@@ -6,6 +6,7 @@ import * as authService from '@/services/auth.service';
 import * as userService from '@/services/user.service';
 import { disconnectSocket } from '@/services/socket.client';
 import { Sentry } from '@/services/sentry';
+import { identifyUser, resetAnalytics } from '@/services/analytics';
 
 /**
  * Donnees collectees pendant le flow d'inscription, conservees entre les
@@ -159,6 +160,7 @@ export const useAuthStore = create<AuthState>()(
           const result = await authService.verifyOtp(get().phoneNumber, code);
           if (result.success && result.user) {
             set({ user: result.user, isAuthenticated: true, isLoading: false });
+            identifyUser(result.user);
           } else {
             set({ isLoading: false });
           }
@@ -189,6 +191,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             lastOtpCode: '',
           });
+          identifyUser(user);
           return { success: true } as const;
         } catch (err: any) {
           set({ isLoading: false });
@@ -233,6 +236,7 @@ export const useAuthStore = create<AuthState>()(
             id: fresh.id,
             username: fresh.userType,
           });
+          identifyUser(fresh);
         } catch (err: any) {
           // Si 401 (token invalide) -> logout propre.
           // Sinon (timeout, réseau, 5xx...) on ne fait rien, le user en cache reste utilisable.
@@ -243,6 +247,7 @@ export const useAuthStore = create<AuthState>()(
             } catch {
               /* ignore */
             }
+            resetAnalytics();
             set({
               user: null,
               isAuthenticated: false,
@@ -259,6 +264,7 @@ export const useAuthStore = create<AuthState>()(
         // Reset l'user Sentry au logout (les crashs suivants ne seront pas
         // attribues a l'ancien user).
         Sentry.setUser(null);
+        resetAnalytics();
         set({
           user: null,
           isAuthenticated: false,
