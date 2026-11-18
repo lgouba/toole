@@ -7,6 +7,7 @@ import {
   LatLng,
 } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
+import { track } from '@/services/analytics';
 
 /**
  * UUID v4 léger (sans dépendance). Sert uniquement de clé d'idempotence côté
@@ -74,6 +75,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       }
       const delivery = await deliveryService.createDelivery(get().draft, senderId);
       set({ activeDelivery: delivery, isLoading: false, draft: {} });
+      track('delivery_created', { delivery_id: delivery.id });
       return delivery;
     } catch (err) {
       set({ isLoading: false });
@@ -135,6 +137,10 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       const updated = await deliveryService.updateDeliveryStatus(deliveryId, status);
       if (updated) {
         set({ activeDelivery: updated });
+        // Annulation côté client (ex. pendant la recherche de livreur).
+        if (status === 'cancelled') {
+          track('delivery_cancelled', { delivery_id: deliveryId, by: 'client' });
+        }
       }
     } catch {
       // silencieux

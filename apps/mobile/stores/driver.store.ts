@@ -5,6 +5,7 @@ import { Delivery, LatLng } from '@/types';
 import * as deliveryService from '@/services/delivery.service';
 import * as driverService from '@/services/driver.service';
 import { BG_LOCATION_TASK } from '@/services/locationTask';
+import { track } from '@/services/analytics';
 
 interface DriverState {
   isOnline: boolean;
@@ -208,6 +209,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
           isOnline: true,
           ...(initialLoc ? { currentLocation: initialLoc } : {}),
         });
+        track('driver_online');
 
         // Lance le suivi GPS en arrière-plan (continue écran éteint / app
         // fermée). La tâche pousse la position et met à jour currentLocation.
@@ -231,6 +233,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       // même quand le livreur est hors ligne (récupération GPS hors-line
       // via expo-location au besoin).
       set({ isOnline: false });
+      track('driver_offline');
     }
   },
 
@@ -263,6 +266,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     const updated = await deliveryService.updateDeliveryStatus(currentRequest.id, 'accepted');
     if (updated) {
       set({ activeDelivery: updated, currentRequest: null });
+      track('delivery_accepted', { delivery_id: currentRequest.id });
       return true;
     }
     // Échec (course déjà prise par un autre livreur / indisponible / réseau) :
@@ -315,6 +319,9 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         todayDeliveries: state.todayDeliveries + 1,
         todayEarnings: state.todayEarnings + (result.delivery!.driverCommission || 0),
       }));
+      // Vrai moment "livré" = code destinataire validé (pas confirmDelivery, qui
+      // ne fait que nettoyer l'état UI ensuite).
+      track('delivery_delivered', { delivery_id: result.delivery.id });
     }
     return result.success;
   },
@@ -340,6 +347,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       // updated peut revenir avec status 'pending' (remise en file) ou 'cancelled'
       if (updated) {
         set({ activeDelivery: null, currentRequest: null });
+        track('delivery_cancelled', { delivery_id: activeDelivery.id, by: 'driver' });
         return true;
       }
     } catch (err: any) {

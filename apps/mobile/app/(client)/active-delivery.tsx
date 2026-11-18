@@ -22,6 +22,7 @@ import { openPhone } from '@/utils/linking';
 import { useMessageStore } from '@/stores/message.store';
 import { formatEta, formatDistance } from '@/utils/format';
 import { getDeliveryById, getDeliveryRoute, cancelDelivery } from '@/services/delivery.service';
+import { track } from '@/services/analytics';
 import { getDriverById } from '@/services/driver.service';
 import { LatLng } from '@/types';
 import { TRACKING_BASE_URL } from '@/config/api';
@@ -177,6 +178,7 @@ export default function ActiveDeliveryScreen() {
   useEffect(() => {
     if (delivery?.status === 'delivered' && !hasNavigatedToCompleteRef.current) {
       hasNavigatedToCompleteRef.current = true;
+      track('delivery_completed', { delivery_id: delivery.id });
       router.replace('/(client)/delivery-complete');
     }
   }, [delivery?.status, router]);
@@ -342,6 +344,7 @@ export default function ActiveDeliveryScreen() {
             setCancelling(true);
             try {
               await cancelDelivery(delivery.id, 'client_cancel');
+              track('delivery_cancelled', { delivery_id: delivery.id, by: 'client' });
               setActiveDelivery(null);
               router.replace('/(client)');
             } catch (e: any) {

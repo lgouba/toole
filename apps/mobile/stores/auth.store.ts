@@ -6,7 +6,7 @@ import * as authService from '@/services/auth.service';
 import * as userService from '@/services/user.service';
 import { disconnectSocket } from '@/services/socket.client';
 import { Sentry } from '@/services/sentry';
-import { identifyUser, resetAnalytics } from '@/services/analytics';
+import { identifyUser, resetAnalytics, track } from '@/services/analytics';
 
 /**
  * Donnees collectees pendant le flow d'inscription, conservees entre les
@@ -161,6 +161,7 @@ export const useAuthStore = create<AuthState>()(
           if (result.success && result.user) {
             set({ user: result.user, isAuthenticated: true, isLoading: false });
             identifyUser(result.user);
+            track('login_completed', { role: result.user.userType });
           } else {
             set({ isLoading: false });
           }
@@ -192,6 +193,7 @@ export const useAuthStore = create<AuthState>()(
             lastOtpCode: '',
           });
           identifyUser(user);
+          track('signup_completed', { role: user.userType });
           return { success: true } as const;
         } catch (err: any) {
           set({ isLoading: false });
