@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { env } from '../config/env.js';
 
 /**
@@ -31,6 +32,34 @@ export function canonicalUploadPath(value: string): string {
   return q === -1 ? value : value.slice(0, q);
 }
 
+/**
+ * Normalise un chemin d'URL EXACTEMENT comme `express.static`/`send` le
+ * résoudra réellement sur le disque, pour décider de la garde KYC AVANT la
+ * servie statique. Sans ça, une garde montée en préfixe (`/uploads/kyc`) peut
+ * être sautée par une forme d'URL que le static normalise quand même vers un
+ * fichier KYC (`/uploads//kyc/x`, `/uploads/kyc%2fx`, `/uploads/./kyc/x`…),
+ * ce qui servirait la pièce d'identité sans signature valide.
+ *
+ * Réplique ce que `send` fait : un décodage %xx (une seule passe), puis
+ * effondrement des slashes multiples, puis normalisation POSIX (résout `.`/`..`).
+ * En cas de séquence % invalide, on garde la chaîne telle quelle (send
+ * rejetterait l'accès de toute façon) ; la garde doit alors être conservatrice.
+ */
+export function normalizeServedUploadPath(rawPath: string): string {
+  const q = rawPath.indexOf('?');
+  let p = q === -1 ? rawPath : rawPath.slice(0, q);
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // Séquence % invalide : on ne décode pas. `send` renverra une erreur, mais
+    // on ne doit pas « rater » un chemin KYC pour autant.
+  }
+  // Effondre les slashes multiples (`//` → `/`) puis résout `.`/`..`.
+  p = p.replace(/\/{2,}/g, '/');
+  p = path.posix.normalize(p);
+  return p;
+}
+
 function computeSig(path: string, exp: number): string {
   return crypto
     .createHmac('sha256', SECRET)
@@ -53,6 +82,30 @@ export function signKycUrl(
   const exp = Date.now() + ttlMs;
   const sig = computeSig(path, exp);
   return `${path}?exp=${exp}&sig=${sig}`;
+}
+
+/**
+ * Décision de servie pour une requête vers `/uploads`, appliquée AVANT
+ * `express.static`. La garde KYC opère sur le chemin NORMALISÉ (cf.
+ * normalizeServedUploadPath) : impossible de la contourner avec une forme
+ * d'URL exotique (`//kyc`, `kyc%2f`, `./kyc`, `..`) qui résout quand même vers
+ * un fichier KYC. Renvoie true si l'accès est autorisé (fichier public
+ * avatars/packages, ou KYC avec signature `?exp&sig` valide et non expirée),
+ * false si le serveur doit répondre 403.
+ *
+ * @param servedPath chemin complet de style `/uploads/...` (query possible)
+ */
+export function isUploadAccessAllowed(
+  servedPath: string,
+  exp?: string,
+  sig?: string,
+): boolean {
+  const normalized = normalizeServedUploadPath(servedPath);
+  // Seuls les KYC sont protégés ; avatars/packages restent publics.
+  if (!normalized.startsWith('/uploads/kyc/')) return true;
+  // La signature est calculée sur le chemin canonique `/uploads/kyc/<fichier>`
+  // (cf. signKycUrl) ; le chemin normalisé lui est égal, d'où le match.
+  return verifyKycSignature(normalized, exp, sig);
 }
 
 /** Valide la signature d'un accès fichier KYC (query exp+sig sur ce path). */

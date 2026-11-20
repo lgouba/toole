@@ -38,7 +38,7 @@ import {
 } from './services/delivery.service.js';
 import { markStaleDriversOffline } from './services/driver.service.js';
 import { globalLimiter } from './middleware/rateLimit.js';
-import { verifyKycSignature } from './lib/signedUpload.js';
+import { isUploadAccessAllowed } from './lib/signedUpload.js';
 
 const app = express();
 
@@ -80,13 +80,17 @@ fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
 
 // GARDE KYC : les pièces d'identité (/uploads/kyc/*) ne sont PAS publiques.
 // Elles ne sont servies que via une URL SIGNÉE (?exp&sig) émise par le serveur
-// au moment du renvoi (upload, /drivers/me/kyc, détail admin). Monté AVANT le
-// static pour intercepter ces chemins. Les avatars/packages restent publics.
-app.use('/uploads/kyc', (req, res, next) => {
-  const fullPath = '/uploads/kyc' + req.path;
+// au moment du renvoi (upload, /drivers/me/kyc, détail admin). Les
+// avatars/packages restent publics.
+//
+// ⚠️ La garde est montée sur `/uploads` (PAS sur le préfixe `/uploads/kyc`) et
+// décide sur le chemin NORMALISÉ (cf. isUploadAccessAllowed) : une garde en
+// préfixe se contourne avec `/uploads//kyc/x` ou `/uploads/kyc%2Fx`, formes que
+// `express.static` résout quand même vers le fichier KYC → fuite non signée.
+app.use('/uploads', (req, res, next) => {
   if (
-    verifyKycSignature(
-      fullPath,
+    isUploadAccessAllowed(
+      '/uploads' + req.url,
       req.query.exp as string | undefined,
       req.query.sig as string | undefined,
     )
