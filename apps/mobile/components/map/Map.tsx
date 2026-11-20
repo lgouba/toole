@@ -10,6 +10,7 @@ import { WebView } from 'react-native-webview';
 import { LatLng } from '@/types';
 import { colors } from '@/theme';
 import { RIDER_MARKER_URI } from './riderMarker';
+import { escapeHtmlForWebView } from './webviewEscape';
 
 export interface MapMarker {
   id: string;
@@ -201,7 +202,7 @@ function buildHtml(
                 iconAnchor: [28, 66],
               }),
             }).addTo(map);
-            ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
+            ${m.label ? `marker.bindPopup(${JSON.stringify(escapeHtmlForWebView(m.label))});` : ''}
             window._markers[${JSON.stringify(m.id)}] = marker;
             // Memorise la position précédente pour calculer le bearing au prochain update
             window._prevPositions = window._prevPositions || {};
@@ -237,7 +238,7 @@ function buildHtml(
               iconAnchor: [19, 19],
             }),
           }).addTo(map);
-          ${m.label ? `marker.bindPopup(${JSON.stringify(m.label)});` : ''}
+          ${m.label ? `marker.bindPopup(${JSON.stringify(escapeHtmlForWebView(m.label))});` : ''}
           window._markers[${JSON.stringify(m.id)}] = marker;
         }
       `;
