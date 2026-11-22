@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api.client';
 import { uploadImage, resolveUploadUrl } from '@/services/upload.service';
+import { getMe } from '@/services/user.service';
 import { formatPhone } from '@/utils/format';
 
 /**
@@ -40,6 +41,17 @@ export default function ProfileEditScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Recharge le profil frais au montage : le `user` du store peut etre perime
+  // (email set apres le login) -> le champ email s'affichait vide a tort.
+  useEffect(() => {
+    getMe()
+      .then((fresh) => {
+        setEmail(fresh.email ?? '');
+        setAvatarUrl(fresh.avatarUrl ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   if (!user) return null;
 
