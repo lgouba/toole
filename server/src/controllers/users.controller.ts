@@ -79,13 +79,12 @@ export async function deleteMe(
   }
 }
 
-// Préférences utilisateur (notifications par catégorie + canal OTP).
-// Clés courtes côté API, mappées vers les colonnes User.
+// Préférences de notifications par catégorie. Clés courtes côté API, mappées
+// vers les colonnes User.
 const preferencesSchema = z.object({
   newDeliveries: z.boolean().optional(),
   deliveryUpdates: z.boolean().optional(),
   promotions: z.boolean().optional(),
-  preferredOtpChannel: z.enum(['sms', 'email']).nullable().optional(),
 });
 
 export async function updatePreferences(
@@ -99,7 +98,6 @@ export async function updatePreferences(
     if (p.newDeliveries !== undefined) data.notifNewDeliveries = p.newDeliveries;
     if (p.deliveryUpdates !== undefined) data.notifDeliveryUpdates = p.deliveryUpdates;
     if (p.promotions !== undefined) data.notifPromotions = p.promotions;
-    if (p.preferredOtpChannel !== undefined) data.preferredOtpChannel = p.preferredOtpChannel;
 
     const user = await prisma.user.update({
       where: { id: req.user!.id },
@@ -108,7 +106,6 @@ export async function updatePreferences(
         notifNewDeliveries: true,
         notifDeliveryUpdates: true,
         notifPromotions: true,
-        preferredOtpChannel: true,
       },
     });
     return success(res, user);
