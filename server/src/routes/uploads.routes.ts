@@ -12,7 +12,7 @@ import { signKycUrl } from '../lib/signedUpload.js';
 const UPLOAD_ROOT = process.env.UPLOAD_DIR ?? '/app/uploads';
 
 // S'assurer que le dossier existe
-for (const sub of ['avatars', 'packages', 'kyc']) {
+for (const sub of ['avatars', 'packages', 'kyc', 'reports']) {
   fs.mkdirSync(path.join(UPLOAD_ROOT, sub), { recursive: true });
 }
 
@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     // La sous-categorie est passee dans le path: /uploads/:category
     const category = (req.params as { category?: string }).category ?? 'misc';
-    const allowed = ['avatars', 'packages', 'kyc'];
+    const allowed = ['avatars', 'packages', 'kyc', 'reports'];
     const dest = allowed.includes(category) ? category : 'misc';
     cb(null, path.join(UPLOAD_ROOT, dest));
   },

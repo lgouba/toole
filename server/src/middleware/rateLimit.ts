@@ -192,6 +192,26 @@ export const validateCodeLimiter = rateLimit({
 });
 
 /**
+ * Limit de création de tickets support (route authentifiée). Clé par
+ * utilisateur (fallback IP). Max 10 tickets / 15 min — large pour un usage
+ * normal, coupe le spam de réclamations.
+ */
+export const supportCreateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const uid = (req as Request & { user?: { id?: string } }).user?.id;
+    if (uid) return `support:${uid}`;
+    return ipKeyGenerator(req.ip ?? 'unknown');
+  },
+  handler: tooManyResponse(
+    'Trop de demandes envoyées. Réessayez dans quelques minutes.',
+  ),
+});
+
+/**
  * Limit pour brute-force du login admin (mot de passe).
  * Max 10 tentatives par IP par 15 min.
  */
