@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
@@ -21,6 +22,12 @@ export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const [notifEnabled, setNotifEnabled] = useState(true);
   const [deleting, setDeleting] = useState(false);
+
+  // Version réelle de l'app (évite un numéro codé en dur qui se périme).
+  const appVersion =
+    Constants.expoConfig?.version ??
+    (Constants.manifest as any)?.version ??
+    '1.0.0';
 
   if (!user) return null;
 
@@ -87,31 +94,6 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        <Text style={styles.sectionLabel}>Informations</Text>
-        <Card style={styles.section}>
-          <TouchableOpacity style={styles.row} activeOpacity={0.6}>
-            <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-            <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>
-              Conditions d'utilisation
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-          <View style={styles.separator} />
-          <TouchableOpacity style={styles.row} activeOpacity={0.6}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
-            <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>
-              Politique de confidentialité
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-          <View style={styles.separator} />
-          <TouchableOpacity style={styles.row} activeOpacity={0.6}>
-            <Ionicons name="help-circle-outline" size={20} color={colors.textSecondary} />
-            <Text style={[styles.rowTitle, { marginLeft: spacing.sm }]}>Aide / Contact</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </Card>
-
         <Text style={styles.sectionLabel}>Compte</Text>
         <Card style={styles.section}>
           <TouchableOpacity
@@ -140,7 +122,7 @@ export default function SettingsScreen() {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.version}>Toolé v1.0.0</Text>
+          <Text style={styles.version}>Toolé v{appVersion}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
