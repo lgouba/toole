@@ -21,7 +21,7 @@ import { useAuth } from '../store';
  *    s'il est présent, sinon on redirige vers le tableau de bord.
  */
 
-const SUPPORT_EMAIL = 'support@qalitylabs.fr';
+const SUPPORT_EMAIL = 'contact-toole@qalitylabs.fr';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Fenêtre du limiter serveur (`adminLoginLimiter`: 10 essais / 15 min).
 const DEFAULT_LOCK_SEC = 15 * 60;
