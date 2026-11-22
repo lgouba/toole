@@ -3,7 +3,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { API_BASE_URL } from '@/config/api';
 import { tokenStorage } from './api.client';
 
-export type UploadCategory = 'avatars' | 'packages' | 'kyc';
+export type UploadCategory = 'avatars' | 'packages' | 'kyc' | 'reports';
 
 export interface UploadResult {
   url: string; // chemin relatif type "/uploads/packages/xxx.jpg"

@@ -168,6 +168,32 @@ export default function AboutScreen() {
           </TouchableOpacity>
         </Card>
 
+        {/* Demandes / réclamations */}
+        <Text style={styles.sectionTitle}>Une demande ?</Text>
+        <Card style={styles.card}>
+          <TouchableOpacity
+            style={styles.rowSimple}
+            onPress={() => router.push('/support' as any)}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+            <Text style={styles.rowSimpleLabel}>Envoyer une demande</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.separator} />
+
+          <TouchableOpacity
+            style={styles.rowSimple}
+            onPress={() => router.push('/support-tickets' as any)}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="file-tray-full-outline" size={20} color={colors.textSecondary} />
+            <Text style={styles.rowSimpleLabel}>Mes demandes</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </Card>
+
         {/* Légal */}
         <Text style={styles.sectionTitle}>Informations légales</Text>
         <Card style={styles.card}>
