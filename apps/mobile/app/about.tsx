@@ -50,14 +50,12 @@ export default function AboutScreen() {
     }
   })();
 
+  // iOS renvoie souvent `canOpenURL(false)` a tort pour mailto:/tel: (aucun
+  // compte mail configure, ou URL contenant un caractere accentue). On tente
+  // donc openURL directement et on n'affiche le fallback que sur vraie erreur.
   const openUrl = async (url: string, fallbackMessage: string) => {
     try {
-      const can = await Linking.canOpenURL(url);
-      if (can) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('Action impossible', fallbackMessage);
-      }
+      await Linking.openURL(url);
     } catch {
       Alert.alert('Action impossible', fallbackMessage);
     }
@@ -66,7 +64,9 @@ export default function AboutScreen() {
   const callSupport = () => openUrl(`tel:${SUPPORT_PHONE}`, 'Impossible d\'ouvrir le composeur.');
   const emailSupport = () =>
     openUrl(
-      `mailto:${SUPPORT_EMAIL}?subject=Demande%20support%20Toolé`,
+      // encodeURIComponent : le « é » de Toolé doit etre encode, sinon l'URL
+      // mailto est invalide et l'app mail ne s'ouvre pas.
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Demande support Toolé')}`,
       "Impossible d'ouvrir l'application mail.",
     );
   const whatsappSupport = () => {
