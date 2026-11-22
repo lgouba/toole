@@ -157,6 +157,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Tap sur une notif de demande support traitée -> ouvre "Mes demandes".
+      if (type === 'support_resolved') {
+        routerRef.current.push('/support-tickets' as any);
+        return;
+      }
+
       if (user!.userType === 'driver') {
         if (type === 'new_request' || type === 'pending_batch') {
           // Recharge la course dans le store driver pour que la
