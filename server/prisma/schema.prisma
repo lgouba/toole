@@ -115,6 +115,19 @@ model User {
   isActive      Boolean   @default(true)
   suspendedAt   DateTime?
   suspendReason String?
+
+  /// Préférences de notifications par catégorie. Additifs (défaut true), donc
+  /// safe pour `prisma db push` sans --accept-data-loss. Lus à l'envoi d'un push
+  /// (cf. lib/notificationCategory.ts). Les notifs compte/portefeuille ne sont
+  /// jamais filtrées (catégorie 'always').
+  notifNewDeliveries   Boolean @default(true)
+  notifDeliveryUpdates Boolean @default(true)
+  notifPromotions      Boolean @default(true)
+
+  /// Canal préféré pour recevoir les codes OTP ('sms' | 'email'). null = auto
+  /// (comportement actuel : déduit de l'identifiant / choisi à l'envoi).
+  preferredOtpChannel String?
+
   ratingAvg     Decimal   @default(5.0) @db.Decimal(2, 1)
   ratingCount   Int       @default(0)
   createdAt     DateTime  @default(now())

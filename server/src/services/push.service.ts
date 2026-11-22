@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
+import { isPushAllowed } from '../lib/notificationCategory.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -59,6 +60,27 @@ export async function sendPushToUser(
     logger.warn({ userId, title }, 'sendPushToUser: no tokens registered for user');
     return;
   }
+
+  // Filtrage par categorie : respecte les preferences notifications du user
+  // (Parametres mobile). Les categories compte/portefeuille passent toujours
+  // ('always'). Prefs inconnues → envoi permissif. Cf. lib/notificationCategory.
+  const dataType = (data as any)?.type;
+  const prefs = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      notifNewDeliveries: true,
+      notifDeliveryUpdates: true,
+      notifPromotions: true,
+    },
+  });
+  if (!isPushAllowed(dataType, prefs)) {
+    logger.debug(
+      { userId, type: dataType },
+      'Push skipped: user category preference off',
+    );
+    return;
+  }
+
   logger.info(
     { userId, title, tokenCount: tokens.length },
     'Sending push notification',
@@ -69,7 +91,6 @@ export async function sendPushToUser(
   // on demande a iOS de bypass Focus/DND/Mode sommeil. Les notifs
   // informatives ordinaires (gain credite, message admin) restent en
   // priorite normale pour respecter le user.
-  const dataType = (data as any)?.type;
   const isUrgent = [
     'new_request',
     'delivery_cancelled',
@@ -154,9 +175,11 @@ export async function broadcastPush(args: {
         ? { userType: 'driver' as const }
         : {};
 
+  // broadcast = catégorie 'promotions' : on n'envoie qu'aux users qui acceptent
+  // les promotions/actus (préférence Paramètres). Défaut true → inclus par défaut.
   const tokens = await prisma.pushToken.findMany({
     where: {
-      user: { ...userTypeFilter, isActive: true },
+      user: { ...userTypeFilter, isActive: true, notifPromotions: true },
     },
     select: { id: true, token: true, userId: true },
   });

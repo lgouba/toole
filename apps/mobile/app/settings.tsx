@@ -112,6 +112,17 @@ export default function SettingsScreen() {
     }
   };
 
+  // Sous-catégorie : met à jour le store local ET pousse la préférence au serveur
+  // (c'est le serveur qui filtre les push à l'envoi). Best effort : si le réseau
+  // échoue, la pref locale reste et sera resynchronisée au prochain changement.
+  const onToggleCategory = (
+    key: 'newDeliveries' | 'deliveryUpdates' | 'promotions',
+    v: boolean,
+  ) => {
+    notif.setCategory(key, v);
+    api.patch('/users/me/preferences', { [key]: v }).catch(() => {});
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer mon compte',
@@ -175,19 +186,19 @@ export default function SettingsScreen() {
               <CategoryRow
                 label="Nouvelles courses"
                 value={notif.newDeliveries}
-                onChange={(v) => notif.setCategory('newDeliveries', v)}
+                onChange={(v) => onToggleCategory('newDeliveries', v)}
               />
               <View style={styles.separator} />
               <CategoryRow
                 label="Suivi de ma livraison"
                 value={notif.deliveryUpdates}
-                onChange={(v) => notif.setCategory('deliveryUpdates', v)}
+                onChange={(v) => onToggleCategory('deliveryUpdates', v)}
               />
               <View style={styles.separator} />
               <CategoryRow
                 label="Promotions & actus"
                 value={notif.promotions}
-                onChange={(v) => notif.setCategory('promotions', v)}
+                onChange={(v) => onToggleCategory('promotions', v)}
               />
             </>
           )}

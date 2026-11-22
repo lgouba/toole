@@ -4,6 +4,7 @@ import {
   getMe,
   updateMe,
   deleteMe,
+  updatePreferences,
   registerPushTokenCtrl,
   unregisterPushTokenCtrl,
 } from '../controllers/users.controller.js';
@@ -14,6 +15,7 @@ router.use(authRequired);
 router.get('/me', getMe);
 router.put('/me', updateMe);
 router.delete('/me', deleteMe);
+router.patch('/me/preferences', updatePreferences);
 router.post('/push-token', registerPushTokenCtrl);
 router.delete('/push-token', unregisterPushTokenCtrl);
 
