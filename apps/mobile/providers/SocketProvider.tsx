@@ -9,6 +9,7 @@ import { useConnectionStore } from '@/stores/connection.store';
 import { useMessageStore } from '@/stores/message.store';
 import { connectSocket, disconnectSocket, getSocket } from '@/services/socket.client';
 import { syncPushTokenToBackend } from '@/services/push.service';
+import { useNotificationPrefsStore } from '@/stores/notificationPrefs.store';
 import { getDeliveryById } from '@/services/delivery.service';
 import { Delivery, DriverWithProfile } from '@/types';
 import { haptic } from '@/utils/haptics';
@@ -119,7 +120,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated || !user) return;
     if (isExpoGo) return; // Expo Go: on ne touche pas a expo-notifications
 
-    syncPushTokenToBackend();
+    // Respecte la preference globale: si l'utilisateur a coupe les notifications
+    // dans Parametres, on n'enregistre pas le token (lecture non-reactive — le
+    // toggle de Parametres gere lui-meme l'enregistrement/desenregistrement).
+    if (useNotificationPrefsStore.getState().master) {
+      syncPushTokenToBackend();
+    }
 
     // Types client qui doivent ouvrir la page de suivi de la course
     const CLIENT_TRACKING_TYPES = new Set([

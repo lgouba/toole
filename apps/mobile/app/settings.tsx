@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,63 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Linking,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { Card } from '@/components/ui';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { colors, typography, spacing } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
+import { useNotificationPrefsStore } from '@/stores/notificationPrefs.store';
+import {
+  syncPushTokenToBackend,
+  unregisterPushTokenFromBackend,
+} from '@/services/push.service';
+import {
+  describeLocationPermission,
+  type LocationPermissionDescription,
+  type PermissionTone,
+} from '@/utils/locationPermissionLabel';
 import { api } from '@/services/api.client';
+
+const toneColor = (tone: PermissionTone): string =>
+  tone === 'ok' ? colors.primary : tone === 'warn' ? '#B26A00' : colors.error;
+
+/** Ligne de sous-préférence (catégorie de notification) sous le master. */
+function CategoryRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <View style={[styles.row, styles.rowSub]}>
+      <Text style={styles.rowSubTitle}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+  );
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [notifEnabled, setNotifEnabled] = useState(true);
+  const notif = useNotificationPrefsStore();
+  const isDriver = user?.userType === 'driver';
+
   const [deleting, setDeleting] = useState(false);
+  const [locPerm, setLocPerm] = useState<LocationPermissionDescription | null>(null);
 
   // Version réelle de l'app (évite un numéro codé en dur qui se périme).
   const appVersion =
@@ -29,7 +71,46 @@ export default function SettingsScreen() {
     (Constants.manifest as any)?.version ??
     '1.0.0';
 
+  // État réel des permissions de localisation (livreur). Rafraîchi au focus et
+  // au retour de l'app en premier plan (ex. retour des réglages OS).
+  const refreshLocPerm = useCallback(async () => {
+    try {
+      const fg = await Location.getForegroundPermissionsAsync();
+      const bg = await Location.getBackgroundPermissionsAsync();
+      setLocPerm(
+        describeLocationPermission({
+          foregroundGranted: fg.granted,
+          backgroundGranted: bg.granted,
+        }),
+      );
+    } catch {
+      setLocPerm(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDriver) return;
+    refreshLocPerm();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') refreshLocPerm();
+    });
+    return () => sub.remove();
+  }, [isDriver, refreshLocPerm]);
+
   if (!user) return null;
+
+  // Master notifications : effet réel immédiat (enregistre/désenregistre le push
+  // token côté backend). La préférence reste enregistrée même si l'appel réseau
+  // échoue (resync au prochain lancement).
+  const onToggleMaster = async (on: boolean) => {
+    notif.setMaster(on);
+    try {
+      if (on) await syncPushTokenToBackend();
+      else await unregisterPushTokenFromBackend();
+    } catch {
+      /* best effort */
+    }
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -77,22 +158,91 @@ export default function SettingsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>Notifications</Text>
               <Text style={styles.rowHint}>
-                Recevoir les alertes de course et mises à jour
+                Activer ou couper toutes les notifications
               </Text>
             </View>
             <Switch
-              value={notifEnabled}
-              onValueChange={setNotifEnabled}
+              value={notif.master}
+              onValueChange={onToggleMaster}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.white}
             />
           </View>
+
+          {notif.master && (
+            <>
+              <View style={styles.separator} />
+              <CategoryRow
+                label="Nouvelles courses"
+                value={notif.newDeliveries}
+                onChange={(v) => notif.setCategory('newDeliveries', v)}
+              />
+              <View style={styles.separator} />
+              <CategoryRow
+                label="Suivi de ma livraison"
+                value={notif.deliveryUpdates}
+                onChange={(v) => notif.setCategory('deliveryUpdates', v)}
+              />
+              <View style={styles.separator} />
+              <CategoryRow
+                label="Promotions & actus"
+                value={notif.promotions}
+                onChange={(v) => notif.setCategory('promotions', v)}
+              />
+            </>
+          )}
+
           <View style={styles.separator} />
           <View style={styles.row}>
             <Text style={styles.rowTitle}>Langue</Text>
             <Text style={styles.rowValue}>Français</Text>
           </View>
         </Card>
+
+        {isDriver && (
+          <>
+            <Text style={styles.sectionLabel}>Localisation</Text>
+            <Card style={styles.section}>
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowTitle}>Localisation en arrière-plan</Text>
+                  <Text style={styles.rowHint}>
+                    Nécessaire pour rester visible et recevoir des courses, même
+                    quand l'application est en arrière-plan.
+                  </Text>
+                  {locPerm && (
+                    <View style={styles.permChip}>
+                      <View
+                        style={[styles.permDot, { backgroundColor: toneColor(locPerm.tone) }]}
+                      />
+                      <Text style={[styles.permLabel, { color: toneColor(locPerm.tone) }]}>
+                        {locPerm.label}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              {locPerm?.needsAttention && (
+                <>
+                  <View style={styles.separator} />
+                  <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => Linking.openSettings()}
+                    activeOpacity={0.6}
+                  >
+                    <Ionicons name="settings-outline" size={20} color={colors.primary} />
+                    <Text
+                      style={[styles.rowTitle, { marginLeft: spacing.sm, color: colors.primary }]}
+                    >
+                      Ouvrir les réglages
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                </>
+              )}
+            </Card>
+          </>
+        )}
 
         <Text style={styles.sectionLabel}>Compte</Text>
         <Card style={styles.section}>
@@ -154,9 +304,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
   },
+  rowSub: {
+    paddingVertical: spacing.sm,
+    paddingLeft: spacing.lg,
+  },
   rowTitle: {
     ...typography.body,
     color: colors.textPrimary,
+    flex: 1,
+  },
+  rowSubTitle: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
     flex: 1,
   },
   rowHint: {
@@ -172,6 +331,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginLeft: spacing.md,
+  },
+  permChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  permDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  permLabel: {
+    ...typography.captionMedium,
   },
   danger: { color: colors.error, fontWeight: '600' },
   footer: {
