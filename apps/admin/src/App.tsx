@@ -14,6 +14,8 @@ import Settings from './pages/Settings';
 import Transactions from './pages/Transactions';
 import Balances from './pages/Balances';
 import Notifications from './pages/Notifications';
+import Support from './pages/Support';
+import SupportDetail from './pages/SupportDetail';
 import PromoCodes from './pages/PromoCodes';
 import Fleet from './pages/Fleet';
 import VehicleDetail from './pages/VehicleDetail';
@@ -71,6 +73,8 @@ function AdminApp({ loading, user }: { loading: boolean; user: any }) {
           <Route path="/balances" element={<Balances />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/support/:id" element={<SupportDetail />} />
           <Route path="/promo-codes" element={<PromoCodes />} />
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/fleet/vehicles/:id" element={<VehicleDetail />} />
