@@ -10,7 +10,10 @@ App de livraison Burkina Faso. Mobile RN/Expo, backend Node/Express/Prisma/Postg
 
 ### Serveur (VPS)
 
+**⚠️ TOUJOURS `git pull` AVANT le build.** Sans pull, le repo du VPS reste sur un vieux commit et Docker reconstruit l'**ancien** code (la couche `COPY . .` reste en cache) → le déploiement est un no-op silencieux. Le repo est à `/opt/toole` (racine), les conteneurs sont dans des sous-dossiers.
+
 ```bash
+cd /opt/toole && git pull origin main
 cd /opt/toole/server && docker compose up -d --build toole-api
 ```
 
@@ -24,8 +27,11 @@ Le service docker s'appelle **`toole-api`** (pas `server`, pas `api`). Le path s
 
 ### Admin (VPS)
 
+**⚠️ `git pull` d'abord (même logique que le serveur).** Et pour un changement qui ne touche QUE des fichiers statiques (ex. pages légales `public/*.html`), le `COPY . .` peut rester en cache même après pull → forcer `--no-cache` :
+
 ```bash
-cd /opt/toole/apps/admin && docker compose up -d --build toole-admin
+cd /opt/toole && git pull origin main
+cd /opt/toole/apps/admin && docker compose build --no-cache toole-admin && docker compose up -d toole-admin
 ```
 
 Service Docker : **`toole-admin`** · path VPS : **`/opt/toole/apps/admin`** · domaine : `admin-toole.qalitylabs.fr` (via nginx-proxy externe).
@@ -156,3 +162,16 @@ Palette : terra cotta + sable + vert kola. Admin peut configurer la couleur prim
 - Pas d'emojis sauf demande.
 - Tester en prod = via les testeurs, donc EAS preview puis production après validation.
 - **UI « sans scroll » : sur tout écran refondu, viser à montrer TOUTES les infos décisionnelles à la première vue, sans scroll (sur écran standard type iPhone 14/15). Resserrer les espacements/paddings plutôt que laisser déborder. Le contenu optionnel (blocs repliables) peut rester hors champ. S'applique à TOUS les écrans, pas seulement celui demandé.**
+
+---
+
+## Design & UI — process obligatoire
+
+Skills maison à utiliser (dans `.claude/skills/`) : `design-system-qalitylabs` (tokens + règles esthétiques), `mobile-ux` (Expo/RN), `web-ux` (admin/landing), `screen-brief` (spec par écran). Le plugin `frontend-design` (Anthropic) reste la référence anti-« look template ».
+
+1. **Brief avant code.** Avant de coder/dessiner un écran, remplir le `screen-brief` (objectif, données, actions, états) et le faire valider. Ne jamais coder le mauvais écran.
+2. **3 directions visuelles avant d'implémenter.** Pour toute refonte/nouvel écran, proposer 3 directions distinctes et laisser le user choisir avant de partir sur une seule.
+3. **Prototype ouvrable + auto-vérification.** Prototyper en HTML/React autonome ouvrable dans le navigateur, puis **capturer avec Playwright (screenshot)** pour vérifier soi-même le rendu — ne jamais renvoyer un « teste toi-même » à l'utilisateur pour ce qu'on peut vérifier.
+4. **Audit a11y + responsive systématiques.** Contraste, focus clavier, tailles de cible, plus la checklist responsive (voir `web-ux`/`mobile-ux`) à chaque écran.
+5. **Figma.** Quand une maquette Figma existe, s'y référer (MCP Figma une fois autorisé). Sinon, générer dans Figma via le MCP. Une maquette ne sert que de réf visuelle : ne jamais changer la logique métier (le code fait foi).
+6. **Design only.** En refonte, la logique métier reste identique (champs, payloads, appels API, navigation, conditions d'activation) — seul le design change.
