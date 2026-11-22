@@ -124,23 +124,25 @@ model User {
   notifDeliveryUpdates Boolean @default(true)
   notifPromotions      Boolean @default(true)
 
-  ratingAvg     Decimal   @default(5.0) @db.Decimal(2, 1)
-  ratingCount   Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  ratingAvg   Decimal  @default(5.0) @db.Decimal(2, 1)
+  ratingCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  driverProfile    DriverProfile?
-  sentDeliveries   Delivery[]          @relation("Sender")
-  drivenDeliveries Delivery[]          @relation("Driver")
-  givenRatings     Rating[]            @relation("Rater")
-  receivedRatings  Rating[]            @relation("Rated")
-  refreshTokens    RefreshToken[]
-  transactions     Transaction[]
-  pushTokens       PushToken[]
-  locationLogs     DriverLocationLog[]
-  sentMessages     Message[]           @relation("MessageSender")
-  receivedMessages Message[]           @relation("MessageRecipient")
-  vehicleAssignments VehicleAssignment[]
+  driverProfile         DriverProfile?
+  sentDeliveries        Delivery[]          @relation("Sender")
+  drivenDeliveries      Delivery[]          @relation("Driver")
+  givenRatings          Rating[]            @relation("Rater")
+  receivedRatings       Rating[]            @relation("Rated")
+  refreshTokens         RefreshToken[]
+  transactions          Transaction[]
+  pushTokens            PushToken[]
+  locationLogs          DriverLocationLog[]
+  sentMessages          Message[]           @relation("MessageSender")
+  receivedMessages      Message[]           @relation("MessageRecipient")
+  vehicleAssignments    VehicleAssignment[]
+  supportTickets        SupportTicket[]     @relation("SupportAuthor")
+  handledSupportTickets SupportTicket[]     @relation("SupportHandler")
 
   @@index([phone])
   @@index([userType])
@@ -274,12 +276,13 @@ model Delivery {
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
 
-  sender       User                @relation("Sender", fields: [senderId], references: [id])
-  driver       User?               @relation("Driver", fields: [driverId], references: [id])
-  ratings      Rating[]
-  transactions Transaction[]
-  locationLogs DriverLocationLog[]
-  messages     Message[]
+  sender         User                @relation("Sender", fields: [senderId], references: [id])
+  driver         User?               @relation("Driver", fields: [driverId], references: [id])
+  ratings        Rating[]
+  transactions   Transaction[]
+  locationLogs   DriverLocationLog[]
+  messages       Message[]
+  supportTickets SupportTicket[]
 
   @@index([senderId])
   @@index([driverId])
@@ -663,4 +666,47 @@ model VehicleAssignment {
   @@index([vehicleId])
   @@index([driverId])
   @@index([endedAt])
+}
+
+enum SupportCategory {
+  app_problem // Problème dans l'application
+  account_data // Modifier mes informations
+  dispute // Litige
+  refund // Remboursement
+  other // Autres
+}
+
+enum SupportStatus {
+  open
+  in_progress
+  resolved
+}
+
+/// Demande de support / réclamation créée par un utilisateur. Additif → safe
+/// pour `prisma db push` (nouvelle table, @unique uniquement sur sa colonne).
+/// La réponse au client passe par les canaux existants (pas de chat in-app).
+/// Le remboursement est une décision enregistrée (statut+note), aucun mouvement
+/// d'argent ici.
+model SupportTicket {
+  id          String          @id @default(uuid()) @db.Uuid
+  reference   String          @unique
+  userId      String          @db.Uuid
+  category    SupportCategory
+  deliveryId  String?         @db.Uuid
+  description String
+  photoUrl    String?
+  status      SupportStatus   @default(open)
+  adminNote   String?
+  handledById String?         @db.Uuid
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  resolvedAt  DateTime?
+
+  user      User      @relation("SupportAuthor", fields: [userId], references: [id])
+  delivery  Delivery? @relation(fields: [deliveryId], references: [id])
+  handledBy User?     @relation("SupportHandler", fields: [handledById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
