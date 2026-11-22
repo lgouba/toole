@@ -24,6 +24,7 @@ check('withdrawal → always', categoryForType('withdrawal') === 'always');
 check('commission → always', categoryForType('commission') === 'always');
 check('type inconnu → always', categoryForType('wat') === 'always');
 check('type absent → always', categoryForType(undefined) === 'always');
+check('support_resolved → always', categoryForType('support_resolved') === 'always');
 
 const ALL_ON: NotifPrefs = {
   notifNewDeliveries: true,
@@ -49,6 +50,7 @@ const noUpdates: NotifPrefs = { ...ALL_ON, notifDeliveryUpdates: false };
 check('suivi OFF: delivery_accepted bloqué', isPushAllowed('delivery_accepted', noUpdates) === false);
 check('suivi OFF: message bloqué', isPushAllowed('message', noUpdates) === false);
 check('suivi OFF: account_activated passe (always)', isPushAllowed('account_activated', noUpdates) === true);
+check('tout OFF: support_resolved passe (always)', isPushAllowed('support_resolved', { notifNewDeliveries: false, notifDeliveryUpdates: false, notifPromotions: false }) === true);
 
 // 6) Défaut PERMISSIF : prefs absentes → on envoie.
 check('prefs null → broadcast passe', isPushAllowed('broadcast', null) === true);

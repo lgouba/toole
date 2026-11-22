@@ -38,6 +38,11 @@ import {
   adminUpdatePromoCtrl,
   adminDeletePromoCtrl,
 } from '../controllers/promo.controller.js';
+import {
+  listSupportTicketsCtrl,
+  getSupportTicketCtrl,
+  updateSupportTicketCtrl,
+} from '../controllers/admin.support.controller.js';
 import { adminLoginLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
@@ -96,6 +101,11 @@ router.post('/deliveries/:id/force-cancel', forceCancelDeliveryCtrl);
 // Notifications push (broadcast)
 router.get('/notifications', listNotificationsCtrl);
 router.post('/notifications/broadcast', broadcastNotificationCtrl);
+
+// Réclamations / support
+router.get('/support/tickets', listSupportTicketsCtrl);
+router.get('/support/tickets/:id', getSupportTicketCtrl);
+router.patch('/support/tickets/:id', updateSupportTicketCtrl);
 
 // Codes promo (Bundle 3)
 router.get('/promo-codes', adminListPromoCtrl);
