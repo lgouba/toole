@@ -27,7 +27,17 @@ export async function getMe(req: AuthedRequest, res: Response, next: NextFunctio
 const updateMeSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   email: z.string().email().optional().nullable(),
-  avatarUrl: z.string().url().max(500).optional().nullable(),
+  // L'app stocke les uploads en chemin RELATIF (/uploads/...) ; on accepte ce
+  // format ET une URL absolue (compat). `.url()` seul rejetait le chemin relatif
+  // envoye par le mobile -> "Request validation failed" a l'enregistrement.
+  avatarUrl: z
+    .string()
+    .max(500)
+    .refine((v) => v.startsWith('/uploads/') || /^https?:\/\//.test(v), {
+      message: 'avatarUrl doit être un chemin /uploads/… ou une URL http(s)',
+    })
+    .optional()
+    .nullable(),
 });
 
 export async function updateMe(
