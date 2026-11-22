@@ -42,13 +42,18 @@ function formatDate(iso: string): string {
 export default function SupportTicketsScreen() {
   const router = useRouter();
   const [tickets, setTickets] = useState<SupportTicket[] | null>(null);
+  const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setTickets(await listSupportTickets());
+      setError(false);
     } catch {
-      setTickets([]);
+      setError(true);
+      // Ne pas transformer une panne réseau en "aucune demande" : on quitte
+      // juste l'état chargement en gardant les données précédentes s'il y en a.
+      setTickets((prev) => prev ?? []);
     }
   }, []);
 
@@ -78,6 +83,15 @@ export default function SupportTicketsScreen() {
         <View style={styles.content}>
           <SkeletonList count={4} />
         </View>
+      ) : error && tickets.length === 0 ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          tone="warning"
+          title="Chargement impossible"
+          subtitle="Vérifiez votre connexion et réessayez."
+          actionLabel="Réessayer"
+          onAction={() => load()}
+        />
       ) : tickets.length === 0 ? (
         <EmptyState
           icon="chatbox-ellipses-outline"

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui';
+import { resolveUploadUrl } from '@/services/upload.service';
 import { colors, typography, spacing, borderRadius } from '@/theme';
 import {
   getSupportTicket,
@@ -71,7 +72,7 @@ export default function SupportTicketDetail() {
           {ticket.photoUrl && (
             <>
               <Text style={styles.sectionLabel}>Photo</Text>
-              <Image source={{ uri: ticket.photoUrl }} style={styles.photo} resizeMode="cover" />
+              <Image source={{ uri: resolveUploadUrl(ticket.photoUrl) ?? '' }} style={styles.photo} resizeMode="cover" />
             </>
           )}
 

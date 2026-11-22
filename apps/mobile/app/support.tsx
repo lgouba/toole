@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Card, Button } from '@/components/ui';
-import { colors, typography, spacing, borderRadius, sizes } from '@/theme';
+import { colors, typography, spacing, borderRadius } from '@/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { getDeliveries } from '@/services/delivery.service';
 import type { Delivery } from '@/types/delivery';
@@ -24,7 +24,7 @@ import {
   CATEGORY_LABELS,
   type SupportCategory,
 } from '@/services/support.service';
-import { uploadImage } from '@/services/upload.service';
+import { uploadImage, resolveUploadUrl } from '@/services/upload.service';
 
 const CATEGORIES: { key: SupportCategory; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'app_problem', icon: 'warning-outline' },
@@ -193,7 +193,7 @@ export default function SupportScreen() {
         <Card style={styles.section}>
           <TouchableOpacity style={styles.row} activeOpacity={0.6} onPress={pickPhoto} disabled={uploading}>
             {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.thumb} />
+              <Image source={{ uri: resolveUploadUrl(photoUrl) ?? '' }} style={styles.thumb} />
             ) : (
               <Ionicons name="camera-outline" size={20} color={colors.primary} />
             )}
