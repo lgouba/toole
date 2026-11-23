@@ -38,6 +38,9 @@ export default function ProfileEditScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuthStore();
   const [email, setEmail] = useState(user?.email ?? '');
+  // Email actuellement enregistre (affichage lecture seule, independant de la
+  // saisie en cours) : montre le mail du compte ou un tiret s'il n'y en a pas.
+  const [currentEmail, setCurrentEmail] = useState(user?.email ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -48,6 +51,7 @@ export default function ProfileEditScreen() {
     getMe()
       .then((fresh) => {
         setEmail(fresh.email ?? '');
+        setCurrentEmail(fresh.email ?? '');
         setAvatarUrl(fresh.avatarUrl ?? null);
       })
       .catch(() => {});
@@ -100,6 +104,7 @@ export default function ProfileEditScreen() {
         email: email.trim() || null,
         avatarUrl: avatarUrl ?? null,
       });
+      setCurrentEmail(email.trim());
       await refreshUser();
       Alert.alert('Profil enregistré', undefined, [
         { text: 'OK', onPress: () => router.back() },
@@ -170,6 +175,12 @@ export default function ProfileEditScreen() {
             icon="call-outline"
             label="Téléphone"
             value={formatPhone(user.phone)}
+          />
+          <View style={styles.divider} />
+          <ReadOnlyRow
+            icon="mail-outline"
+            label="Email"
+            value={currentEmail || '-'}
           />
         </View>
 
