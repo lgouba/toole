@@ -14,14 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Card } from '@/components/ui';
 import { colors, typography, spacing, borderRadius } from '@/theme';
-
-// Coordonnees support : a centraliser ici, partage par toute l'app via
-// import { SUPPORT_PHONE, SUPPORT_EMAIL, SUPPORT_WHATSAPP } from '@/app/about';
-export const SUPPORT_PHONE = '+22651631515';
-export const SUPPORT_EMAIL = 'contact-toole@qalitylabs.fr';
-export const SUPPORT_WHATSAPP = '+22651631515';
-export const PRIVACY_URL = 'https://admin-toole.qalitylabs.fr/privacy.html';
-export const TERMS_URL = 'https://admin-toole.qalitylabs.fr/terms.html';
+import { PRIVACY_URL, TERMS_URL } from '@/config/support';
 
 export default function AboutScreen() {
   const router = useRouter();
@@ -61,20 +54,6 @@ export default function AboutScreen() {
     }
   };
 
-  const callSupport = () => openUrl(`tel:${SUPPORT_PHONE}`, 'Impossible d\'ouvrir le composeur.');
-  const emailSupport = () =>
-    openUrl(
-      // encodeURIComponent : le « é » de Toolé doit etre encode, sinon l'URL
-      // mailto est invalide et l'app mail ne s'ouvre pas.
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Demande support Toolé')}`,
-      "Impossible d'ouvrir l'application mail.",
-    );
-  const whatsappSupport = () => {
-    const cleanNumber = SUPPORT_WHATSAPP.replace(/[^0-9]/g, '');
-    const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent('Bonjour, j\'ai besoin d\'aide avec l\'application Toolé.')}`;
-    openUrl(url, "Impossible d'ouvrir WhatsApp.");
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -97,102 +76,6 @@ export default function AboutScreen() {
             Service de livraison à domicile au Burkina Faso
           </Text>
         </View>
-
-        {/* Support / Contact */}
-        <Text style={styles.sectionTitle}>Besoin d'aide ?</Text>
-        <Card style={styles.card}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={whatsappSupport}
-            activeOpacity={0.6}
-          >
-            <View style={[styles.iconBubble, { backgroundColor: '#25D366' }]}>
-              <Ionicons name="logo-whatsapp" size={22} color={colors.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>WhatsApp</Text>
-              <Text style={styles.rowValue}>{SUPPORT_WHATSAPP}</Text>
-              <Text style={styles.rowHint}>
-                Le plus rapide pour nous joindre
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.textTertiary}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.separator} />
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={callSupport}
-            activeOpacity={0.6}
-          >
-            <View style={[styles.iconBubble, { backgroundColor: colors.primary }]}>
-              <Ionicons name="call" size={22} color={colors.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Téléphone</Text>
-              <Text style={styles.rowValue}>{SUPPORT_PHONE}</Text>
-              <Text style={styles.rowHint}>Du lundi au samedi 8h - 19h</Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.textTertiary}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.separator} />
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={emailSupport}
-            activeOpacity={0.6}
-          >
-            <View style={[styles.iconBubble, { backgroundColor: '#6366f1' }]}>
-              <Ionicons name="mail" size={22} color={colors.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Email</Text>
-              <Text style={styles.rowValue}>{SUPPORT_EMAIL}</Text>
-              <Text style={styles.rowHint}>Réponse sous 24-48h</Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={colors.textTertiary}
-            />
-          </TouchableOpacity>
-        </Card>
-
-        {/* Demandes / réclamations */}
-        <Text style={styles.sectionTitle}>Une demande ?</Text>
-        <Card style={styles.card}>
-          <TouchableOpacity
-            style={styles.rowSimple}
-            onPress={() => router.push('/support' as any)}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.rowSimpleLabel}>Envoyer une demande</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-          </TouchableOpacity>
-
-          <View style={styles.separator} />
-
-          <TouchableOpacity
-            style={styles.rowSimple}
-            onPress={() => router.push('/support-tickets' as any)}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="file-tray-full-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.rowSimpleLabel}>Mes demandes</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </Card>
 
         {/* Légal */}
         <Text style={styles.sectionTitle}>Informations légales</Text>
