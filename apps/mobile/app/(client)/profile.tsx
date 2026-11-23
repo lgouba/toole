@@ -57,6 +57,7 @@ export default function ProfileScreen() {
         <ProfileHeader
           fullName={user.fullName}
           phone={user.phone}
+          avatarUrl={user.avatarUrl}
           memberSinceYear={memberYear}
           stats={stats}
           onEdit={() => go('/profile-edit')}
@@ -81,7 +82,8 @@ export default function ProfileScreen() {
           title="APPLICATION"
           items={[
             { icon: 'settings', tint: 'violet', label: 'Paramètres', onPress: () => go('/settings') },
-            { icon: 'info', tint: 'neutral', label: 'À propos & support', onPress: () => go('/about') },
+            { icon: 'support-agent', tint: 'green', label: 'Aide & support', onPress: () => go('/support-hub') },
+            { icon: 'info', tint: 'neutral', label: 'À propos', onPress: () => go('/about') },
           ]}
         />
 

@@ -47,6 +47,7 @@ export default function DriverProfileScreen() {
         <DriverProfileHeader
           fullName={user.fullName}
           phone={user.phone}
+          avatarUrl={user.avatarUrl}
           verified={verified}
           ratingAvg={user.ratingAvg}
           ratingCount={user.ratingCount}
@@ -90,7 +91,8 @@ export default function DriverProfileScreen() {
           title="APPLICATION"
           items={[
             { icon: 'settings', tint: 'violet', label: 'Paramètres', onPress: () => go('/settings') },
-            { icon: 'info', tint: 'neutral', label: 'À propos & support', onPress: () => go('/about') },
+            { icon: 'support-agent', tint: 'green', label: 'Aide & support', onPress: () => go('/support-hub') },
+            { icon: 'info', tint: 'neutral', label: 'À propos', onPress: () => go('/about') },
           ]}
         />
 

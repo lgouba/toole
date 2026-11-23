@@ -1,12 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { recap as R, profile as P } from '@/theme/recapTokens';
 import { formatPhone } from '@/utils/format';
+import { resolveUploadUrl } from '@/services/upload.service';
 
 interface Props {
   fullName: string;
   phone: string;
+  avatarUrl?: string | null;
   memberSinceYear?: number;
   stats?: { total: number; active: number } | null;
   onEdit: () => void;
@@ -19,14 +21,19 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function ProfileHeader({ fullName, phone, memberSinceYear, stats, onEdit }: Props) {
+export function ProfileHeader({ fullName, phone, avatarUrl, memberSinceYear, stats, onEdit }: Props) {
   const hasStats = !!stats && stats.total > 0;
+  const photo = resolveUploadUrl(avatarUrl ?? null);
   return (
     <View style={styles.wrap}>
       <View style={styles.avatarWrap}>
-        <View style={styles.avatar}>
-          <Text style={styles.initials}>{initialsOf(fullName)}</Text>
-        </View>
+        {photo ? (
+          <Image source={{ uri: photo }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.initials}>{initialsOf(fullName)}</Text>
+          </View>
+        )}
         <TouchableOpacity style={styles.editBtn} onPress={onEdit} accessibilityLabel="Modifier le profil">
           <MaterialIcons name="edit" size={14} color="#FFFFFF" />
         </TouchableOpacity>

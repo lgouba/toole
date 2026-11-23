@@ -1,12 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { recap as R, profile as P } from '@/theme/recapTokens';
 import { formatPhone } from '@/utils/format';
+import { resolveUploadUrl } from '@/services/upload.service';
 
 interface Props {
   fullName: string;
   phone: string;
+  avatarUrl?: string | null;
   verified: boolean;
   ratingAvg: number;
   ratingCount: number;
@@ -21,14 +23,19 @@ function initialsOf(name: string): string {
   return (p[0][0] + p[p.length - 1][0]).toUpperCase();
 }
 
-export function DriverProfileHeader({ fullName, phone, verified, ratingAvg, ratingCount, stats, onEdit }: Props) {
+export function DriverProfileHeader({ fullName, phone, avatarUrl, verified, ratingAvg, ratingCount, stats, onEdit }: Props) {
   const hasRatings = ratingCount > 0;
+  const photo = resolveUploadUrl(avatarUrl ?? null);
   return (
     <View style={styles.wrap}>
       <View style={styles.avatarWrap}>
-        <View style={styles.avatar}>
-          <Text style={styles.initials}>{initialsOf(fullName)}</Text>
-        </View>
+        {photo ? (
+          <Image source={{ uri: photo }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.initials}>{initialsOf(fullName)}</Text>
+          </View>
+        )}
         {verified ? (
           <View style={styles.verified}>
             <MaterialIcons name="check" size={13} color="#FFFFFF" />
